@@ -469,8 +469,7 @@ SPAWN_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"spawn"[[:space
 
 if [[ "$MODE" == "yolo" ]] || [[ -n "$SPAWN_ENABLED" ]]; then
   PROJECT="$(basename "$(pwd)")-$(date +%s)"
-  tmux new-window -n "$PROJECT" -c "$(pwd)"
-  tmux send-keys -t "$PROJECT" "claude --dangerously-skip-permissions --chrome '/gsd:progress'" Enter
+  tmux new-window -n "$PROJECT" -c "$(pwd)" "claude --dangerously-skip-permissions --chrome '/gsd:progress'"
   echo "✓ New session spawned in tmux window '$PROJECT'"
   echo "  Type 'exit' to close this session."
 fi
@@ -531,8 +530,7 @@ SPAWN_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"spawn"[[:space
 
 if [[ "$MODE" == "yolo" ]] || [[ -n "$SPAWN_ENABLED" ]]; then
   PROJECT="$(basename "$(pwd)")-$(date +%s)"
-  tmux new-window -n "$PROJECT" -c "$(pwd)"
-  tmux send-keys -t "$PROJECT" "claude --dangerously-skip-permissions --chrome '/gsd:progress'" Enter
+  tmux new-window -n "$PROJECT" -c "$(pwd)" "claude --dangerously-skip-permissions --chrome '/gsd:progress'"
   echo "✓ New session spawned in tmux window '$PROJECT'"
   echo "  Type 'exit' to close this session."
 fi
