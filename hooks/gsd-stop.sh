@@ -60,14 +60,21 @@ fi
 # Found spawn marker!
 log "Found spawn marker: $SPAWN_LINE"
 
-# Read source window ID (captured at session start)
-SOURCE_ID_FILE="$CWD/.planning/.current-window-id"
+# Get current pane PID (same PID that was used at session start)
+PANE_PID=$(tmux display-message -p '#{pane_pid}' 2>/dev/null || echo "")
+if [[ -z "$PANE_PID" ]]; then
+    log "Skip: cannot get pane PID"
+    exit 0
+fi
+
+# Read source window ID from PID-specific file (prevents killing wrong session)
+SOURCE_ID_FILE="$CWD/.planning/.window-$PANE_PID"
 if [[ ! -f "$SOURCE_ID_FILE" ]]; then
-    log "Skip: no window ID captured at session start"
+    log "Skip: no window ID file for PID $PANE_PID"
     exit 0
 fi
 SOURCE_WINDOW_ID=$(cat "$SOURCE_ID_FILE")
-log "Source window ID: $SOURCE_WINDOW_ID"
+log "Source window ID: $SOURCE_WINDOW_ID (pane PID: $PANE_PID)"
 
 # Parse the command
 NEXT_CMD=$(echo "$SPAWN_LINE" | sed 's/^GSD_SPAWN: //' | sed 's/[[:space:]]*$//')
