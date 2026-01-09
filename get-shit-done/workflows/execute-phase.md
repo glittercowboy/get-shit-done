@@ -204,15 +204,48 @@ No segmentation benefit - execute entirely in main
 **For fully autonomous plans:**
 
 ```
-Use Task tool with subagent_type="general-purpose":
+1. Run init_agent_tracking step first (see step below)
 
-Prompt: "Execute plan at .planning/phases/{phase}-{plan}-PLAN.md
+2. Use Task tool with subagent_type="general-purpose":
 
-This is an autonomous plan (no checkpoints). Execute all tasks, create SUMMARY.md in phase directory, commit with message following plan's commit guidance.
+   Prompt: "Execute plan at .planning/phases/{phase}-{plan}-PLAN.md
 
-Follow all deviation rules and authentication gate protocols from the plan.
+   This is an autonomous plan (no checkpoints). Execute all tasks, create SUMMARY.md in phase directory, commit with message following plan's commit guidance.
 
-When complete, report: plan name, tasks completed, SUMMARY path, commit hash."
+   Follow all deviation rules and authentication gate protocols from the plan.
+
+   When complete, report: plan name, tasks completed, SUMMARY path, commit hash."
+
+3. After Task tool returns with agent_id:
+
+   a. Write agent_id to current-agent-id.txt:
+      echo "[agent_id]" > .planning/current-agent-id.txt
+
+   b. Append spawn entry to agent-history.json:
+      {
+        "agent_id": "[agent_id from Task response]",
+        "task_description": "Execute full plan {phase}-{plan} (autonomous)",
+        "phase": "{phase}",
+        "plan": "{plan}",
+        "segment": null,
+        "timestamp": "[ISO timestamp]",
+        "status": "spawned",
+        "completion_timestamp": null
+      }
+
+4. Wait for subagent to complete
+
+5. After subagent completes successfully:
+
+   a. Update agent-history.json entry:
+      - Find entry with matching agent_id
+      - Set status: "completed"
+      - Set completion_timestamp: "[ISO timestamp]"
+
+   b. Clear current-agent-id.txt:
+      rm .planning/current-agent-id.txt
+
+6. Report completion to user
 ```
 
 **For segmented plans (has verify-only checkpoints):**
