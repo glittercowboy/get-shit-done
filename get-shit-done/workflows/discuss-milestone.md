@@ -72,17 +72,17 @@ Use AskUserQuestion:
 Based on their response, use AskUserQuestion:
 
 If they named specific features:
-- header: "Feature Details"
+- header: "Feature"
 - question: "Tell me more about [feature] - what should it do?"
 - options: [Contextual options based on feature type + "Let me describe it"]
 
 If they described a general direction:
-- header: "Breaking It Down"
+- header: "Breakdown"
 - question: "That could involve [A], [B], [C] - which matter most?"
 - options: [Specific sub-features + "All of them" + "Something else"]
 
 If they're not sure:
-- header: "Starting Points"
+- header: "Start"
 - question: "What's been frustrating or missing?"
 - options: [Deferred issues from STATE.md + pain point categories + "Let me think about it"]
 

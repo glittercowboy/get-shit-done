@@ -55,7 +55,7 @@ Use the phase mapping from `<phase_mapping>` section.
 **If called directly (no MILESTONE-CONTEXT.md):**
 Ask for milestone details:
 
-header: "Milestone Name"
+header: "Milestone"
 question: "What should we call this milestone?"
 options:
 

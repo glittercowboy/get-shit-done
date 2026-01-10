@@ -108,7 +108,7 @@ Use AskUserQuestion:
 **2. Follow the thread:**
 
 Based on their response, use AskUserQuestion:
-- header: "[Topic they mentioned]"
+- header: "Topic"
 - question: "You mentioned [X] — what would that look like?"
 - options: 2-3 interpretations + "Something else"
 

@@ -1,7 +1,5 @@
-node_modules/
-package-lock.json
-.DS_Store
-TO-DOS.md
+.planning/
+AGENTS.md
 CLAUDE.md
-.planning
-/research
+.claude/
+.opencode/
