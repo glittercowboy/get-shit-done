@@ -5,100 +5,108 @@
 ## Naming Patterns
 
 **Files:**
-- kebab-case for all files (command-handler.js, user-service.md)
-- *.md for Markdown documents
-- *.js for JavaScript source files
+- kebab-case for Markdown files (command definitions, templates, workflows)
+- camelCase for JavaScript files (install.js, functions)
+- UPPERCASE for important docs (README.md)
 
 **Functions:**
-- camelCase for all functions
-- Examples: parseConfigDirArg, expandTilde, copyWithPathReplacement
+- camelCase for all functions (e.g., expandTilde, copyWithPathReplacement)
+- Descriptive names (e.g., parseConfigDirArg, buildCommandMap)
 
 **Variables:**
-- camelCase for variables
-- Examples: hasGlobal, hasLocal, explicitConfigDir
+- camelCase for variables (e.g., args, hasGlobal, claudeDir)
+- No special prefix for private (Node.js modules)
 
 **Types:**
-- Not applicable (JavaScript, no TypeScript)
+- Not applicable (JavaScript without TypeScript)
 
 ## Code Style
 
 **Formatting:**
-- 2 space indentation
-- Mixed quotes (single and double quotes used)
-- Inconsistent semicolons
-- Unix line endings
+- 2 space indentation consistently
+- Inconsistent quotes (single in install.js, double in others)
+- Semicolons required
+- Manual formatting (no auto-formatter)
 
 **Linting:**
-- No linting tools configured
-- Manual code style enforcement
+- None configured (no .eslintrc, no linting tools)
 
 ## Import Organization
 
 **Order:**
-- Node.js built-ins first
-- Local modules second
+1. Node.js built-ins (fs, path, os, readline)
+2. Local requires (relative paths)
 
 **Grouping:**
-- Built-ins separated from local imports
+- Built-ins first, then locals
+- No blank lines between groups
 
 **Path Aliases:**
-- No path aliases configured
+- No path aliases (relative imports only)
 
 ## Error Handling
 
 **Patterns:**
-- No structured error handling in installation scripts
-- Fail-fast approach with basic error messages
+- Fail-fast approach in CLI scripts
+- console.error for user-visible errors
+- process.exit with error codes
 
 **Error Types:**
-- File system errors not caught
-- Installation failures result in unhandled exceptions
+- Basic error messages to stderr
+- No custom error classes
+
+**Logging:**
+- console.log for normal output
+- console.error for errors
+- ANSI color codes for styling
 
 ## Logging
 
 **Framework:**
-- Console methods (console.log, console.error)
+- Console-based logging only
 - No structured logging library
 
 **Patterns:**
-- Direct console output for user feedback
-- No persistent logging
+- console.log for informational output
+- console.error for errors
+- Colored output using ANSI escape codes
 
 ## Comments
 
 **When to Comment:**
-- JSDoc style /** */ for function documentation
-- Single-line // for implementation notes
+- Complex logic gets brief comments
+- Function purpose explained in multi-line comments
+- Inline comments for non-obvious code
 
 **JSDoc/TSDoc:**
-- Basic JSDoc with descriptions
-- No parameter or return type documentation
+- Basic JSDoc for functions (e.g., /** * Expand ~ to home directory */)
+- Not extensive
 
 **TODO Comments:**
-- Not found in codebase
+- Not detected in codebase
 
 ## Function Design
 
 **Size:**
-- Functions kept reasonably small
-- Installation logic is the main complexity
+- Functions vary in size (copyWithPathReplacement is ~20 lines)
+- No strict limits observed
 
 **Parameters:**
-- Function parameters use descriptive names
-- No complex parameter objects
+- Few parameters per function (1-3 typical)
+- Destructuring not used (simple parameter lists)
 
 **Return Values:**
-- Direct return values
-- No Result<T, E> patterns
+- Explicit returns
+- process.exit for CLI termination
 
 ## Module Design
 
 **Exports:**
-- CommonJS exports (module.exports)
-- Single export per file
+- CommonJS module.exports for functions
+- No named exports
 
 **Barrel Files:**
-- Not used
+- Not used (each file is standalone)
 
 ---
 

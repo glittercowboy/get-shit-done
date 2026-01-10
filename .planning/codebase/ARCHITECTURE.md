@@ -4,120 +4,121 @@
 
 ## Pattern Overview
 
-**Overall:** Plugin-based Meta-prompting System
+**Overall:** Monolithic plugin system for Claude Code, focused on markdown-based project management.
 
 **Key Characteristics:**
-- Markdown-based configuration instead of code
-- Claude Code as runtime execution environment
-- File-based state management (.planning/ directory)
-- Command-driven workflow orchestration
-- Template-driven output generation
+- Single-purpose tool (not a full application stack)
+- CLI installer with configuration-based deployment
+- Markdown-driven workflows and templates
+- File-based state management (no database)
+- Plugin architecture for Claude Code integration
 
 ## Layers
 
-**Commands Layer:**
-- Purpose: User interface and command routing
-- Contains: Slash command definitions in Markdown format
+**Command Layer:**
+- Purpose: Define slash commands available in Claude Code
+- Contains: Command metadata, descriptions, objectives
+- Location: `commands/gsd/*.md`
 - Depends on: Workflow layer for execution logic
 - Used by: Claude Code runtime
-- Location: `commands/gsd/*.md`
 
-**Workflows Layer:**
-- Purpose: Process definitions and business logic
-- Contains: Step-by-step execution instructions
-- Depends on: Template layer for output generation
-- Used by: Command handlers
+**Workflow Layer:**
+- Purpose: Orchestrate execution logic for each command
+- Contains: Step-by-step processes, agent spawning, file operations
 - Location: `get-shit-done/workflows/*.md`
+- Depends on: Template layer for output structures, Reference layer for injected knowledge
+- Used by: Command execution in Claude Code
 
-**Templates Layer:**
-- Purpose: Output generation and formatting
-- Contains: Reusable document structures with variables
-- Depends on: None (static templates)
-- Used by: Workflows for generating project files
-- Location: `get-shit-done/templates/*.md`
+**Template Layer:**
+- Purpose: Provide structured output formats
+- Contains: Markdown templates with placeholders for dynamic content
+- Location: `get-shit-done/templates/*.md`, `get-shit-done/templates/codebase/*.md`
+- Depends on: None (static files)
+- Used by: Workflows during document generation
 
-**References Layer:**
-- Purpose: Knowledge base and reusable guidance
-- Contains: Best practices and reference materials
-- Depends on: None (static content)
-- Used by: Workflows for context injection
+**Reference Layer:**
+- Purpose: Store knowledge and context injected into workflows
+- Contains: Best practices, patterns, pitfalls
 - Location: `get-shit-done/references/*.md`
+- Depends on: None (static knowledge)
+- Used by: Workflows for enhanced prompting
 
 ## Data Flow
 
-**Command Execution Flow:**
+**Command Execution (e.g., /gsd:map-codebase):**
 
-1. User runs slash command (e.g., `/gsd:new-project`)
-2. Claude loads command definition from installed location
-3. Command references workflow file for execution logic
-4. Workflow reads templates and reference materials
-5. Workflow processes project context from .planning/ directory
-6. Templates generate output files (plans, summaries, etc.)
-7. Project state updated and changes committed
-8. Results displayed to user
+1. User types slash command in Claude Code
+2. Claude loads command definition from `commands/gsd/map-codebase.md`
+3. Workflow executes from `get-shit-done/workflows/map-codebase.md`
+4. Parallel agents spawned to analyze codebase
+5. Templates filled with findings from `get-shit-done/templates/codebase/*.md`
+6. Markdown documents written to `.planning/codebase/`
+7. Results committed to git
 
 **State Management:**
-- File-based: All state lives in `.planning/` directory
-- No persistent in-memory state
+- File-based: All state in `.planning/` directory created in target projects
+- No persistent in-memory state between commands
 - Each command execution is independent
 
 ## Key Abstractions
 
-**Project Phases:**
-- Purpose: Hierarchical work breakdown units
-- Examples: Research phase, planning phase, execution phase
-- Pattern: Sequential workflow with dependencies
+**Command:**
+- Purpose: Define CLI interface for GSD operations
+- Examples: `commands/gsd/new-project.md`, `commands/gsd/map-codebase.md`
+- Pattern: Markdown file with frontmatter metadata and objective
 
-**Plans:**
-- Purpose: Executable task definitions
-- Examples: PLAN.md files with frontmatter metadata
-- Pattern: Structured task lists with status tracking
+**Workflow:**
+- Purpose: Encapsulate complex multi-step processes
+- Examples: `get-shit-done/workflows/map-codebase.md` (parallel agents), `get-shit-done/workflows/plan-phase.md`
+- Pattern: XML-inspired step structure with bash commands and tool usage
 
-**Summaries:**
-- Purpose: Completion records and progress tracking
-- Examples: SUMMARY.md files with outcome documentation
-- Pattern: Frontmatter metadata with timestamps and links
+**Template:**
+- Purpose: Reusable document structures with substitution variables
+- Examples: `get-shit-done/templates/project.md`, `get-shit-done/templates/codebase/architecture.md`
+- Pattern: Markdown with `[Placeholder]` syntax for dynamic filling
 
-**Context Injection:**
-- Purpose: Include external files in workflows
-- Examples: @references for file inclusion
-- Pattern: @path/to/file.md syntax for content injection
+**Reference:**
+- Purpose: Contextual knowledge injected into prompts
+- Examples: `get-shit-done/references/tdd.md`, `get-shit-done/references/principles.md`
+- Pattern: Markdown knowledge base referenced by workflows
 
 ## Entry Points
 
-**CLI Installation:**
+**CLI Installer:**
 - Location: `bin/install.js`
-- Triggers: User runs `npm install -g` or `npx get-shit-done-cc`
-- Responsibilities: Copy files to Claude configuration directory
+- Triggers: `npx get-shit-done-cc` or `node bin/install.js`
+- Responsibilities: Install plugin to Claude config directory, copy files with path replacement
 
-**Slash Commands:**
-- Location: `commands/gsd/*.md`
-- Triggers: User types command in Claude interface
-- Responsibilities: Route to appropriate workflow execution
+**Plugin Directories:**
+- Location: `.claude-plugin/`, `.opencode/` (alternative implementations)
+- Triggers: Claude Code startup (loads commands from config)
+- Responsibilities: Register slash commands and provide workflow logic
 
 ## Error Handling
 
-**Strategy:** Fail-fast approach with descriptive error messages
+**Strategy:** Fail-fast with descriptive error messages in installer, workflow validation in commands
 
 **Patterns:**
-- Command validation before execution
-- Clear error messages to user
-- No complex error recovery (manual intervention required)
+- Installer exits with error codes for invalid arguments
+- Workflow steps include validation checks
+- User prompted for confirmation on destructive operations
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- Console output for user feedback
-- No persistent logging infrastructure
-
-**Validation:**
-- Input validation in command definitions
-- File existence checks in workflows
+**Path Resolution:**
+- Tilde expansion for home directory paths
+- Configurable Claude config directories
+- Relative path handling for local vs global installs
 
 **File Operations:**
-- Atomic file operations where possible
-- Path resolution and validation
-- Backup and restore patterns
+- Recursive directory copying with content transformation
+- Path prefix replacement in markdown files
+- Atomic operations where possible
+
+**Platform Compatibility:**
+- Node.js 16+ requirement
+- Cross-platform path handling with `path` module
+- OS-specific home directory resolution
 
 ---
 

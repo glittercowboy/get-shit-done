@@ -6,129 +6,130 @@
 
 ```
 get-shit-done/
-├── bin/                     # Executable entry points
-│   └── install.js          # CLI installation script
-├── commands/                # Slash command definitions
-│   └── gsd/                # GSD-specific commands
-│       ├── help.md         # Help command
-│       ├── new-project.md  # Project initialization
-│       └── [20+ more .md]  # Other commands
-├── get-shit-done/          # Plugin resources
-│   ├── references/         # Knowledge base documents
-│   │   ├── plan-format.md  # Planning guidelines
-│   │   └── [8 more .md]    # Reference materials
-│   ├── templates/          # Output generation templates
-│   │   ├── project.md      # Project file template
-│   │   ├── roadmap.md      # Roadmap template
-│   │   └── [17+ more .md]  # Other templates
-│   └── workflows/          # Process definitions
-│       ├── execute-phase.md # Phase execution workflow
-│       ├── plan-phase.md   # Phase planning workflow
-│       └── [9 more .md]    # Other workflows
-├── assets/                  # Marketing and documentation assets
-├── package.json             # Project manifest
-└── README.md                # User documentation
+├── bin/                # Executable entry points
+├── commands/           # Slash command definitions
+│   └── gsd/           # GSD-specific commands
+├── get-shit-done/     # Skill resources
+│   ├── references/    # Principle documents
+│   ├── templates/     # File templates
+│   └── workflows/     # Multi-step procedures
+├── assets/            # Marketing and documentation assets
+├── .claude-plugin/    # Plugin configuration
+└── .opencode/         # Alternative plugin setup
 ```
 
 ## Directory Purposes
 
 **bin/**
-- Purpose: CLI entry points and installation scripts
-- Contains: install.js (Node.js installer), potentially legacy files
-- Key files: install.js - handles npx installation and file copying
+- Purpose: CLI entry points
+- Contains: install.js (installer script), install-opencode.js, uninstall-opencode.js
+- Key files: install.js - handles npx installation
 - Subdirectories: None
 
 **commands/gsd/**
-- Purpose: User interface layer - Claude Code slash commands
-- Contains: *.md files (one per command with frontmatter metadata)
-- Key files: help.md, new-project.md, plan-phase.md, execute-plan.md
+- Purpose: Slash command definitions for Claude Code
+- Contains: *.md files (one per command)
+- Key files: new-project.md, map-codebase.md, plan-phase.md, execute-plan.md
 - Subdirectories: None (flat structure)
 
 **get-shit-done/references/**
-- Purpose: Core philosophy and reusable guidance documents
-- Contains: principles.md, questioning.md, plan-format.md, and others
-- Key files: principles.md - system philosophy, plan-format.md - planning guidelines
+- Purpose: Core philosophy and guidance documents
+- Contains: *.md files with principles and best practices
+- Key files: principles.md, questioning.md, plan-format.md
 - Subdirectories: None
 
 **get-shit-done/templates/**
-- Purpose: Document templates for .planning/ files and workflows
-- Contains: Template definitions with frontmatter and examples
-- Key files: project.md, roadmap.md, plan.md, summary.md, codebase/ subdirectory
-- Subdirectories: codebase/ (templates for codebase analysis)
+- Purpose: Document templates for .planning/ files
+- Contains: Template definitions with frontmatter
+- Key files: project.md, roadmap.md, plan.md, summary.md
+- Subdirectories: codebase/ (for stack/architecture/structure templates)
 
 **get-shit-done/workflows/**
-- Purpose: Business logic layer - detailed process instructions
-- Contains: Workflow definitions called by slash commands
-- Key files: execute-phase.md, research-phase.md, plan-phase.md
+- Purpose: Reusable multi-step procedures
+- Contains: Workflow definitions called by commands
+- Key files: execute-phase.md, research-phase.md, map-codebase.md
 - Subdirectories: None
 
 **assets/**
-- Purpose: Static assets for documentation and marketing
-- Contains: Images and other media files
-- Key files: Documentation screenshots, logos
+- Purpose: Marketing and documentation assets
+- Contains: Images, logos, documentation files
+- Key files: README assets, screenshots
 - Subdirectories: None
 
 ## Key File Locations
 
 **Entry Points:**
-- `bin/install.js` - Installation script (npx entry point)
+- `bin/install.js` - CLI entry point for npx installation
 
 **Configuration:**
-- `package.json` - Project metadata and CLI entry definition
-- `.gitignore` - Excluded files and directories
+- `package.json` - Project manifest, dependencies, scripts
+- `.gitignore` - Excluded files
 
 **Core Logic:**
-- `bin/install.js` - File copying, path replacement, installation logic
+- `bin/install.js` - All installation logic (file copying, path replacement)
+- `commands/gsd/*.md` - Command definitions
+- `get-shit-done/workflows/*.md` - Execution logic
+
+**Testing:**
+- Not applicable (manual verification only)
 
 **Documentation:**
 - `README.md` - User-facing installation and usage guide
-- `CLAUDE.md` - Instructions for working in this repository
+- `AGENTS.md` - Instructions for Claude Code when working in this repo
 
 ## Naming Conventions
 
 **Files:**
-- kebab-case.md: All Markdown documents
-- kebab-case.js: JavaScript source files
-- UPPERCASE.md: Important project files (README.md)
+- kebab-case.md: Markdown documents
+- camelCase.js: JavaScript source files
+- UPPERCASE.md: Important project files (README, CLAUDE, CHANGELOG)
 
 **Directories:**
-- kebab-case: All directories (bin, commands, get-shit-done, assets)
+- kebab-case: All directories
+- Plural for collections: commands/, templates/, workflows/, references/
 
 **Special Patterns:**
-- {command-name}.md: Slash command definition files
-- *-template.md: Template files (though not consistently applied)
+- {command-name}.md: Slash command definition
+- *-template.md: Could be used but templates/ directory preferred
 
 ## Where to Add New Code
 
 **New Slash Command:**
 - Primary code: `commands/gsd/{command-name}.md`
-- Documentation: Update README.md with new command
+- Tests: Manual verification (run command and validate output)
+- Documentation: Update `README.md` with new command
 
 **New Template:**
 - Implementation: `get-shit-done/templates/{name}.md`
-- Documentation: Template is self-documenting with guidelines
+- Documentation: Template is self-documenting (includes guidelines)
 
 **New Workflow:**
 - Implementation: `get-shit-done/workflows/{name}.md`
-- Usage: Reference from command with @~/.claude/get-shit-done/workflows/{name}.md
+- Usage: Reference from command with `@~/.claude/get-shit-done/workflows/{name}.md`
 
 **New Reference Document:**
 - Implementation: `get-shit-done/references/{name}.md`
 - Usage: Reference from commands/workflows as needed
 
 **Utilities:**
-- No utilities directory yet - consider `src/utils/` if JavaScript utilities needed
+- No utilities yet (`install.js` is monolithic)
+- If extracted: `bin/utils/` or separate module
 
 ## Special Directories
 
 **get-shit-done/**
-- Purpose: Resources copied to Claude installation directory
-- Source: Repository files (source of truth)
-- Committed: Yes
+- Purpose: Resources installed to ~/.claude/
+- Source: Copied by bin/install.js during installation
+- Committed: Yes (source of truth)
 
 **commands/**
-- Purpose: Slash commands installed to Claude configuration
-- Source: Repository files (source of truth)
+- Purpose: Slash commands installed to ~/.claude/commands/
+- Source: Copied by bin/install.js during installation
+- Committed: Yes (source of truth)
+
+**assets/**
+- Purpose: External marketing and documentation materials
+- Source: Static assets for README and docs
 - Committed: Yes
 
 ---

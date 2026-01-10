@@ -5,48 +5,56 @@
 ## Languages
 
 **Primary:**
-- JavaScript - All application code
+- JavaScript - `bin/install.js`, `bin/install-opencode.js`, `bin/uninstall-opencode.js`
+
+**Secondary:**
+- Markdown - `commands/gsd/*.md`, `get-shit-done/workflows/*.md`, `get-shit-done/templates/*.md`, `get-shit-done/references/*.md`
 
 ## Runtime
 
 **Environment:**
-- Node.js >=16.7.0
-- CLI tool only, no browser runtime
+- Node.js >=16.7.0 - `package.json`
+- No browser runtime (CLI tool only)
 
-## Package Manager
-
-**Manager:**
-- npm
-- No lockfile (no dependencies to lock)
+**Package Manager:**
+- npm - inferred from package.json structure
+- No lockfile present
 
 ## Frameworks
 
 **Core:**
-- None (vanilla Node.js CLI)
+- Not detected (vanilla Node.js CLI)
+
+**Testing:**
+- Not applicable (no automated tests)
+
+**Build/Dev:**
+- Not applicable (no build process)
 
 ## Key Dependencies
 
 **Critical:**
 - Node.js built-ins - fs, path, os, readline for file operations
 
+**Infrastructure:**
+- Not applicable
+
 ## Configuration
 
 **Environment:**
 - No environment variables required
-- Configuration via CLI flags only (--global, --local, --config-dir)
+- Configuration via CLI flags and JSON config files
 
 **Build:**
-- No build configuration needed
+- No build configuration (direct Node.js execution)
 
 ## Platform Requirements
 
 **Development:**
-- macOS/Linux/Windows (any platform with Node.js)
-- No external dependencies
+- Any platform with Node.js 16.7+
 
 **Production:**
-- Distributed as npm package
-- Installed globally via npm install -g
+- Distributed as npm package via npx
 - Runs on user's Node.js installation
 
 ---
