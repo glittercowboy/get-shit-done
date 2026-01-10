@@ -1,128 +1,116 @@
 ---
-phase: 11-async-parallel-execution
+phase: 11-intelligent-parallel-execution
 plan: 02
-subsystem: execution
-tags: [async, parallel, dependency-detection, queue-management, background-agents]
+subsystem: workflows
+tags: [parallelization, task-level, concurrency, orchestration]
 
 # Dependency graph
 requires:
-  - phase: 11-01-async-execution-foundation
-    provides: Background execution capability (/gsd:execute-async, /gsd:status)
+  - phase: 11
+    provides: plan-level parallelization infrastructure
 provides:
-  - Parallel phase execution via /gsd:execute-phase-async
-  - Dependency detection between plans
-  - Queue management with configurable concurrency
-  - async-execution workflow for shared execution logic
-affects: [execute-phase-workflow, future-parallel-features]
+  - Task dependency analysis within plans
+  - Task-level parallel spawning with shared concurrency
+  - Result merging for parallel task execution
+  - Per-task configuration overrides
+affects: [execute-phase, status]
 
 # Tech tracking
 tech-stack:
   added: []
-  patterns: [dependency-graph-building, queue-management-fifo, parallel-safe-spawning]
+  patterns:
+    - Task dependency graph from file conflicts
+    - Shared concurrency pool for plan and task agents
+    - Per-task granularity tracking in agent-history
 
 key-files:
-  created:
-    - get-shit-done/workflows/async-execution.md
-    - commands/gsd/execute-phase-async.md
+  created: []
   modified:
-    - .planning/ROADMAP.md
-    - .planning/STATE.md
+    - get-shit-done/workflows/execute-phase.md
+    - get-shit-done/templates/agent-history.md
+    - commands/gsd/status.md
 
 key-decisions:
-  - "Named command /gsd:execute-phase-async for clarity (explicit async vs potential sync variant)"
-  - "Default max_concurrent: 3 agents to balance parallelism with resource usage"
-  - "FIFO queue strategy for predictable ordering"
-  - "Safe-by-default: uncertain dependencies default to sequential execution"
+  - "Task agents share global max_concurrent_agents pool with plan agents"
+  - "Checkpoint tasks can parallelize with skip_in_background opt-out per task"
+  - "Conflict detection at file level with user resolution options"
+  - "Task-level commits deferred to orchestrator (single plan commit)"
 
 patterns-established:
-  - "Dependency detection: Parse plan context for @SUMMARY.md references and shared files"
-  - "Queue management: track running/queued/completed via agent-history.json background_status"
-  - "Parallel spawning: spawn independent plans first, queue dependents"
+  - "Task dependency detection via file conflicts and explicit deps"
+  - "Granularity field distinguishes plan vs task_group execution"
+  - "Nested parallel execution display in status command"
 
 issues-created: []
 
 # Metrics
-duration: 4min
-completed: 2026-01-09
+duration: 6min
+completed: 2026-01-10
 ---
 
-# Phase 11 Plan 02: Parallel Phase Execution Summary
+# Phase 11 Plan 02: Task-Level Parallelization Summary
 
-**/gsd:execute-phase-async command with dependency detection and queue management for true "walk away" parallel plan execution**
+**Task dependency analysis with parallel spawning within plans, shared concurrency pool, and result merging for unified SUMMARY generation**
 
 ## Performance
 
-- **Duration:** 4 min
-- **Started:** 2026-01-09T20:14:00Z
-- **Completed:** 2026-01-09T20:16:00Z
-- **Tasks:** 3
-- **Files created:** 2
+- **Duration:** 6 min
+- **Started:** 2026-01-10T07:00:34Z
+- **Completed:** 2026-01-10T07:07:09Z
+- **Tasks:** 6
+- **Files modified:** 3
 
 ## Accomplishments
 
-- Created async-execution.md workflow with comprehensive dependency detection, queue management, and safe parallelization rules
-- Created /gsd:execute-phase-async command for spawning all unexecuted phase plans as parallel background agents
-- Enhanced /gsd:status command (from 11-01) already supports phase-grouped multi-agent display with queue positions and --wait flag
+- Task dependency analysis detecting file conflicts, explicit deps, and checkpoint barriers
+- Parallel task group spawning with global concurrency pool shared with plan agents
+- Result merging with file conflict detection and user resolution
+- Configuration at global, plan, and per-task levels (parallel="false", skip_in_background="false")
+- Agent-history schema extended with granularity, task_group, and task_results fields
+- Status command shows nested plan/task parallel execution
 
 ## Task Commits
 
-All tasks committed together during planning phase:
+Each task was committed atomically:
 
-1. **Task 1: Create async-execution workflow** - `3bfe552` (feat)
-2. **Task 2: Create /gsd:execute-phase-async** - `3bfe552` (feat)
-3. **Task 3: Status enhancements** - Already in `9622cec` (11-01)
-
-**Plan metadata:** (this summary commit)
+1. **Task 1: Add task dependency analysis** - `46d19b1` (feat)
+2. **Task 2: Add task-level parallel spawning** - `4084f23` (feat)
+3. **Task 3: Add task result merging** - `0ecc858` (feat)
+4. **Task 4: Add task parallelization config** - `715f42f` (feat)
+5. **Task 5: Update agent-history schema** - `4ce7b5a` (feat)
+6. **Task 6: Update /gsd:status display** - `0d53acb` (feat)
 
 ## Files Created/Modified
 
-- `get-shit-done/workflows/async-execution.md` - Shared async execution logic with:
-  - Background agent spawning via Task tool run_in_background
-  - Dependency detection between plans (context refs, shared files, frontmatter requires)
-  - Queue management with configurable max_concurrent (default: 3)
-  - Safe parallelization rules
-  - Checkpoint handling in background mode
-  - Error handling and recovery guidance
-- `commands/gsd/execute-phase-async.md` - Parallel phase execution command with:
-  - Auto-detection of current phase from STATE.md
-  - Dependency analysis for all unexecuted plans
-  - Execution plan presentation before spawning
-  - Dependency-aware agent spawning
-  - Queue tracking for dependent plans
-  - YOLO mode support
+- `get-shit-done/workflows/execute-phase.md` - Task dependency analysis, parallel spawning, result merging, config documentation
+- `get-shit-done/templates/agent-history.md` - granularity, task_group, task_results fields with examples
+- `commands/gsd/status.md` - Nested plan/task parallel execution display
 
 ## Decisions Made
 
-- **Command name /gsd:execute-phase-async**: More explicit than plain `/gsd:execute-phase`, clearly indicates async nature and distinguishes from potential future sync variant
-- **Default max_concurrent: 3**: Balances parallelism with resource usage; configurable via config.json
-- **FIFO queue strategy**: Predictable ordering for dependent plans
-- **Safe-by-default parallelization**: Uncertain dependencies default to sequential execution to prevent conflicts
+- Task agents share global max_concurrent_agents pool - maintains simple concurrency model
+- Checkpoint tasks can parallelize with configurable per-task skip_in_background="false" opt-out
+- File conflict detection at task level triggers user resolution - safeguard against unexpected conflicts
+- Task-level commits deferred to orchestrator - single plan commit aggregates all task work
 
 ## Deviations from Plan
 
-### Naming Clarification
-
-**1. Command name difference**
-- **Plan specified:** `/gsd:execute-phase`
-- **Implemented:** `/gsd:execute-phase-async`
-- **Rationale:** More explicit naming that clearly indicates async behavior; avoids confusion with potential synchronous variant; follows same pattern as `/gsd:execute-async` for single plans
-- **Impact:** None - clearer API naming
+None - plan executed exactly as written.
 
 ## Issues Encountered
 
-None - implementation was straightforward building on 11-01 foundation.
+None
 
 ## Next Phase Readiness
 
-Phase 11 complete - async parallel execution enabled:
-- `/gsd:execute-async` for single plan background execution
-- `/gsd:execute-phase-async` for parallel multi-plan execution
-- `/gsd:status` for monitoring with phase-grouped display
-- Dependency detection prevents conflicts
-- Queue management respects resource limits
+Phase 11 complete - Intelligent Parallel Execution milestone ready for completion.
 
-True "walk away" workflow now available - spawn entire phase and check back later.
+Both plan-level (11-01) and task-level (11-02) parallelization implemented:
+- Plans within a phase can run in parallel when independent
+- Tasks within a plan can run in parallel when no file conflicts
+- Shared concurrency pool ensures resource limits respected
+- Checkpoints handled gracefully in background mode
 
 ---
-*Phase: 11-async-parallel-execution*
-*Completed: 2026-01-09*
+*Phase: 11-intelligent-parallel-execution*
+*Completed: 2026-01-10*
