@@ -141,6 +141,41 @@ Components:
 **Details:**
 Community contribution from OracleGreyBeard. Original command works but doesn't follow GSD patterns (no workflow delegation, inline templates, verbose steps). Refactor to match conventions, then add /gsd:plan-fix to complete the verify → fix loop.
 
+### Phase 10: Subagent Resume Capability
+
+**Goal:** Enable resumption of interrupted subagent tasks via Task tool's resume parameter
+**Depends on:** Phase 9
+**Research:** Unlikely (leveraging existing Task tool capabilities)
+**Plans:** 2 plans
+
+Plans:
+- [x] 10-01: Agent ID Tracking Infrastructure - Add agent ID capture to execute-phase workflow
+- [x] 10-02: Resume-Task Command - Create /gsd:resume-task and integrate into resume-project
+
+**Details:**
+GitHub Issue #37. When Claude Code session ends mid-execution, previously the work was lost. This phase adds agent ID tracking during subagent spawns and a /gsd:resume-task command to continue interrupted work using Task tool's resume parameter.
+
+### Phase 11: Async Parallel Execution
+
+**Goal:** Enable true parallel task execution with background agents for non-blocking workflows
+**Depends on:** Phase 10 (requires agent tracking infrastructure)
+**Research:** Unlikely (leveraging Task tool run_in_background and Phase 10 tracking)
+**Plans:** 2 plans
+
+Plans:
+- [ ] 11-01: Async Execution Foundation - Create /gsd:execute-async, /gsd:status, extend agent-history schema
+- [ ] 11-02: Parallel Phase Execution - Create /gsd:execute-phase with dependency detection and queue management
+
+Components:
+- `/gsd:execute-async` - Execute single task/plan in background
+- `/gsd:execute-phase` - Spawn all phase tasks as parallel background agents
+- `/gsd:status` - Monitor background task progress and results
+- Dependency detection - Auto-determine safe parallelization
+- Queue management - Default 2-3 concurrent agents
+
+**Details:**
+GitHub Issue #33. GSD promises "walk away" workflow but execution remains blocking. This phase adds true async parallel execution using Task tool's `run_in_background: true` parameter. Builds on Phase 10's agent tracking to monitor multiple concurrent background agents.
+
 ## Progress
 
 **Execution Order:**
@@ -156,4 +191,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 6. Frontmatter System Upgrade | 2/2 | Complete | 2026-01-05 |
 | 7. Backfill Existing Summaries | 1/1 | Complete | 2026-01-05 |
 | 8. Improve Roadmap System | 1/1 | Complete | 2026-01-05 |
-| 9. Integrate Verify-Work | 1/? | In Progress | - |
+| 9. Integrate Verify-Work | 1/1 | Complete | 2026-01-09 |
+| 10. Subagent Resume | 2/2 | Complete | 2026-01-09 |
+| 11. Async Parallel Execution | 0/? | Not Started | - |

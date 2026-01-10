@@ -27,7 +27,10 @@ Each entry tracks a subagent spawn or status change:
   "segment": 1,
   "timestamp": "2026-01-15T14:22:10Z",
   "status": "spawned",
-  "completion_timestamp": null
+  "completion_timestamp": null,
+  "execution_mode": "foreground",
+  "output_file": null,
+  "background_status": null
 }
 ```
 
@@ -43,6 +46,9 @@ Each entry tracks a subagent spawn or status change:
 | timestamp | string | ISO 8601 timestamp when agent was spawned |
 | status | string | Current status: spawned, completed, interrupted, resumed |
 | completion_timestamp | string/null | ISO 8601 timestamp when completed, null if pending |
+| execution_mode | string | "foreground" (blocking) or "background" (async) |
+| output_file | string/null | Path to output file for background agents (from Task tool response) |
+| background_status | string/null | For background: "running", "completed", "failed", null if not yet checked |
 
 ### Status Lifecycle
 
@@ -127,7 +133,10 @@ Then add new entry with resumed status:
       "segment": null,
       "timestamp": "2026-01-15T14:22:10Z",
       "status": "completed",
-      "completion_timestamp": "2026-01-15T14:45:33Z"
+      "completion_timestamp": "2026-01-15T14:45:33Z",
+      "execution_mode": "foreground",
+      "output_file": null,
+      "background_status": null
     },
     {
       "agent_id": "agent_01HXY456DEF",
@@ -137,7 +146,23 @@ Then add new entry with resumed status:
       "segment": 1,
       "timestamp": "2026-01-15T15:00:00Z",
       "status": "spawned",
-      "completion_timestamp": null
+      "completion_timestamp": null,
+      "execution_mode": "foreground",
+      "output_file": null,
+      "background_status": null
+    },
+    {
+      "agent_id": "agent_01HXY789GHI",
+      "task_description": "Execute plan 03-01 (background)",
+      "phase": "03",
+      "plan": "01",
+      "segment": null,
+      "timestamp": "2026-01-15T16:00:00Z",
+      "status": "spawned",
+      "completion_timestamp": null,
+      "execution_mode": "background",
+      "output_file": "/tmp/claude-task-agent_01HXY789GHI.txt",
+      "background_status": "running"
     }
   ]
 }
