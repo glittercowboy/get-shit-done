@@ -253,6 +253,90 @@ Wait for user confirmation.
 | User chose "sequential" | record_start_time (normal flow) |
 </step>
 
+<parallelization_config>
+## Parallelization Configuration
+
+Control parallel execution behavior through config.json and plan frontmatter.
+
+**Config schema (in .planning/config.json):**
+```json
+{
+  "mode": "yolo",
+  "parallelization": {
+    "plan_level": true,
+    "task_level": true,
+    "skip_checkpoints": true,
+    "max_concurrent_agents": 3,
+    "min_plans_for_parallel": 2
+  }
+}
+```
+
+**Config options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `plan_level` | true | Enable plan-level parallelization |
+| `task_level` | true | Enable task-level parallelization within plans |
+| `skip_checkpoints` | true | Allow checkpoint plans to run in background with skipping |
+| `max_concurrent_agents` | 3 | Global limit on concurrent background agents |
+| `min_plans_for_parallel` | 2 | Minimum plans needed to trigger parallelization |
+
+**Per-plan override in PLAN.md frontmatter:**
+```yaml
+---
+phase: 11
+plan: 01
+parallel: false  # Force this plan to run sequentially
+skip_checkpoints: false  # Force foreground execution for checkpoints
+---
+```
+
+**Decision tree:**
+
+```
+1. Config says plan_level: false
+   → All plans execute sequentially
+
+2. Only 1 unexecuted plan
+   → Execute normally (no parallelization needed)
+
+3. Fewer than min_plans_for_parallel unexecuted
+   → Execute sequentially
+
+4. Plan frontmatter says parallel: false
+   → That specific plan runs sequentially
+
+5. Plan has checkpoints AND skip_checkpoints: false
+   → That plan runs in foreground sequentially
+
+6. Running agents >= max_concurrent_agents
+   → Queue additional plans until slot opens
+
+7. Otherwise
+   → Analyze dependencies and parallelize where safe
+```
+
+**Reading config:**
+```bash
+# Check if config exists and read parallelization settings
+CONFIG=$(cat .planning/config.json 2>/dev/null || echo '{}')
+
+# Extract parallelization settings (defaults if not present)
+PLAN_LEVEL=$(echo "$CONFIG" | jq -r '.parallelization.plan_level // true')
+MAX_CONCURRENT=$(echo "$CONFIG" | jq -r '.parallelization.max_concurrent_agents // 3')
+SKIP_CHECKPOINTS=$(echo "$CONFIG" | jq -r '.parallelization.skip_checkpoints // true')
+MIN_PLANS=$(echo "$CONFIG" | jq -r '.parallelization.min_plans_for_parallel // 2')
+```
+
+**Checking plan-level override:**
+```bash
+# Extract frontmatter from plan
+PARALLEL=$(grep -A10 "^---" "$PLAN_PATH" | grep "^parallel:" | awk '{print $2}')
+[ "$PARALLEL" = "false" ] && echo "Plan opts out of parallelization"
+```
+</parallelization_config>
+
 <step name="record_start_time">
 Record execution start time for performance tracking:
 
