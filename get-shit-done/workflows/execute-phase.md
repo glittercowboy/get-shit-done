@@ -109,6 +109,657 @@ Wait for confirmation before proceeding.
 </if>
 </step>
 
+<step name="analyze_plan_dependencies">
+**Parallel execution analysis for multi-plan phases.**
+
+This step triggers when `/gsd:execute-plan` is run WITHOUT a path argument, or after completing a plan when multiple remain.
+
+**Entry point behavior:**
+
+When `/gsd:execute-plan` is run WITHOUT a path argument:
+1. Detect current phase from STATE.md
+2. Find all unexecuted plans in phase (PLAN without SUMMARY)
+3. If multiple unexecuted plans exist, trigger parallelization analysis
+4. If only one plan, proceed to normal execution
+
+When `/gsd:execute-plan <path>` is run WITH a specific path:
+1. Execute that specific plan (current behavior)
+2. After completion, check if remaining plans can be parallelized
+
+**Skip conditions:**
+- Config has `parallelization.plan_level: false` → execute sequentially
+- Only 1 unexecuted plan → no parallelization needed
+- Plan frontmatter has `parallel: false` → that plan runs sequentially
+
+**1. Discover unexecuted plans:**
+
+```bash
+# Find all plans without matching summaries
+for plan in .planning/phases/XX-name/*-PLAN.md; do
+  summary="${plan//-PLAN.md/-SUMMARY.md}"
+  [ ! -f "$summary" ] && echo "$plan"
+done
+```
+
+**2. For each plan, extract dependency info:**
+
+```bash
+# Extract from frontmatter
+grep -A5 "^---" "$plan" | grep "requires:"
+
+# Extract files modified (from <files> elements)
+grep -oP '(?<=<files>)[^<]+' "$plan"
+
+# Check for checkpoint tasks
+grep -c 'type="checkpoint' "$plan"
+```
+
+**3. Build dependency graph:**
+
+For each plan, determine:
+- `requires`: Prior phases/plans this depends on (from frontmatter)
+- `files_modified`: Files this plan will modify (from `<files>` elements)
+- `has_checkpoints`: Contains human interaction points
+- `checkpoint_count`: Number of checkpoints
+
+**4. Detect conflicts:**
+
+```
+File conflict rules:
+- If Plan A and Plan B both modify same file → sequential
+- If Plan B reads file created by Plan A → B depends on A
+- If Plan B references Plan A's SUMMARY → B depends on A
+```
+
+**5. Categorize plans:**
+
+| Category | Criteria | Action |
+|----------|----------|--------|
+| independent | No inter-plan dependencies, no file conflicts | Can run in parallel |
+| dependent | Requires another plan in this phase | Wait for dependency |
+| has_checkpoints | Contains checkpoint tasks | Special handling |
+
+**6. Checkpoint handling in background mode:**
+
+By default, plans with checkpoints ARE included in parallelization.
+
+In background mode, checkpoints are handled as:
+- `checkpoint:human-verify`: Skip and log "skipped - background mode"
+- `checkpoint:decision`: Use first option and log choice
+- `checkpoint:human-action`: Skip and log warning
+
+User can disable checkpoint skipping via config: `skip_checkpoints: false`
+If `skip_checkpoints: false`, plans with checkpoints run sequentially in foreground.
+
+**7. Decision logic:**
+
+```
+if config.parallelization.plan_level === false:
+  → Execute all plans sequentially
+
+if unexecuted_plans.count === 1:
+  → Execute single plan normally
+
+if all plans are independent:
+  → Spawn all in parallel (up to max_concurrent)
+
+if some plans are independent:
+  → Spawn independents, queue dependents
+
+if all plans are dependent (chain):
+  → Execute sequentially (current behavior)
+```
+
+**8. Present analysis:**
+
+<if mode="yolo">
+```
+⚡ Auto-approved: Parallel execution
+
+Phase [X] has [N] plans:
+  Parallel: [list] (no conflicts)
+  Sequential: [list] (dependencies)
+
+Spawning [N] parallel agents...
+```
+
+Proceed to spawn_parallel_agents step.
+</if>
+
+<if mode="interactive">
+```
+Phase [X] has [N] plans
+
+Parallelizable: [N] plans (no conflicts)
+  - 11-01, 11-03, 11-04
+  - 11-03 has 2 checkpoints (will be skipped in background)
+
+Sequential: [N] plan(s) (dependencies)
+  - 11-02 (needs 11-01 output)
+
+Spawn [N] parallel agents? (yes / sequential / review)
+```
+
+Wait for user confirmation.
+</if>
+
+**9. Route to execution:**
+
+| Analysis Result | Next Step |
+|-----------------|-----------|
+| Multiple independent plans | spawn_parallel_agents |
+| Single plan only | record_start_time (normal flow) |
+| All sequential | record_start_time (normal flow) |
+| User chose "sequential" | record_start_time (normal flow) |
+</step>
+
+<parallelization_config>
+## Parallelization Configuration
+
+Control parallel execution behavior through config.json and plan frontmatter.
+
+**Config schema (in .planning/config.json):**
+```json
+{
+  "mode": "yolo",
+  "parallelization": {
+    "plan_level": true,
+    "task_level": true,
+    "skip_checkpoints": true,
+    "max_concurrent_agents": 3,
+    "min_plans_for_parallel": 2,
+    "min_tasks_for_parallel": 3
+  }
+}
+```
+
+**Config options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `plan_level` | true | Enable plan-level parallelization |
+| `task_level` | true | Enable task-level parallelization within plans |
+| `skip_checkpoints` | true | Allow checkpoint plans/tasks to run in background with skipping |
+| `max_concurrent_agents` | 3 | Global limit on concurrent background agents (shared by plan and task agents) |
+| `min_plans_for_parallel` | 2 | Minimum plans needed to trigger plan-level parallelization |
+| `min_tasks_for_parallel` | 3 | Minimum tasks in plan to trigger task-level parallelization |
+
+**Per-plan override in PLAN.md frontmatter:**
+```yaml
+---
+phase: 11
+plan: 01
+parallel: false  # Force this plan to run sequentially (plan-level)
+parallel_tasks: false  # Force tasks to run sequentially (task-level)
+skip_checkpoints: false  # Force foreground execution for checkpoints
+---
+```
+
+**Per-task override in PLAN.md:**
+```xml
+<!-- Force specific task to run sequentially even if no file conflicts -->
+<task type="auto" parallel="false">
+  <name>Critical task that must run alone</name>
+  <action>...</action>
+</task>
+
+<!-- Force checkpoint to run in foreground even if skip_checkpoints: true globally -->
+<task type="checkpoint:human-verify" skip_in_background="false">
+  <what-built>...</what-built>
+  <how-to-verify>...</how-to-verify>
+</task>
+```
+
+**Task-level override attributes:**
+
+| Attribute | Values | Description |
+|-----------|--------|-------------|
+| `parallel` | true/false | Override task parallelization (default: based on dependency analysis) |
+| `skip_in_background` | true/false | Whether checkpoint can be skipped in background mode (default: true) |
+
+**Decision tree (plan-level):**
+
+```
+1. Config says plan_level: false
+   → All plans execute sequentially
+
+2. Only 1 unexecuted plan
+   → Execute normally (no parallelization needed)
+
+3. Fewer than min_plans_for_parallel unexecuted
+   → Execute sequentially
+
+4. Plan frontmatter says parallel: false
+   → That specific plan runs sequentially
+
+5. Plan has checkpoints AND skip_checkpoints: false
+   → That plan runs in foreground sequentially
+
+6. Running agents >= max_concurrent_agents
+   → Queue additional plans until slot opens
+
+7. Otherwise
+   → Analyze dependencies and parallelize where safe
+```
+
+**Decision tree (task-level):**
+
+```
+1. Config says task_level: false
+   → All tasks execute sequentially
+
+2. Plan frontmatter says parallel_tasks: false
+   → All tasks execute sequentially
+
+3. Fewer than min_tasks_for_parallel tasks in plan (default: 3)
+   → Execute sequentially (overhead not worth it)
+
+4. Task has parallel="false" attribute
+   → That specific task runs sequentially
+
+5. Checkpoint task has skip_in_background="false"
+   → That checkpoint runs in foreground
+
+6. Running agents >= max_concurrent_agents
+   → Queue task groups until slot opens
+
+7. No independent groups after dependency analysis
+   → Execute sequentially
+
+8. Otherwise
+   → Analyze task dependencies and parallelize where safe
+```
+
+**Reading config:**
+```bash
+# Check if config exists and read parallelization settings
+CONFIG=$(cat .planning/config.json 2>/dev/null || echo '{}')
+
+# Extract parallelization settings (defaults if not present)
+PLAN_LEVEL=$(echo "$CONFIG" | jq -r '.parallelization.plan_level // true')
+TASK_LEVEL=$(echo "$CONFIG" | jq -r '.parallelization.task_level // true')
+MAX_CONCURRENT=$(echo "$CONFIG" | jq -r '.parallelization.max_concurrent_agents // 3')
+SKIP_CHECKPOINTS=$(echo "$CONFIG" | jq -r '.parallelization.skip_checkpoints // true')
+MIN_PLANS=$(echo "$CONFIG" | jq -r '.parallelization.min_plans_for_parallel // 2')
+MIN_TASKS=$(echo "$CONFIG" | jq -r '.parallelization.min_tasks_for_parallel // 3')
+```
+
+**Checking plan-level override:**
+```bash
+# Extract frontmatter from plan
+PARALLEL=$(grep -A10 "^---" "$PLAN_PATH" | grep "^parallel:" | awk '{print $2}')
+[ "$PARALLEL" = "false" ] && echo "Plan opts out of parallelization"
+
+# Check task-level override
+PARALLEL_TASKS=$(grep -A10 "^---" "$PLAN_PATH" | grep "^parallel_tasks:" | awk '{print $2}')
+[ "$PARALLEL_TASKS" = "false" ] && echo "Plan opts out of task parallelization"
+```
+
+**Checking per-task override:**
+```bash
+# Check if specific task opts out of parallelization
+grep 'parallel="false"' "$PLAN_PATH"
+
+# Check if checkpoint requires foreground execution
+grep 'skip_in_background="false"' "$PLAN_PATH"
+```
+</parallelization_config>
+
+<step name="spawn_parallel_agents">
+**Spawn multiple background agents for independent plans.**
+
+Triggered when analyze_plan_dependencies finds multiple independent plans.
+
+**1. Pre-spawn git state:**
+
+```bash
+# Record current HEAD commit hash
+PARALLEL_START_COMMIT=$(git rev-parse HEAD)
+echo "All parallel agents starting from commit: $PARALLEL_START_COMMIT"
+
+# Ensure working directory is clean
+git status --porcelain
+# If dirty, warn user and ask to commit/stash first
+```
+
+All parallel agents start from the same git state. Changes are held until all complete.
+
+**2. Generate parallel group ID:**
+
+```bash
+# Unique identifier for this batch of parallel agents
+PARALLEL_GROUP="phase-${PHASE}-batch-$(date +%s)"
+echo "Parallel group: $PARALLEL_GROUP"
+```
+
+This enables batch resume if session is interrupted.
+
+**3. Initialize tracking:**
+
+```bash
+# Create/verify agent-history.json
+if [ ! -f .planning/agent-history.json ]; then
+  echo '{"version":"1.1","max_entries":50,"entries":[]}' > .planning/agent-history.json
+fi
+```
+
+**4. Spawn each independent plan:**
+
+For each independent plan (up to max_concurrent_agents):
+
+```
+Task(
+  description: "Execute plan {phase}-{plan}",
+  prompt: "Execute plan at {plan_path}.
+
+    **Execution context:**
+    - You are running as a PARALLEL agent in group {parallel_group}
+    - Other plans from this phase are executing simultaneously
+    - Starting from git commit: {start_commit}
+
+    **Your responsibilities:**
+    - Read the full plan for objective, context, and deviation rules
+    - Execute all tasks in the plan
+    - Create SUMMARY.md in the phase directory
+    - DO NOT commit changes - orchestrator will handle commits after all complete
+    - Track all files you create or modify
+
+    **Checkpoint handling (background mode):**
+    - checkpoint:human-verify → Skip and log 'skipped - background mode'
+    - checkpoint:decision → Use first option and log choice
+    - checkpoint:human-action → Skip and log warning
+
+    **Report when complete:**
+    - Tasks completed (count)
+    - Files modified (list with paths)
+    - Deviations encountered
+    - Checkpoints skipped (count and types)
+    - Any errors or blockers",
+  subagent_type: "general-purpose",
+  run_in_background: true
+)
+```
+
+**5. Record each spawn:**
+
+After Task tool returns with agent_id and output_file:
+
+```json
+{
+  "agent_id": "[from response]",
+  "task_description": "Execute plan {phase}-{plan} (parallel)",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "segment": null,
+  "timestamp": "[ISO timestamp]",
+  "status": "spawned",
+  "completion_timestamp": null,
+  "execution_mode": "parallel",
+  "output_file": "[from response]",
+  "background_status": "running",
+  "parallel_group": "{parallel_group}",
+  "depends_on": null,
+  "checkpoints_skipped": null,
+  "files_modified": null
+}
+```
+
+**6. Queue dependent plans:**
+
+For plans that depend on others in this phase:
+
+```json
+{
+  "agent_id": null,
+  "task_description": "Execute plan {phase}-{plan} (queued)",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "status": "queued",
+  "execution_mode": "parallel",
+  "parallel_group": "{parallel_group}",
+  "depends_on": ["11-01", "11-03"]
+}
+```
+
+**7. Report spawn status:**
+
+```
+Parallel Execution Started
+════════════════════════════════════════
+
+Group: {parallel_group}
+Git state: {start_commit}
+
+Spawned ({N} agents):
+  → {phase}-{plan}: agent_{id} (output: {file})
+  → {phase}-{plan}: agent_{id} (output: {file})
+  → {phase}-{plan}: agent_{id} (output: {file})
+
+Queued (waiting for dependencies):
+  ⏳ {phase}-{plan}: needs {dependency}
+
+════════════════════════════════════════
+Commits will be created after all plans complete.
+
+Monitoring progress...
+```
+
+**8. Continue to completion monitoring:**
+
+Do not return control to user yet. Continue to monitor_parallel_completion step.
+</step>
+
+<step name="monitor_parallel_completion">
+**Monitor parallel agents and handle completion with orchestrator commits.**
+
+After spawning parallel agents, orchestrator monitors until all complete.
+
+**1. Polling loop:**
+
+```
+Initialize:
+  running_agents = [agents with background_status === "running"]
+  queued_agents = [agents with status === "queued"]
+  completed_results = []
+
+while (running_agents.length > 0 OR queued_agents.length > 0):
+
+  # Check each running agent
+  for agent in running_agents:
+    result = TaskOutput(
+      task_id: agent.agent_id,
+      block: false,
+      timeout: 5000
+    )
+
+    if result.completed:
+      process_completion(agent, result)
+      running_agents.remove(agent)
+
+    elif result.failed:
+      process_failure(agent, result)
+      running_agents.remove(agent)
+
+  # Check if dependents can now start
+  for queued in queued_agents:
+    if dependencies_satisfied(queued) AND running_count < max_concurrent:
+      new_agent = spawn_agent(queued.plan_path)
+      queued_agents.remove(queued)
+      running_agents.add(new_agent)
+
+  # Progress update
+  show_progress(running_agents, completed_results, queued_agents)
+
+  # Brief pause between checks (10 seconds)
+  sleep(10)
+```
+
+**2. Process completion:**
+
+When TaskOutput indicates agent completed:
+
+```bash
+# Read agent's output for results
+cat [agent.output_file]
+
+# Check if SUMMARY.md was created
+ls .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md
+
+# Parse results from agent output:
+# - Files modified (list)
+# - Deviations encountered
+# - Checkpoints skipped (count)
+# - Task completion count
+```
+
+Update agent-history.json:
+```json
+{
+  "status": "completed",
+  "completion_timestamp": "[ISO timestamp]",
+  "background_status": "completed",
+  "checkpoints_skipped": [count from output],
+  "files_modified": [list from output]
+}
+```
+
+Add to completed_results for final aggregation.
+
+**3. Process failure:**
+
+When TaskOutput indicates agent failed:
+
+```json
+{
+  "status": "failed",
+  "completion_timestamp": "[ISO timestamp]",
+  "background_status": "failed"
+}
+```
+
+Do NOT kill other running agents on single failure.
+Continue monitoring others.
+
+**4. Spawn dependents when ready:**
+
+For each queued plan, check if dependencies are satisfied:
+
+```
+dependencies_satisfied(queued):
+  for dep in queued.depends_on:
+    if not completed_results.has(dep):
+      return false
+  return true
+```
+
+If satisfied AND running_count < max_concurrent:
+- Spawn the dependent plan (same as step 4 in spawn_parallel_agents)
+- Move from queued_agents to running_agents
+
+**5. Orchestrator commit handling (after ALL plans complete):**
+
+When running_agents and queued_agents are both empty:
+
+```bash
+# All agents complete - now create commits
+echo "All parallel agents complete. Creating commits..."
+
+# For each completed plan in execution order:
+for plan in completed_plans_ordered:
+
+  # Get files modified by this plan
+  FILES=$(cat agent-history.json | jq -r ".entries[] | select(.plan == \"$plan\") | .files_modified[]")
+
+  # Stage files from this plan
+  for file in $FILES; do
+    git add "$file"
+  done
+
+  # Check if SUMMARY exists and stage it
+  git add ".planning/phases/XX-name/${plan}-SUMMARY.md" 2>/dev/null
+
+  # Commit with standard format
+  git commit -m "feat(${plan}): execute plan via parallel orchestrator
+
+- Tasks completed: [count]
+- Files modified: [count]
+- Checkpoints skipped: [count if any]
+- Part of parallel group: [parallel_group]"
+
+done
+
+# Final metadata commit for phase completion
+git add .planning/STATE.md .planning/ROADMAP.md
+git commit -m "docs(${PHASE}): complete phase via parallel execution
+
+Parallel group: ${parallel_group}
+Plans completed: ${plan_count}
+Total time: ${total_duration} (parallel)
+Sequential estimate: ${sequential_estimate}"
+```
+
+**6. Final aggregation and report:**
+
+```
+Parallel Execution Complete
+════════════════════════════════════════
+
+All {N} plans completed:
+
+| Plan | Duration | Files | Checkpoints |
+|------|----------|-------|-------------|
+| 11-01 | 2m 34s | 3 | 0 |
+| 11-02 | 1m 45s | 2 | 0 |
+| 11-03 | 3m 12s | 4 | 2 skipped |
+| 11-04 | 2m 01s | 1 | 0 |
+
+Commits created:
+  abc123f feat(11-01): execute plan via parallel orchestrator
+  def456g feat(11-02): execute plan via parallel orchestrator
+  ghi789h feat(11-03): execute plan via parallel orchestrator
+  jkl012i feat(11-04): execute plan via parallel orchestrator
+  mno345j docs(11): complete phase via parallel execution
+
+════════════════════════════════════════
+Phase 11 complete!
+
+Total time: 3m 45s (parallel execution)
+Sequential estimate: 9m 32s
+Time saved: 5m 47s (60%)
+════════════════════════════════════════
+```
+
+**7. Error handling:**
+
+If any agent failed:
+
+```
+Parallel Execution Partial Complete
+════════════════════════════════════════
+
+✓ Completed ({N}):
+  - 11-01: 2m 34s
+  - 11-03: 3m 12s
+
+✗ Failed ({N}):
+  - 11-02: Build error in task 2
+
+⏳ Not started (blocked by failure):
+  - 11-04: depends on 11-02
+
+════════════════════════════════════════
+Options:
+1. /gsd:status 11-02 - View error details
+2. /gsd:execute-plan 11-02 - Retry in foreground
+3. /gsd:resume-task [agent-id] - Resume from failure
+4. Continue - Commit successful plans only
+════════════════════════════════════════
+```
+
+Commits are only created for successful plans.
+Failed plans can be retried individually.
+</step>
+
 <step name="record_start_time">
 Record execution start time for performance tracking:
 
@@ -118,6 +769,566 @@ PLAN_START_EPOCH=$(date +%s)
 ```
 
 Store in shell variables for duration calculation at completion.
+</step>
+
+<step name="analyze_task_dependencies">
+**Task-level parallelization analysis for single plan execution.**
+
+This step analyzes tasks within a single plan to identify independent task groups that can be parallelized.
+
+**Entry point:**
+After parse_segments determines execution pattern, if the plan:
+- Has multiple tasks (3+ by default)
+- Does NOT have decision/human-action checkpoints that affect subsequent tasks
+- Has config `parallelization.task_level: true` (default)
+- Does NOT have plan frontmatter `parallel_tasks: false`
+
+**Skip conditions:**
+- Config has `parallelization.task_level: false` → execute sequentially
+- Plan frontmatter has `parallel_tasks: false` → execute sequentially
+- Fewer than `min_tasks_for_parallel` tasks (default: 3) → execute sequentially
+- Plan has decision checkpoints that affect following tasks → execute sequentially
+
+**1. Parse all tasks from PLAN.md:**
+
+```bash
+# Extract task elements
+grep -n '<task' "$PLAN_PATH"
+
+# For each task, extract:
+# - Task name/number
+# - Files modified (from <files> element)
+# - Type (auto, checkpoint:*, etc.)
+# - depends_on attribute if present
+# - parallel="false" attribute if present
+```
+
+**2. Build task dependency graph:**
+
+```
+Task dependencies detected by:
+a) Explicit depends_on attribute: <task depends_on="task-1">
+b) File conflicts: Tasks modifying same files must be sequential
+c) Output references: Task B references output of Task A
+d) Sequential logic: Task describes "after X is done" or "using output from"
+e) Checkpoint position: Checkpoint tasks break parallelization flow
+```
+
+Example analysis:
+```
+Task 1: <files>src/auth.ts</files>
+Task 2: <files>src/auth.ts, src/types.ts</files>  ← depends on Task 1 (file conflict)
+Task 3: <files>src/utils.ts</files>               ← independent
+Task 4: <files>src/config.ts</files> type="checkpoint:human-verify"
+Task 5: <files>src/api.ts</files>                 ← depends on Task 4 (checkpoint barrier)
+Task 6: <files>src/api.ts</files>                 ← depends on Task 5 (file conflict)
+```
+
+**3. Categorize tasks:**
+
+| Category | Criteria | Action |
+|----------|----------|--------|
+| independent | No shared files, no dependencies | Can run in parallel |
+| dependent | Requires another task to complete first | Wait for dependency |
+| checkpoint | Contains human interaction | Special handling per config |
+
+**4. Checkpoint handling at task level:**
+
+By default, checkpoint tasks ARE included in parallelization groups.
+
+In background task agents, checkpoints are handled as:
+- `checkpoint:human-verify`: Skip and log "skipped - background mode"
+- `checkpoint:decision`: Use first option and log choice
+- `checkpoint:human-action`: Skip and log warning
+
+**Per-task override:**
+```xml
+<task type="checkpoint" skip_in_background="false">
+  <!-- This checkpoint MUST run in foreground even if skip_checkpoints: true -->
+</task>
+```
+
+If config `skip_checkpoints: false`, tasks containing checkpoints run in main context.
+If task has `skip_in_background="false"` attribute, that task runs in foreground.
+
+Checkpoint tasks create dependency barriers: tasks after a checkpoint depend on it.
+
+**5. Group independent tasks (respecting checkpoints):**
+
+```
+Example for a 6-task plan with checkpoint at Task 4:
+
+If skip_checkpoints: true (default):
+  Group 1: [Task 1, Task 3] - no dependencies, no file conflicts
+  Sequential: Task 2 (depends on Task 1 output)
+  Group 2: [Task 4-checkpoint, Task 5] - can parallelize (checkpoint skipped)
+  Sequential: Task 6 (depends on Task 5)
+
+If skip_checkpoints: false:
+  Group 1: [Task 1, Task 3] - parallel
+  Sequential: Task 2 (depends on Task 1)
+  Main Context: Task 4 (checkpoint - must run in foreground)
+  Group 2: [Task 5] - after checkpoint
+  Sequential: Task 6
+```
+
+**6. Decision logic:**
+
+```
+if config.parallelization.task_level === false:
+  → Execute all tasks sequentially
+
+if plan.frontmatter.parallel_tasks === false:
+  → Execute all tasks sequentially
+
+if task_count < min_tasks_for_parallel (default: 3):
+  → Execute sequentially (overhead not worth it)
+
+if no independent groups found after analysis:
+  → Execute sequentially
+
+otherwise:
+  → Spawn parallel agents per group
+```
+
+**7. Present analysis:**
+
+<if mode="yolo">
+```
+⚡ Auto-approved: Task-level parallelization
+
+Plan has [N] tasks:
+  Parallel Group 1: [Task 1, Task 3] (no conflicts)
+  Sequential: Task 2 (depends on Task 1)
+  Parallel Group 2: [Task 4, Task 5] (checkpoint skipped)
+  Sequential: Task 6 (depends on Task 5)
+
+Spawning parallel task agents...
+```
+
+Proceed to spawn_task_agents step.
+</if>
+
+<if mode="interactive">
+```
+Plan has [N] tasks
+
+Task dependency analysis:
+  Parallel Group 1: Tasks 1, 3 (no conflicts)
+  Sequential: Task 2 (depends on Task 1)
+  Parallel Group 2: Tasks 4, 5 (Task 4 checkpoint will be skipped)
+  Sequential: Task 6 (depends on Task 5)
+
+Concurrency: [X] slots available (of [max] max)
+
+Parallelize tasks? (yes / sequential / review)
+```
+
+Wait for user confirmation.
+</if>
+
+**8. Route to execution:**
+
+| Analysis Result | Next Step |
+|-----------------|-----------|
+| Independent groups found | spawn_task_agents |
+| All sequential after analysis | execute (normal flow) |
+| User chose "sequential" | execute (normal flow) |
+</step>
+
+<step name="spawn_task_agents">
+**Spawn parallel agents for independent task groups within a single plan.**
+
+Triggered when analyze_task_dependencies finds independent task groups.
+
+**Concurrency management:**
+Task agents share the global `max_concurrent_agents` limit from config.
+- If plan-level parallelization is also active, task agents count toward the same pool
+- Example: max_concurrent=3, 2 plan agents running → only 1 task agent slot available
+- Check available slots before spawning: `available = max_concurrent - currently_running`
+
+**1. Check available concurrency:**
+
+```bash
+# Count currently running agents from agent-history.json
+RUNNING=$(jq '[.entries[] | select(.background_status == "running")] | length' .planning/agent-history.json 2>/dev/null || echo 0)
+
+# Get max from config (default: 3)
+MAX_CONCURRENT=$(jq -r '.parallelization.max_concurrent_agents // 3' .planning/config.json 2>/dev/null || echo 3)
+
+# Available slots
+AVAILABLE=$((MAX_CONCURRENT - RUNNING))
+```
+
+**2. Generate task parallel group ID:**
+
+```bash
+# Unique identifier for this batch of task agents
+TASK_PARALLEL_GROUP="plan-${PHASE}-${PLAN}-tasks-batch-$(date +%s)"
+echo "Task parallel group: $TASK_PARALLEL_GROUP"
+```
+
+**3. For each independent task group (respecting concurrency):**
+
+```
+Task(
+  description: "Execute tasks {task-ids} from plan {plan}",
+  prompt: "Execute ONLY these tasks from plan at {path}: [task list with names]
+
+           **Context:**
+           - Read the full plan for objective, context files, and deviation rules
+           - You are executing a SUBSET of tasks (not the full plan)
+           - Other tasks will be executed by other agents or sequentially
+
+           **Your responsibilities:**
+           - Execute ONLY the assigned tasks: [task numbers/names]
+           - Follow all deviation rules and authentication gate protocols
+           - Track deviations for later aggregation
+           - DO NOT create SUMMARY.md (orchestrator will merge results)
+           - DO NOT commit changes (orchestrator handles commits)
+
+           **Checkpoint handling (background mode):**
+           - checkpoint:human-verify → Skip and log 'skipped - background mode'
+           - checkpoint:decision → Use first option and log choice
+           - checkpoint:human-action → Skip and log 'skipped - background mode'
+
+           **Report back:**
+           - Tasks completed (list each with status)
+           - Files modified (list full paths)
+           - Deviations encountered (if any)
+           - Checkpoints skipped (count and types)
+           - Any errors or blockers",
+  subagent_type: "general-purpose",
+  run_in_background: true
+)
+```
+
+**4. Track task-level agents with unique identifiers:**
+
+After Task tool returns with agent_id and output_file:
+
+```json
+{
+  "agent_id": "[from response]",
+  "task_description": "Execute tasks [1, 3] from plan 11-02",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "segment": null,
+  "timestamp": "[ISO timestamp]",
+  "status": "spawned",
+  "completion_timestamp": null,
+  "execution_mode": "parallel",
+  "output_file": "[from response]",
+  "background_status": "running",
+  "parallel_group": "{task_parallel_group}",
+  "granularity": "task_group",
+  "task_group": ["Task 1", "Task 3"],
+  "depends_on": null,
+  "checkpoints_skipped": null,
+  "files_modified": null,
+  "task_results": null
+}
+```
+
+**5. Queue task groups that exceed concurrency:**
+
+If spawned agents would exceed max_concurrent:
+- First groups up to available slots: spawn immediately
+- Remaining groups: queue with depends_on tracking
+
+```json
+{
+  "agent_id": null,
+  "task_description": "Execute tasks [4, 5] from plan 11-02 (queued)",
+  "phase": "{phase}",
+  "plan": "{plan}",
+  "status": "queued",
+  "execution_mode": "parallel",
+  "parallel_group": "{task_parallel_group}",
+  "granularity": "task_group",
+  "task_group": ["Task 4", "Task 5"],
+  "depends_on": ["task-group-1"]
+}
+```
+
+**6. Report spawn status:**
+
+```
+Plan 11-02 Task Parallel Execution
+════════════════════════════════════════
+
+Group: {task_parallel_group}
+Concurrency: {available}/{max} slots
+
+Spawned (Group 1):
+  → Tasks 1, 3: agent_{id}
+
+Sequential (after Group 1):
+  ⏳ Task 2: waiting for Task 1 (file conflict)
+
+Queued (Group 2):
+  ⏳ Tasks 4, 5: waiting for concurrency slot
+  ⚠️ Task 4 has checkpoint (will be skipped)
+
+Sequential (after Group 2):
+  ⏳ Task 6: waiting for Task 5 (file conflict)
+
+════════════════════════════════════════
+Monitoring task completion...
+```
+
+**7. Handle slot exhaustion:**
+
+If no concurrent slots available (all used by plan-level agents):
+- Queue all task groups
+- Poll for available slots during completion monitoring
+- Spawn queued groups as slots become available
+
+**8. Continue to task completion monitoring:**
+
+Do not return control yet. Continue to monitor_task_completion step.
+</step>
+
+<step name="monitor_task_completion">
+**Monitor task-level parallel agents and handle completion.**
+
+After spawning task agents, orchestrator monitors until all complete.
+
+**1. Polling loop (similar to plan-level but for tasks):**
+
+```
+Initialize:
+  running_task_agents = [agents with granularity === "task_group" AND background_status === "running"]
+  queued_task_groups = [entries with granularity === "task_group" AND status === "queued"]
+  sequential_tasks = [tasks that must run in main context]
+  completed_task_results = []
+
+while (running_task_agents.length > 0 OR queued_task_groups.length > 0):
+
+  # Check each running agent
+  for agent in running_task_agents:
+    result = TaskOutput(
+      task_id: agent.agent_id,
+      block: false,
+      timeout: 5000
+    )
+
+    if result.completed:
+      process_task_completion(agent, result)
+      running_task_agents.remove(agent)
+
+    elif result.failed:
+      process_task_failure(agent, result)
+      running_task_agents.remove(agent)
+
+  # Check if queued groups can now start
+  for queued in queued_task_groups:
+    if dependencies_satisfied(queued) AND running_count < max_concurrent:
+      new_agent = spawn_task_agent(queued.task_group)
+      queued_task_groups.remove(queued)
+      running_task_agents.add(new_agent)
+
+  # Progress update
+  show_task_progress(running_task_agents, completed_task_results, queued_task_groups)
+
+  # Brief pause between checks (5 seconds for tasks, faster than plan-level)
+  sleep(5)
+```
+
+**2. Process task completion:**
+
+When TaskOutput indicates agent completed:
+
+```bash
+# Read agent's output for task results
+cat [agent.output_file]
+
+# Parse task-level results:
+# - Per-task status (success/failure)
+# - Files modified per task
+# - Checkpoints skipped (count)
+# - Deviations per task
+```
+
+Update agent-history.json with task_results:
+```json
+{
+  "status": "completed",
+  "completion_timestamp": "[ISO timestamp]",
+  "background_status": "completed",
+  "checkpoints_skipped": [count from output],
+  "files_modified": [aggregated list from output],
+  "task_results": {
+    "Task 1": {
+      "status": "completed",
+      "files": ["src/auth.ts"],
+      "deviations": []
+    },
+    "Task 3": {
+      "status": "completed",
+      "files": ["src/utils.ts"],
+      "deviations": []
+    }
+  }
+}
+```
+
+**3. Execute sequential tasks in order:**
+
+After parallel group completes, run any dependent sequential tasks in main context:
+
+```
+# Task 2 depends on Task 1 (now complete)
+Execute Task 2 in main context
+Track results for aggregation
+
+# Continue with next parallel group or sequential task
+```
+
+**4. After all tasks complete:**
+
+When all task agents, queued groups, and sequential tasks are done:
+- Proceed to merge_task_results step
+</step>
+
+<step name="merge_task_results">
+**Aggregate results from parallel task execution for SUMMARY generation.**
+
+After all task agents complete, merge results into unified execution record.
+
+**1. Collect results from each agent:**
+
+For each completed task agent in agent-history.json with matching parallel_group:
+
+```bash
+# Get all task results for this plan
+jq '.entries[] | select(.parallel_group | startswith("plan-{PHASE}-{PLAN}")) | select(.granularity == "task_group")' .planning/agent-history.json
+```
+
+Extract from each:
+- Files created/modified (from files_modified field)
+- Task outcomes (from task_results field)
+- Deviations encountered
+- Checkpoints skipped (from checkpoints_skipped field)
+
+**2. Merge into unified execution record:**
+
+```
+Task Execution Results (Plan 11-02):
+═══════════════════════════════════════════════════
+
+| Task | Agent | Status | Files | Deviations | Checkpoint |
+|------|-------|--------|-------|------------|------------|
+| 1 | agent_01HXXX (parallel) | ✓ Complete | 2 | 0 | - |
+| 2 | main context (sequential) | ✓ Complete | 1 | 1 | - |
+| 3 | agent_01HXXX (parallel) | ✓ Complete | 2 | 0 | - |
+| 4 | agent_01HYYY (parallel) | ✓ Complete | 1 | 0 | skipped |
+| 5 | agent_01HYYY (parallel) | ✓ Complete | 2 | 0 | - |
+| 6 | main context (sequential) | ✓ Complete | 1 | 0 | - |
+
+═══════════════════════════════════════════════════
+```
+
+**3. Handle merge conflicts (file-level):**
+
+If two agents unexpectedly modified the same file (should not happen if dependency analysis is correct, but as a safeguard):
+
+```
+⚠️ File conflict detected: src/config.ts
+
+Modified by:
+- Task 1 (agent_01HXXX)
+- Task 3 (agent_01HXXX)
+
+This shouldn't happen with proper dependency analysis.
+Review required.
+
+Options:
+1. Review diff and merge manually
+2. Keep Task 1 changes only
+3. Keep Task 3 changes only
+4. Keep both (may have issues)
+```
+
+Use AskUserQuestion to get resolution:
+- header: "File Conflict"
+- question: "[file] was modified by multiple tasks. How to resolve?"
+- options: Review diff, Keep first, Keep second, Keep both
+
+**4. Aggregate for SUMMARY.md:**
+
+After conflict resolution (if any):
+
+```markdown
+## Task Execution Summary
+
+**Execution mode:** Parallel task groups
+**Total tasks:** 6
+**Parallel groups:** 2 (4 tasks parallelized)
+**Sequential tasks:** 2 (dependency chain)
+**Checkpoints skipped:** 1 (Task 4: human-verify)
+
+### Task Results
+
+| Task | Execution | Status | Duration |
+|------|-----------|--------|----------|
+| Task 1 | Parallel (Group 1) | Complete | 45s |
+| Task 2 | Sequential | Complete | 30s |
+| Task 3 | Parallel (Group 1) | Complete | 40s |
+| Task 4 | Parallel (Group 2) | Complete | 20s |
+| Task 5 | Parallel (Group 2) | Complete | 35s |
+| Task 6 | Sequential | Complete | 25s |
+
+### Files Modified
+
+Aggregated from all tasks (deduplicated):
+- `src/auth.ts` - Task 1
+- `src/utils.ts` - Task 3
+- `src/types.ts` - Task 2
+- `src/config.ts` - Task 4
+- `src/api.ts` - Tasks 5, 6
+
+### Deviations
+
+Combined from all tasks:
+- [Rule 2 - Missing Critical] Task 2: Added input validation (deviation from task agent report)
+
+### Performance
+
+- **Total duration:** 4m 12s
+- **Sequential estimate:** 8m 30s (sum of all task durations)
+- **Speedup:** 2.0x
+- **Time saved:** 4m 18s
+```
+
+**5. Commit handling (deferred to orchestrator):**
+
+Task agents do NOT commit. After SUMMARY generated:
+
+```bash
+# Stage all files from all tasks
+for task in completed_tasks:
+  for file in task.files_modified:
+    git add "$file"
+
+# Stage SUMMARY.md
+git add .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md
+
+# Single plan commit
+git commit -m "feat({phase}-{plan}): {description}
+
+- Tasks completed: {total}
+- Parallel groups: {group_count}
+- Checkpoints skipped: {skip_count}
+- Total duration: {duration} (parallel)
+- Sequential estimate: {estimate}"
+```
+
+**6. Route to next step:**
+
+After merging complete:
+- If more plans in phase: offer_next
+- If last plan: update_roadmap → git_commit_metadata
 </step>
 
 <step name="parse_segments">
@@ -204,15 +1415,48 @@ No segmentation benefit - execute entirely in main
 **For fully autonomous plans:**
 
 ```
-Use Task tool with subagent_type="general-purpose":
+1. Run init_agent_tracking step first (see step below)
 
-Prompt: "Execute plan at .planning/phases/{phase}-{plan}-PLAN.md
+2. Use Task tool with subagent_type="general-purpose":
 
-This is an autonomous plan (no checkpoints). Execute all tasks, create SUMMARY.md in phase directory, commit with message following plan's commit guidance.
+   Prompt: "Execute plan at .planning/phases/{phase}-{plan}-PLAN.md
 
-Follow all deviation rules and authentication gate protocols from the plan.
+   This is an autonomous plan (no checkpoints). Execute all tasks, create SUMMARY.md in phase directory, commit with message following plan's commit guidance.
 
-When complete, report: plan name, tasks completed, SUMMARY path, commit hash."
+   Follow all deviation rules and authentication gate protocols from the plan.
+
+   When complete, report: plan name, tasks completed, SUMMARY path, commit hash."
+
+3. After Task tool returns with agent_id:
+
+   a. Write agent_id to current-agent-id.txt:
+      echo "[agent_id]" > .planning/current-agent-id.txt
+
+   b. Append spawn entry to agent-history.json:
+      {
+        "agent_id": "[agent_id from Task response]",
+        "task_description": "Execute full plan {phase}-{plan} (autonomous)",
+        "phase": "{phase}",
+        "plan": "{plan}",
+        "segment": null,
+        "timestamp": "[ISO timestamp]",
+        "status": "spawned",
+        "completion_timestamp": null
+      }
+
+4. Wait for subagent to complete
+
+5. After subagent completes successfully:
+
+   a. Update agent-history.json entry:
+      - Find entry with matching agent_id
+      - Set status: "completed"
+      - Set completion_timestamp: "[ISO timestamp]"
+
+   b. Clear current-agent-id.txt:
+      rm .planning/current-agent-id.txt
+
+6. Report completion to user
 ```
 
 **For segmented plans (has verify-only checkpoints):**
@@ -245,6 +1489,54 @@ Quality maintained through small scope (2-3 tasks per plan)
 ```
 
 See step name="segment_execution" for detailed segment execution loop.
+</step>
+
+<step name="init_agent_tracking">
+**Initialize agent tracking for subagent resume capability.**
+
+Before spawning any subagents, set up tracking infrastructure:
+
+**1. Create/verify tracking files:**
+
+```bash
+# Create agent history file if doesn't exist
+if [ ! -f .planning/agent-history.json ]; then
+  echo '{"version":"1.0","max_entries":50,"entries":[]}' > .planning/agent-history.json
+fi
+
+# Clear any stale current-agent-id (from interrupted sessions)
+# Will be populated when subagent spawns
+rm -f .planning/current-agent-id.txt
+```
+
+**2. Check for interrupted agents (resume detection):**
+
+```bash
+# Check if current-agent-id.txt exists from previous interrupted session
+if [ -f .planning/current-agent-id.txt ]; then
+  INTERRUPTED_ID=$(cat .planning/current-agent-id.txt)
+  echo "Found interrupted agent: $INTERRUPTED_ID"
+fi
+```
+
+**If interrupted agent found:**
+- The agent ID file exists from a previous session that didn't complete
+- This agent can potentially be resumed using Task tool's `resume` parameter
+- Present to user: "Previous session was interrupted. Resume agent [ID] or start fresh?"
+- If resume: Use Task tool with `resume` parameter set to the interrupted ID
+- If fresh: Clear the file and proceed normally
+
+**3. Prune old entries (housekeeping):**
+
+If agent-history.json has more than `max_entries`:
+- Remove oldest entries with status "completed"
+- Never remove entries with status "spawned" (may need resume)
+- Keep file under size limit for fast reads
+
+**When to run this step:**
+- Pattern A (fully autonomous): Before spawning the single subagent
+- Pattern B (segmented): Before the segment execution loop
+- Pattern C (main context): Skip - no subagents spawned
 </step>
 
 <step name="segment_execution">
@@ -299,8 +1591,36 @@ For Pattern A (fully autonomous) and Pattern C (decision-dependent), skip this s
       - Deviations encountered
       - Any issues or blockers"
 
+      **After Task tool returns with agent_id:**
+
+      1. Write agent_id to current-agent-id.txt:
+         echo "[agent_id]" > .planning/current-agent-id.txt
+
+      2. Append spawn entry to agent-history.json:
+         {
+           "agent_id": "[agent_id from Task response]",
+           "task_description": "Execute tasks [X-Y] from plan {phase}-{plan}",
+           "phase": "{phase}",
+           "plan": "{plan}",
+           "segment": [segment_number],
+           "timestamp": "[ISO timestamp]",
+           "status": "spawned",
+           "completion_timestamp": null
+         }
+
       Wait for subagent to complete
       Capture results (files changed, deviations, etc.)
+
+      **After subagent completes successfully:**
+
+      1. Update agent-history.json entry:
+         - Find entry with matching agent_id
+         - Set status: "completed"
+         - Set completion_timestamp: "[ISO timestamp]"
+
+      2. Clear current-agent-id.txt:
+         rm .planning/current-agent-id.txt
+
       ```
 
    C. If routing = Main context:

@@ -141,6 +141,50 @@ Components:
 **Details:**
 Community contribution from OracleGreyBeard. Original command works but doesn't follow GSD patterns (no workflow delegation, inline templates, verbose steps). Refactor to match conventions, then add /gsd:plan-fix to complete the verify → fix loop.
 
+### Phase 10: Subagent Resume Capability
+
+**Goal:** Enable resumption of interrupted subagent tasks via Task tool's resume parameter
+**Depends on:** Phase 9
+**Research:** Unlikely (leveraging existing Task tool capabilities)
+**Plans:** 2 plans
+
+Plans:
+- [x] 10-01: Agent ID Tracking Infrastructure - Add agent ID capture to execute-phase workflow
+- [x] 10-02: Resume-Task Command - Create /gsd:resume-task and integrate into resume-project
+
+**Details:**
+GitHub Issue #37. When Claude Code session ends mid-execution, previously the work was lost. This phase adds agent ID tracking during subagent spawns and a /gsd:resume-task command to continue interrupted work using Task tool's resume parameter.
+
+### Phase 11: Intelligent Parallel Execution
+
+**Goal:** Integrate automatic parallelization into existing execution commands at both plan and task levels
+**Depends on:** Phase 10 (requires agent tracking infrastructure)
+**Research:** Unlikely (leveraging Task tool run_in_background and Phase 10 tracking)
+**Plans:** 2 plans (REVISED - re-planning in progress)
+
+Plans:
+- [x] 11-01: Plan-Level Parallelization - Enhance execute-phase.md to auto-detect and parallelize independent plans
+- [x] 11-02: Task-Level Parallelization - Enhance execute-plan to auto-detect and parallelize independent tasks within plans
+
+**Revised Approach:**
+Instead of separate `/gsd:execute-async` and `/gsd:execute-phase-async` commands, integrate intelligent parallelization directly into existing execution flow:
+
+**Plan-Level (11-01):**
+- Existing `/gsd:execute-plan` and execute-phase workflow enhanced
+- Auto-detect independent plans via frontmatter dependency graph (requires/provides/affects)
+- Spawn parallel background agents for non-conflicting plans
+- Automatic completion detection and summarization back to orchestrator
+- Keep `/gsd:status` for monitoring background agents
+
+**Task-Level (11-02):**
+- Analyze task dependencies within a single plan
+- Spawn parallel agents for independent task groups
+- Merge results back for SUMMARY generation
+- Handle task-to-task data dependencies
+
+**Details:**
+GitHub Issue #33. User feedback: "system should use same logic that determines conflicts. If no conflicts found, spawn async agents with completion detection and summarization for orchestrating agent." No new commands - intelligence built into existing execution path.
+
 ## Progress
 
 **Execution Order:**
@@ -156,4 +200,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 6. Frontmatter System Upgrade | 2/2 | Complete | 2026-01-05 |
 | 7. Backfill Existing Summaries | 1/1 | Complete | 2026-01-05 |
 | 8. Improve Roadmap System | 1/1 | Complete | 2026-01-05 |
-| 9. Integrate Verify-Work | 1/? | In Progress | - |
+| 9. Integrate Verify-Work | 1/1 | Complete | 2026-01-09 |
+| 10. Subagent Resume | 2/2 | Complete | 2026-01-09 |
+| 11. Intelligent Parallel Execution | 2/2 | Complete | 2026-01-10 |

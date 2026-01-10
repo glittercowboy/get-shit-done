@@ -69,6 +69,12 @@ for plan in .planning/phases/*/*-PLAN.md; do
   summary="${plan/PLAN/SUMMARY}"
   [ ! -f "$summary" ] && echo "Incomplete: $plan"
 done 2>/dev/null
+
+# Check for interrupted agents
+if [ -f .planning/current-agent-id.txt ] && [ -s .planning/current-agent-id.txt ]; then
+  AGENT_ID=$(cat .planning/current-agent-id.txt | tr -d '\n')
+  echo "Interrupted agent: $AGENT_ID"
+fi
 ```
 
 **If .continue-here file exists:**
@@ -81,6 +87,12 @@ done 2>/dev/null
 
 - Execution was started but not completed
 - Flag: "Found incomplete plan execution"
+
+**If interrupted agent found:**
+
+- Subagent was spawned but session ended before completion
+- Read agent-history.json for task details
+- Flag: "Found interrupted agent"
   </step>
 
 <step name="present_status">
@@ -103,6 +115,14 @@ Present complete project status to user:
 ⚠️  Incomplete work detected:
     - [.continue-here file or incomplete plan]
 
+[If interrupted agent found:]
+⚠️  Interrupted agent detected:
+    Agent ID: [id]
+    Task: [task description from agent-history.json]
+    Interrupted: [timestamp]
+
+    Resume with: /gsd:resume-task
+
 [If deferred issues exist:]
 📋 [N] deferred issues awaiting attention
 
@@ -119,6 +139,10 @@ Present complete project status to user:
 
 <step name="determine_next_action">
 Based on project state, determine the most logical next action:
+
+**If interrupted agent exists:**
+→ Primary: Resume interrupted agent (/gsd:resume-task)
+→ Option: Start fresh (abandon agent work)
 
 **If .continue-here file exists:**
 → Primary: Resume from checkpoint
@@ -154,6 +178,8 @@ Present contextual options based on project state:
 What would you like to do?
 
 [Primary action based on state - e.g.:]
+1. Resume interrupted agent (/gsd:resume-task) [if interrupted agent found]
+   OR
 1. Resume from checkpoint (/gsd:execute-plan .planning/phases/XX-name/.continue-here-02-01.md)
    OR
 1. Execute next plan (/gsd:execute-plan .planning/phases/XX-name/02-02-PLAN.md)
