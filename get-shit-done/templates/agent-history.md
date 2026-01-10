@@ -30,7 +30,11 @@ Each entry tracks a subagent spawn or status change:
   "completion_timestamp": null,
   "execution_mode": "foreground",
   "output_file": null,
-  "background_status": null
+  "background_status": null,
+  "parallel_group": null,
+  "depends_on": null,
+  "checkpoints_skipped": null,
+  "files_modified": null
 }
 ```
 
@@ -44,11 +48,15 @@ Each entry tracks a subagent spawn or status change:
 | plan | string | Plan number within phase |
 | segment | number | Segment number (1-based) for segmented plans, null for Pattern A |
 | timestamp | string | ISO 8601 timestamp when agent was spawned |
-| status | string | Current status: spawned, completed, interrupted, resumed |
+| status | string | Current status: spawned, completed, interrupted, resumed, queued, failed |
 | completion_timestamp | string/null | ISO 8601 timestamp when completed, null if pending |
-| execution_mode | string | "foreground" (blocking) or "background" (async) |
+| execution_mode | string | "foreground" (blocking), "background" (async), or "parallel" |
 | output_file | string/null | Path to output file for background agents (from Task tool response) |
 | background_status | string/null | For background: "running", "completed", "failed", null if not yet checked |
+| parallel_group | string/null | Identifier linking agents in same parallel batch (e.g., "phase-11-batch-1736502345") |
+| depends_on | string[]/null | Array of plan IDs this agent waits for (e.g., ["11-01", "11-03"]) |
+| checkpoints_skipped | number/null | Count of checkpoints skipped in background/parallel mode |
+| files_modified | string[]/null | List of files created/modified by this agent |
 
 ### Status Lifecycle
 
@@ -122,7 +130,7 @@ Then add new entry with resumed status:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "max_entries": 50,
   "entries": [
     {
@@ -136,37 +144,102 @@ Then add new entry with resumed status:
       "completion_timestamp": "2026-01-15T14:45:33Z",
       "execution_mode": "foreground",
       "output_file": null,
-      "background_status": null
+      "background_status": null,
+      "parallel_group": null,
+      "depends_on": null,
+      "checkpoints_skipped": null,
+      "files_modified": ["src/auth.ts", "src/types.ts"]
     },
     {
       "agent_id": "agent_01HXY456DEF",
-      "task_description": "Execute tasks 1-3 from plan 02-02",
-      "phase": "02",
-      "plan": "02",
-      "segment": 1,
-      "timestamp": "2026-01-15T15:00:00Z",
-      "status": "spawned",
-      "completion_timestamp": null,
-      "execution_mode": "foreground",
-      "output_file": null,
-      "background_status": null
-    },
-    {
-      "agent_id": "agent_01HXY789GHI",
-      "task_description": "Execute plan 03-01 (background)",
-      "phase": "03",
+      "task_description": "Execute plan 11-01 (parallel)",
+      "phase": "11",
       "plan": "01",
       "segment": null,
       "timestamp": "2026-01-15T16:00:00Z",
-      "status": "spawned",
-      "completion_timestamp": null,
-      "execution_mode": "background",
+      "status": "completed",
+      "completion_timestamp": "2026-01-15T16:02:34Z",
+      "execution_mode": "parallel",
+      "output_file": "/tmp/claude-task-agent_01HXY456DEF.txt",
+      "background_status": "completed",
+      "parallel_group": "phase-11-batch-1736952000",
+      "depends_on": null,
+      "checkpoints_skipped": 0,
+      "files_modified": ["workflows/execute-phase.md", "templates/agent-history.md"]
+    },
+    {
+      "agent_id": "agent_01HXY789GHI",
+      "task_description": "Execute plan 11-03 (parallel)",
+      "phase": "11",
+      "plan": "03",
+      "segment": null,
+      "timestamp": "2026-01-15T16:00:00Z",
+      "status": "completed",
+      "completion_timestamp": "2026-01-15T16:03:12Z",
+      "execution_mode": "parallel",
       "output_file": "/tmp/claude-task-agent_01HXY789GHI.txt",
-      "background_status": "running"
+      "background_status": "completed",
+      "parallel_group": "phase-11-batch-1736952000",
+      "depends_on": null,
+      "checkpoints_skipped": 2,
+      "files_modified": ["commands/gsd/status.md"]
+    },
+    {
+      "agent_id": "agent_01HXYABCJKL",
+      "task_description": "Execute plan 11-02 (parallel, queued)",
+      "phase": "11",
+      "plan": "02",
+      "segment": null,
+      "timestamp": "2026-01-15T16:02:34Z",
+      "status": "running",
+      "completion_timestamp": null,
+      "execution_mode": "parallel",
+      "output_file": "/tmp/claude-task-agent_01HXYABCJKL.txt",
+      "background_status": "running",
+      "parallel_group": "phase-11-batch-1736952000",
+      "depends_on": ["11-01"],
+      "checkpoints_skipped": null,
+      "files_modified": null
     }
   ]
 }
 ```
+
+## Parallel Execution Support
+
+### Parallel Group
+
+The `parallel_group` field links agents spawned together as part of parallel phase execution.
+
+**Format:** `phase-{phase}-batch-{unix_timestamp}`
+
+**Usage:**
+- All agents spawned in the same parallel batch share the same group ID
+- Enables batch resume: when resuming, can find all interrupted agents in group
+- Enables status display: show all related agents together
+
+### Resume Support
+
+When resuming with `/gsd:resume-task`:
+- If agent has `parallel_group`, offer to resume entire batch
+- Check all agents in same `parallel_group`
+- Resume any that are not "completed"
+
+```bash
+# Find agents in same group
+jq '.entries[] | select(.parallel_group == "phase-11-batch-1736952000")' agent-history.json
+```
+
+### Queued Agents
+
+Agents can be queued when:
+- They depend on other plans in the same phase
+- Max concurrent agents limit is reached
+
+Queued entries have:
+- `agent_id`: null (no agent spawned yet)
+- `status`: "queued"
+- `depends_on`: Array of plan IDs to wait for
 
 ## Related Files
 
