@@ -109,6 +109,7 @@ TUI command palette (type command manually):
 ```
 gsd:new-project
 gsd:help
+gsd help
 ```
 
 Troubleshooting:

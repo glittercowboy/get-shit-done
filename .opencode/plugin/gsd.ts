@@ -98,6 +98,26 @@ function parseInvocation(text: string) {
   return { name, argsText: rest.join(" ") }
 }
 
+function buildCommandPayload(
+  commandName: string,
+  argsText: string,
+  entry: { name: string; filePath: string } | undefined,
+  worktree: string,
+) {
+  if (!entry) {
+    return `Unknown GSD command: ${commandName}`
+  }
+
+  const commandContent = readText(entry.filePath)
+  const injected = buildInjectedPrompt(commandContent, argsText)
+  const planningContext = resolvePlanningContext(worktree)
+  const contextBlock = planningContext.length
+    ? `## GSD Planning Context\n\n${planningContext.join("\n\n")}`
+    : ""
+
+  return [injected, contextBlock].filter(Boolean).join("\n\n")
+}
+
 function resolvePlanningContext(worktree: string) {
   const planningDir = path.join(worktree, ".planning")
   const candidates = [
@@ -151,21 +171,22 @@ export const GsdPlugin = async ({ worktree, client }) => {
       const { name, argsText } = parseInvocation(textPart.text)
       const commandName = normalizeCommandName(name.replace("/gsd:", "gsd:"))
       const entry = commandsIndex.get(commandName)
-
-      if (!entry) {
-        textPart.text = `Unknown GSD command: ${commandName}`
-        return
-      }
-
-      const commandContent = readText(entry.filePath)
-      const injected = buildInjectedPrompt(commandContent, argsText)
-      const planningContext = resolvePlanningContext(worktree)
-      const contextBlock = planningContext.length
-        ? `## GSD Planning Context\n\n${planningContext.join("\n\n")}`
-        : ""
-
-      textPart.text = [injected, contextBlock].filter(Boolean).join("\n\n")
+      textPart.text = buildCommandPayload(commandName, argsText, entry, worktree)
       textPart.synthetic = true
+    },
+
+    "experimental.chat.messages.transform": async (_input, output) => {
+      for (const message of output.messages) {
+        if (message.info.role !== "user") continue
+        const textPart = message.parts.find((part) => part.type === "text")
+        if (!textPart || !isGsdInvocation(textPart.text)) continue
+
+        const { name, argsText } = parseInvocation(textPart.text)
+        const commandName = normalizeCommandName(name.replace("/gsd:", "gsd:"))
+        const entry = commandsIndex.get(commandName)
+        textPart.text = buildCommandPayload(commandName, argsText, entry, worktree)
+        textPart.synthetic = true
+      }
     },
 
     "experimental.session.compacting": async (_input, output) => {
