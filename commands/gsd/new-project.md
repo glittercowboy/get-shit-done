@@ -70,7 +70,7 @@ Check the results from setup step:
 - AND `HAS_CODEBASE_MAP` is NOT "yes"
 
 Use AskUserQuestion:
-- header: "Existing Code"
+- header: "Existing"
 - question: "I detected existing code in this directory. Would you like to map the codebase first?"
 - options:
   - "Map codebase first" — Run /gsd:map-codebase to understand existing architecture (Recommended)
@@ -99,7 +99,7 @@ Wait for their freeform response. This gives you the context needed to ask intel
 **2. Follow the thread (NOW use AskUserQuestion):**
 
 Based on their response, use AskUserQuestion with options that probe what they mentioned:
-- header: "[Topic they mentioned]"
+- header: "Topic"
 - question: "You mentioned [X] — what would that look like?"
 - options: 2-3 interpretations + "Something else"
 

@@ -82,7 +82,7 @@ Present this checklist to user.
 **Guide user through each test:**
 
 For each test item, use AskUserQuestion:
-- header: "[Feature name]"
+- header: "Feature"
 - question: "[Test description] - Did this work as expected?"
 - options:
   - "Pass" — Works correctly
@@ -94,7 +94,7 @@ For each test item, use AskUserQuestion:
 
 **If Fail or Partial:**
 Follow up with AskUserQuestion:
-- header: "Issue details"
+- header: "Issue"
 - question: "What went wrong?"
 - options:
   - "Crashes/errors" — Application error or exception

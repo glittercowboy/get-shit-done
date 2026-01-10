@@ -44,7 +44,7 @@ Check if roadmap already exists:
 
 **If ROADMAP_EXISTS:**
 Use AskUserQuestion:
-- header: "Roadmap exists"
+- header: "Roadmap"
 - question: "A roadmap already exists. What would you like to do?"
 - options:
   - "View existing" - Show current roadmap

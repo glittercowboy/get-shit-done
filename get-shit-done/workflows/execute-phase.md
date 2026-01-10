@@ -422,7 +422,7 @@ If previous phase SUMMARY.md has "Issues Encountered" != "None" or "Next Phase R
 
 Use AskUserQuestion:
 
-- header: "Previous Issues"
+- header: "Prev Issues"
 - question: "Previous phase had unresolved items: [summary]. How to proceed?"
 - options:
   - "Proceed anyway" - Issues won't block this phase
