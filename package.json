@@ -3,7 +3,13 @@
   "version": "1.3.31",
   "description": "A meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.",
   "bin": {
-    "get-shit-done-cc": "bin/install.js"
+    "get-shit-done-cc": "bin/install.js",
+    "gsd-opencode-install": "bin/install-opencode.js",
+    "gsd-opencode-uninstall": "bin/uninstall-opencode.js"
+  },
+  "scripts": {
+    "install-opencode": "node bin/install-opencode.js",
+    "uninstall-opencode": "node bin/uninstall-opencode.js"
   },
   "files": [
     "bin",

@@ -76,6 +76,65 @@ npx get-shit-done-cc
 That's it. Verify with `/gsd:help`.
 
 <details>
+<summary><strong>OpenCode Installation (Global)</strong></summary>
+
+Install the OpenCode plugin globally (recommended):
+
+```bash
+node bin/install-opencode.js
+```
+
+Or via npx:
+
+```bash
+npx gsd-opencode-install
+```
+
+Optional: install to a custom OpenCode config directory:
+
+```bash
+node bin/install-opencode.js --config-dir ~/.config/opencode
+```
+
+Usage in OpenCode:
+
+```
+/gsd:new-project
+/gsd:create-roadmap
+/gsd:plan-phase 1
+```
+
+Troubleshooting:
+
+```bash
+ls ~/.config/opencode/get-shit-done/commands/gsd
+ls ~/.config/opencode/plugin/gsd.ts
+ls ~/.config/opencode/tool/gsd.ts
+```
+
+Uninstall:
+
+```bash
+rm -rf ~/.config/opencode/get-shit-done
+rm -f ~/.config/opencode/plugin/gsd.ts
+rm -f ~/.config/opencode/tool/gsd.ts
+```
+
+Safer uninstall script:
+
+```bash
+node bin/uninstall-opencode.js
+```
+
+Or via npx:
+
+```bash
+npx gsd-opencode-uninstall
+```
+
+</details>
+
+<details>
 <summary><strong>Non-interactive Install (Docker, CI, Scripts)</strong></summary>
 
 ```bash
