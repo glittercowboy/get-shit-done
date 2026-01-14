@@ -2,7 +2,7 @@
 
 # GET SHIT DONE
 
-**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.**
+**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code and OpenCode by TÂCHES.**
 
 **Solves context rot — the quality degradation that happens as Claude fills its context window.**
 
@@ -75,17 +75,26 @@ People who want to describe what they want and have it built correctly — witho
 npx get-shit-done-cc
 ```
 
-That's it. Verify with `/gsd:help` inside your Claude Code interface.
+The installer will prompt you to choose:
+1. **Platform**: Claude Code or OpenCode
+2. **Location**: Global (all projects) or Local (current project only)
+
+Verify installation with `/gsd:help` (Claude Code) or `@general` (OpenCode).
 
 <details>
 <summary><strong>Non-interactive Install (Docker, CI, Scripts)</strong></summary>
 
 ```bash
-npx get-shit-done-cc --global   # Install to ~/.claude/
-npx get-shit-done-cc --local    # Install to ./.claude/
+# Claude Code
+npx get-shit-done-cc --platform claude-code --global   # Install to ~/.claude/
+npx get-shit-done-cc --platform claude-code --local    # Install to ./.claude/
+
+# OpenCode
+npx get-shit-done-cc --platform opencode --global      # Install to ~/.config/opencode/
+npx get-shit-done-cc --platform opencode --local       # Install to .opencode/
 ```
 
-Use `--global` (`-g`) or `--local` (`-l`) to skip the interactive prompt.
+Use `--platform` to specify target platform and `--global` (`-g`) or `--local` (`-l`) for location.
 
 </details>
 
@@ -395,6 +404,6 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**Claude Code is powerful. GSD makes it reliable.**
+**Claude Code and OpenCode are powerful. GSD makes them reliable.**
 
 </div>
