@@ -283,25 +283,38 @@ function install(isGlobal) {
   copyWithPathReplacement(skillSrc, skillDest, pathPrefix);
   console.log(`  ${green}✓${reset} Installed get-shit-done`);
 
-  // Create or update settings.json for editor-specific configuration
-  const settingsPath = path.join(editorDir, 'settings.json');
-  let settings = {};
-  if (fs.existsSync(settingsPath)) {
-    try {
-      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    } catch (e) {
-      // Ignore parse errors, start fresh
+  // For OpenCode, also install the extension
+  if (editorType === 'opencode') {
+    const extensionSrc = path.join(src, 'commands', 'opencode');
+    const extensionDest = path.join(editorDir, 'extensions', 'gsd-opencode');
+    fs.mkdirSync(extensionDest, { recursive: true });
+
+    // Copy extension files
+    const extensionFiles = fs.readdirSync(extensionSrc);
+    for (const file of extensionFiles) {
+      const srcPath = path.join(extensionSrc, file);
+      const destPath = path.join(extensionDest, file);
+      if (fs.statSync(srcPath).isDirectory()) {
+        copyWithPathReplacement(srcPath, destPath, pathPrefix);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
     }
+    console.log(`  ${green}✓${reset} Installed OpenCode extension`);
   }
 
-  // Add GSD configuration
-  settings.gsd = settings.gsd || {};
-  settings.gsd.version = pkg.version;
-  settings.gsd.installedAt = new Date().toISOString();
-  settings.gsd.editor = editorType;
+  // Create or update settings.json for editor-specific configuration
+  const ConfigManager = require('./config-manager');
+  const configManager = new ConfigManager(editorType);
 
-  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  console.log(`  ${green}✓${reset} Updated settings.json`);
+  // Set GSD configuration
+  configManager.setGSDConfig({
+    version: pkg.version,
+    installedAt: new Date().toISOString(),
+    editor: editorType
+  });
+
+  console.log(`  ${green}✓${reset} Updated configuration for ${editorType === 'opencode' ? 'OpenCode' : 'Claude Code'}`);
 
   const editorName = editorType === 'opencode' ? 'OpenCode' : 'Claude Code';
   const commandExample = editorType === 'opencode' ? 'opencode.gsd.help' : '/gsd:help';
