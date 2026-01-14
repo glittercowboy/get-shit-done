@@ -1,6 +1,10 @@
 ---
 name: gsd:progress
 description: Check project progress, show context, and route to next action (execute or plan)
+arguments:
+  - name: --full
+    description: Show complete milestone tree with all phases, plans, and key decisions
+    required: false
 allowed-tools:
   - Read
   - Bash
@@ -13,10 +17,24 @@ allowed-tools:
 Check project progress, summarize recent work and what's ahead, then intelligently route to the next action - either executing an existing plan or creating the next one.
 
 Provides situational awareness before continuing work.
+
+**With `--full` flag:** Additionally shows complete milestone tree with task-level detail and key decisions per phase — useful for recalling what was planned and decided across the entire milestone.
 </objective>
 
 
 <process>
+
+<step name="parse_args">
+**Parse arguments:**
+
+Check if `--full` flag is present in the command arguments.
+
+```
+FULL_MODE = true if --full flag provided, otherwise false
+```
+
+Default behavior (no flag) remains unchanged. The `--full` flag adds expanded output after the standard report.
+</step>
 
 <step name="verify">
 **Verify planning structure exists:**
@@ -95,6 +113,85 @@ CONTEXT: [✓ if CONTEXT.md exists | - if not]
 ## What's Next
 [Next phase/plan objective from ROADMAP]
 ```
+
+</step>
+
+<step name="full_tree" condition="FULL_MODE=true">
+**Generate full milestone tree (only when --full flag provided):**
+
+This step runs AFTER the standard report, providing expanded context for recall.
+
+**1. Identify current milestone phases:**
+
+Read ROADMAP.md and extract all phases in the current milestone section.
+
+**2. For each phase, gather plan status:**
+
+```bash
+# For each phase directory in .planning/phases/
+ls -1 .planning/phases/[phase-dir]/*-PLAN.md 2>/dev/null
+ls -1 .planning/phases/[phase-dir]/*-SUMMARY.md 2>/dev/null
+```
+
+**3. Determine status for each plan:**
+
+- `✓` = complete (matching SUMMARY.md exists)
+- `→` = current (next plan to execute — first PLAN.md without SUMMARY.md)
+- `○` = planned (PLAN.md exists, no SUMMARY.md yet)
+- `(not yet planned)` = phase has no PLAN.md files
+
+**4. Extract key decisions:**
+
+For each completed plan (has SUMMARY.md):
+- Read SUMMARY.md frontmatter for `key-decisions` field
+- If present, take first decision (most important)
+- If absent, check STATE.md Decisions table for that phase
+- Show max 1 decision per plan to keep output scannable
+
+**5. Output format:**
+
+```
+## Full Milestone Tree
+
+Phase 70: Database Schema [DONE]
+├─ 70-01: Core tables ✓
+├─ 70-02: Indexes ✓
+└─ 70-03: Migrations ✓
+
+Phase 71: API Layer [DONE]
+├─ 71-01: Auth endpoints ✓
+│  └─ Decision: JWT with refresh rotation
+├─ 71-02: User CRUD ✓
+└─ 71-03: Rate limiting ✓
+
+Phase 72: Frontend [IN PROGRESS]
+├─ 72-01: Login form ✓
+├─ 72-02: Dashboard → CURRENT
+└─ 72-03: Settings ○
+
+Phase 73: Testing [PLANNED]
+└─ (not yet planned)
+
+## Milestone Summary
+- **Phases:** 2 of 4 complete
+- **Plans:** 8 of 12 complete
+- **Decisions logged:** 5
+```
+
+**Phase status labels:**
+- `[DONE]` = all plans have SUMMARY.md
+- `[IN PROGRESS]` = some plans complete, some remaining
+- `[PLANNED]` = no plans executed yet (or no plans created)
+
+**Tree formatting:**
+- Use `├─` for non-last items, `└─` for last item in each phase
+- Use `│` for vertical continuation when showing decisions
+- Indent decisions under their parent plan
+
+**Statistics calculation:**
+- Count phases: done = all plans have summaries, total = all phases in milestone
+- Count plans: completed = SUMMARY.md count, total = PLAN.md count across all phases
+- Count decisions: from SUMMARY.md frontmatter `key-decisions` arrays
 
 </step>
 
@@ -317,10 +414,19 @@ All {N} phases finished!
 
 <success_criteria>
 
+**Standard mode (default):**
 - [ ] Rich context provided (recent work, decisions, issues)
 - [ ] Current position clear with visual progress
 - [ ] What's next clearly explained
 - [ ] Smart routing: /gsd:execute-plan if plan exists, /gsd:plan-phase if not
 - [ ] User confirms before any action
 - [ ] Seamless handoff to appropriate gsd command
+
+**Full mode (--full flag):**
+- [ ] All standard mode criteria met
+- [ ] Tree shows all phases in current milestone
+- [ ] Each phase shows all plans with correct status indicator (✓ → ○)
+- [ ] Key decisions extracted from completed plan summaries
+- [ ] Milestone statistics accurate (phases, plans, decisions)
+- [ ] Output renders correctly in terminal
       </success_criteria>
