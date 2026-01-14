@@ -41,9 +41,9 @@ Full feature parity port of GSD to support both Claude Code and OpenCode platfor
 **Research:** Unlikely (internal Node.js work using established patterns)
 
 **Dependencies:** Phase 1 (need to understand OpenCode structure first)
-**Status:** In progress (1/1 plans)
+**Status:** Complete (1/1 plans)
 **Plans:**
-- [ ] 02-01: Multi-Agent Installer
+- [x] 02-01: Multi-Agent Installer
 
 ---
 
@@ -60,7 +60,9 @@ Full feature parity port of GSD to support both Claude Code and OpenCode platfor
 **Research topics:** OpenCode command execution model, agent spawning patterns
 
 **Dependencies:** Phase 2 (need installer working first)
-**Status:** Not started
+**Status:** Complete (1/1 plans)
+**Plans:**
+- [x] 03-01: Command Adaptation
 
 ---
 
@@ -76,7 +78,10 @@ Full feature parity port of GSD to support both Claude Code and OpenCode platfor
 **Research:** Unlikely (testing existing work)
 
 **Dependencies:** Phase 3
-**Status:** Not started
+**Status:** In progress (1/2 plans)
+**Plans:**
+- [x] 04-01: Command Test Matrix
+- [ ] 04-02: Documentation Update
 
 ---
 
@@ -85,9 +90,9 @@ Full feature parity port of GSD to support both Claude Code and OpenCode platfor
 | Phase | Status | Plans | Completed |
 |-------|--------|-------|-----------|
 | 1. OpenCode Research | Complete | 1/1 | 2026-01-14 |
-| 2. Multi-Agent Installer | In progress | 0/1 | — |
-| 3. Command Adaptation | Not started | — | — |
-| 4. Validation | Not started | — | — |
+| 2. Multi-Agent Installer | Complete | 1/1 | 2026-01-14 |
+| 3. Command Adaptation | Complete | 1/1 | 2026-01-14 |
+| 4. Validation | In progress | 1/2 | — |
 
 ---
-*Last updated: 2026-01-14 after Phase 1 completion*
+*Last updated: 2026-01-14 after Plan 04-01 completion*
