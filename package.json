@@ -1,7 +1,7 @@
 {
   "name": "get-shit-done-cc",
   "version": "1.4.15",
-  "description": "A meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.",
+  "description": "Meta-prompting system for Claude Code and OpenCode by TÂCHES. Context engineering and spec-driven development.",
   "bin": {
     "get-shit-done-cc": "bin/install.js"
   },
@@ -13,6 +13,7 @@
   "keywords": [
     "claude",
     "claude-code",
+    "opencode",
     "ai",
     "meta-prompting",
     "context-engineering",
