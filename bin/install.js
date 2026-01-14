@@ -15,6 +15,78 @@ const reset = '\x1b[0m';
 // Get version from package.json
 const pkg = require('../package.json');
 
+/**
+ * Editor Detection Module
+ */
+class EditorDetector {
+  static detect() {
+    // Check for OpenCode indicators first
+    if (this.isOpenCodeEnvironment()) {
+      return 'opencode';
+    }
+    // Default to Claude Code
+    return 'claude';
+  }
+
+  static isOpenCodeEnvironment() {
+    // Check for ~/.opencode directory
+    const opencodeDir = path.join(os.homedir(), '.opencode');
+    if (fs.existsSync(opencodeDir)) {
+      return true;
+    }
+
+    // Check for OpenCode-specific environment variables
+    if (process.env.OPENCODE_CONFIG_DIR || process.env.OPENCODE_HOME) {
+      return true;
+    }
+
+    // Check for OpenCode process (basic check)
+    try {
+      const { execSync } = require('child_process');
+      const result = execSync('pgrep -f opencode', { encoding: 'utf8', timeout: 1000 });
+      return result.trim().length > 0;
+    } catch (e) {
+      // Ignore errors, not running
+    }
+
+    return false;
+  }
+}
+
+/**
+ * Path Management Module
+ */
+class PathManager {
+  constructor(editorType) {
+    this.editorType = editorType;
+    this.basePaths = {
+      claude: '~/.claude',
+      opencode: '~/.opencode'
+    };
+  }
+
+  getBasePath() {
+    return this.basePaths[this.editorType];
+  }
+
+  resolvePath(relativePath) {
+    const base = this.getBasePath();
+    return path.join(base, relativePath);
+  }
+
+  getCommandsPath() {
+    return this.resolvePath('commands/gsd');
+  }
+
+  getSkillsPath() {
+    return this.resolvePath('get-shit-done');
+  }
+
+  getConfigPath() {
+    return this.resolvePath('settings.json');
+  }
+}
+
 const banner = `
 ${cyan}   ██████╗ ███████╗██████╗
   ██╔════╝ ██╔════╝██╔══██╗
@@ -25,7 +97,7 @@ ${cyan}   ██████╗ ███████╗██████╗
 
   Get Shit Done ${dim}v${pkg.version}${reset}
   A meta-prompting, context engineering and spec-driven
-  development system for Claude Code by TÂCHES.
+  development system for Claude Code and OpenCode by TÂCHES.
 `;
 
 // Parse args
@@ -52,7 +124,38 @@ function parseConfigDirArg() {
   }
   return null;
 }
+
+// Parse --editor argument
+function parseEditorArg() {
+  const editorIndex = args.findIndex(arg => arg === '--editor' || arg === '-e');
+  if (editorIndex !== -1) {
+    const nextArg = args[editorIndex + 1];
+    // Error if --editor is provided without a value or next arg is another flag
+    if (!nextArg || nextArg.startsWith('-')) {
+      console.error(`  ${yellow}--editor requires a value: claude or opencode${reset}`);
+      process.exit(1);
+    }
+    if (!['claude', 'opencode'].includes(nextArg)) {
+      console.error(`  ${yellow}--editor must be 'claude' or 'opencode'${reset}`);
+      process.exit(1);
+    }
+    return nextArg;
+  }
+  // Also handle --editor=value format
+  const editorArg = args.find(arg => arg.startsWith('--editor=') || arg.startsWith('-e='));
+  if (editorArg) {
+    const value = editorArg.split('=')[1];
+    if (!['claude', 'opencode'].includes(value)) {
+      console.error(`  ${yellow}--editor must be 'claude' or 'opencode'${reset}`);
+      process.exit(1);
+    }
+    return value;
+  }
+  return null;
+}
+
 const explicitConfigDir = parseConfigDirArg();
+const explicitEditor = parseEditorArg();
 const hasHelp = args.includes('--help') || args.includes('-h');
 
 console.log(banner);
@@ -62,28 +165,33 @@ if (hasHelp) {
   console.log(`  ${yellow}Usage:${reset} npx get-shit-done-cc [options]
 
   ${yellow}Options:${reset}
-    ${cyan}-g, --global${reset}              Install globally (to Claude config directory)
-    ${cyan}-l, --local${reset}               Install locally (to ./.claude in current directory)
-    ${cyan}-c, --config-dir <path>${reset}   Specify custom Claude config directory
+    ${cyan}-g, --global${reset}              Install globally (auto-detects editor: Claude or OpenCode)
+    ${cyan}-l, --local${reset}               Install locally (to ./.claude or ./.opencode in current directory)
+    ${cyan}-c, --config-dir <path>${reset}   Specify custom config directory (Claude or OpenCode)
+    ${cyan}-e, --editor <type>${reset}       Force specific editor: claude or opencode
     ${cyan}-h, --help${reset}                Show this help message
 
   ${yellow}Examples:${reset}
-    ${dim}# Install to default ~/.claude directory${reset}
+    ${dim}# Auto-detect and install globally${reset}
     npx get-shit-done-cc --global
 
-    ${dim}# Install to custom config directory (for multiple Claude accounts)${reset}
-    npx get-shit-done-cc --global --config-dir ~/.claude-bc
+    ${dim}# Force install for OpenCode${reset}
+    npx get-shit-done-cc --global --editor opencode
 
-    ${dim}# Using environment variable${reset}
+    ${dim}# Install to custom config directory${reset}
+    npx get-shit-done-cc --global --config-dir ~/.opencode-custom
+
+    ${dim}# Using environment variables${reset}
     CLAUDE_CONFIG_DIR=~/.claude-bc npx get-shit-done-cc --global
+    OPENCODE_CONFIG_DIR=~/.opencode-dev npx get-shit-done-cc --global
 
     ${dim}# Install to current project only${reset}
     npx get-shit-done-cc --local
 
   ${yellow}Notes:${reset}
-    The --config-dir option is useful when you have multiple Claude Code
-    configurations (e.g., for different subscriptions). It takes priority
-    over the CLAUDE_CONFIG_DIR environment variable.
+    GSD now supports both Claude Code and OpenCode editors.
+    The installer auto-detects your environment, but you can force a specific editor with --editor.
+    Config directory options work for both editors and take priority over environment variables.
 `);
   process.exit(0);
 }
@@ -128,27 +236,39 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
  */
 function install(isGlobal) {
   const src = path.join(__dirname, '..');
-  // Priority: explicit --config-dir arg > CLAUDE_CONFIG_DIR env var > default ~/.claude
-  const configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.CLAUDE_CONFIG_DIR);
-  const defaultGlobalDir = configDir || path.join(os.homedir(), '.claude');
-  const claudeDir = isGlobal
+
+  // Detect editor type
+  const editorType = explicitEditor || EditorDetector.detect();
+  const pathManager = new PathManager(editorType);
+
+  // Determine config directory based on editor
+  let configDir;
+  if (editorType === 'opencode') {
+    configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.OPENCODE_CONFIG_DIR);
+  } else {
+    configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.CLAUDE_CONFIG_DIR);
+  }
+
+  // Set default directories based on editor
+  const defaultDirName = editorType === 'opencode' ? '.opencode' : '.claude';
+  const defaultGlobalDir = configDir || path.join(os.homedir(), defaultDirName);
+  const editorDir = isGlobal
     ? defaultGlobalDir
-    : path.join(process.cwd(), '.claude');
+    : path.join(process.cwd(), defaultDirName);
 
   const locationLabel = isGlobal
-    ? claudeDir.replace(os.homedir(), '~')
-    : claudeDir.replace(process.cwd(), '.');
+    ? editorDir.replace(os.homedir(), '~')
+    : editorDir.replace(process.cwd(), '.');
 
   // Path prefix for file references
-  // Use actual path when CLAUDE_CONFIG_DIR is set, otherwise use ~ shorthand
   const pathPrefix = isGlobal
-    ? (configDir ? `${claudeDir}/` : '~/.claude/')
-    : './.claude/';
+    ? (configDir ? `${editorDir}/` : `~/.${editorType === 'opencode' ? 'opencode' : 'claude'}/`)
+    : `./.${editorType === 'opencode' ? 'opencode' : 'claude'}/`;
 
-  console.log(`  Installing to ${cyan}${locationLabel}${reset}\n`);
+  console.log(`  Installing for ${cyan}${editorType === 'opencode' ? 'OpenCode' : 'Claude Code'}${reset} to ${cyan}${locationLabel}${reset}\n`);
 
   // Create commands directory
-  const commandsDir = path.join(claudeDir, 'commands');
+  const commandsDir = path.join(editorDir, 'commands');
   fs.mkdirSync(commandsDir, { recursive: true });
 
   // Copy commands/gsd with path replacement
@@ -159,12 +279,35 @@ function install(isGlobal) {
 
   // Copy get-shit-done skill with path replacement
   const skillSrc = path.join(src, 'get-shit-done');
-  const skillDest = path.join(claudeDir, 'get-shit-done');
+  const skillDest = path.join(editorDir, 'get-shit-done');
   copyWithPathReplacement(skillSrc, skillDest, pathPrefix);
   console.log(`  ${green}✓${reset} Installed get-shit-done`);
 
+  // Create or update settings.json for editor-specific configuration
+  const settingsPath = path.join(editorDir, 'settings.json');
+  let settings = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    } catch (e) {
+      // Ignore parse errors, start fresh
+    }
+  }
+
+  // Add GSD configuration
+  settings.gsd = settings.gsd || {};
+  settings.gsd.version = pkg.version;
+  settings.gsd.installedAt = new Date().toISOString();
+  settings.gsd.editor = editorType;
+
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  console.log(`  ${green}✓${reset} Updated settings.json`);
+
+  const editorName = editorType === 'opencode' ? 'OpenCode' : 'Claude Code';
+  const commandExample = editorType === 'opencode' ? 'opencode.gsd.help' : '/gsd:help';
+
   console.log(`
-  ${green}Done!${reset} Launch Claude Code and run ${cyan}/gsd:help${reset}.
+  ${green}Done!${reset} Launch ${editorName} and run ${cyan}${commandExample}${reset}.
 `);
 }
 
@@ -177,14 +320,27 @@ function promptLocation() {
     output: process.stdout
   });
 
-  const configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.CLAUDE_CONFIG_DIR);
-  const globalPath = configDir || path.join(os.homedir(), '.claude');
-  const globalLabel = globalPath.replace(os.homedir(), '~');
+  // Detect editor for appropriate paths
+  const editorType = explicitEditor || EditorDetector.detect();
+  const pathManager = new PathManager(editorType);
 
-  console.log(`  ${yellow}Where would you like to install?${reset}
+  let configDir;
+  if (editorType === 'opencode') {
+    configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.OPENCODE_CONFIG_DIR);
+  } else {
+    configDir = expandTilde(explicitConfigDir) || expandTilde(process.env.CLAUDE_CONFIG_DIR);
+  }
+
+  const defaultDirName = editorType === 'opencode' ? '.opencode' : '.claude';
+  const globalPath = configDir || path.join(os.homedir(), defaultDirName);
+  const globalLabel = globalPath.replace(os.homedir(), '~');
+  const localLabel = `./${defaultDirName}`;
+  const editorName = editorType === 'opencode' ? 'OpenCode' : 'Claude Code';
+
+  console.log(`  ${yellow}Where would you like to install GSD for ${editorName}?${reset}
 
   ${cyan}1${reset}) Global ${dim}(${globalLabel})${reset} - available in all projects
-  ${cyan}2${reset}) Local  ${dim}(./.claude)${reset} - this project only
+  ${cyan}2${reset}) Local  ${dim}(${localLabel})${reset} - this project only
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
