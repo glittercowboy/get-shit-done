@@ -1364,6 +1364,19 @@ The one-liner must be SUBSTANTIVE:
 - If this is the last plan: "Phase complete, ready for transition"
   </step>
 
+<step name="update_metrics_after_plan">
+**Update metrics.json after plan completion:**
+
+```bash
+# Increment plans complete
+jq '.current_phase.plans_complete += 1 |
+    .last_updated = now | todate |
+    .current_phase.status = (if .current_phase.plans_complete == .current_phase.plans_total then "complete" else "in_progress" end)' \
+   .planning/metrics.json > .planning/metrics.tmp && \
+   mv .planning/metrics.tmp .planning/metrics.json
+```
+</step>
+
 <step name="update_current_position">
 Update Current Position section in STATE.md to reflect plan completion.
 
