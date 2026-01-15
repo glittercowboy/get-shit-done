@@ -376,6 +376,99 @@ EOF
 )"
 ```
 
+Continue to detect_algorithms.
+</step>
+
+<step name="detect_algorithms">
+**Optional algorithm detection with user confirmation.**
+
+After codebase mapping completes, offer algorithm detection:
+
+Use AskUserQuestion:
+- header: "Algorithms"
+- question: "Detect algorithm patterns in the codebase?"
+- options:
+  - "Skip" — No algorithm documentation needed (most projects)
+  - "Detect" — Scan for state estimation, optimization, neural networks, pipelines
+
+**If "Skip":** Continue to offer_next.
+
+**If "Detect":**
+
+1. **Scan for algorithm patterns:**
+
+```bash
+# State estimation patterns
+grep -rl "kalman\|covariance\|predict.*update" --include="*.py" --include="*.ts" --include="*.cpp" . 2>/dev/null | head -10
+
+# Optimization patterns
+grep -rl "gradient\|loss\|optimizer\|minimize\|maximize" --include="*.py" --include="*.ts" . 2>/dev/null | head -10
+
+# Neural network patterns
+grep -rl "forward\|backward\|layer\|activation\|nn\.\|torch\.\|tf\." --include="*.py" --include="*.ts" . 2>/dev/null | head -10
+
+# Pipeline patterns
+grep -rl "pipeline\|stage\|transform\|preprocess\|postprocess" --include="*.py" --include="*.ts" . 2>/dev/null | head -10
+```
+
+2. **Present findings to user:**
+
+```
+Found potential algorithm patterns:
+
+State estimation:
+- src/ekf.py
+- src/ukf.py
+
+Optimization:
+- src/optimizer.py
+
+Which of these should have algorithm documentation?
+(List file paths, or "none")
+```
+
+3. **If user confirms files:**
+
+```bash
+mkdir -p .planning/algorithms
+```
+
+For each confirmed algorithm, create stub:
+
+```bash
+cat > .planning/algorithms/[name].md << 'EOF'
+---
+owns:
+  - [file-path]
+---
+
+# [Algorithm Name]
+
+## Purpose
+
+[To be documented]
+
+## Method
+
+[To be documented]
+
+---
+*Stub created by /gsd:map-codebase. Fill in using algorithm template.*
+EOF
+```
+
+4. **Commit algorithm stubs:**
+
+```bash
+git add .planning/algorithms/*.md
+git commit -m "docs: create algorithm doc stubs
+
+Detected algorithm patterns in:
+- [file1]
+- [file2]
+"
+```
+
 Continue to offer_next.
 </step>
 

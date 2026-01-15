@@ -118,6 +118,14 @@ _Note: TDD tasks may have multiple commits (test → feat → refactor)_
 [If no USER-SETUP.md:]
 None - no external service configuration required.
 
+## Algorithm Sync
+
+[If algorithm files touched:]
+- Modified `[file]` — verify `.planning/algorithms/[name].md` accuracy
+
+[If no algorithm files touched:]
+None - no algorithm documentation affected.
+
 ## Next Phase Readiness
 [What's ready for next phase]
 [Any blockers or concerns]

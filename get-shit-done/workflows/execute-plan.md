@@ -1317,6 +1317,57 @@ Skip this step - no USER-SETUP.md needed.
 Set `USER_SETUP_CREATED=true` if file was generated, for use in completion messaging.
 </step>
 
+<step name="check_algorithm_sync">
+**Populate Algorithm Sync section by checking if modified files intersect algorithm ownership.**
+
+After execution completes, determine which algorithm docs (if any) need review:
+
+**1. Collect files modified during execution:**
+
+```bash
+# Get files from task commits in this plan
+git diff --name-only HEAD~${TASK_COUNT}..HEAD 2>/dev/null | sort -u
+```
+
+Store in `FILES_MODIFIED` list.
+
+**2. Check if algorithm documentation exists:**
+
+```bash
+ls .planning/algorithms/*.md 2>/dev/null
+```
+
+**If no algorithm docs exist:** Set `ALGORITHM_SYNC="None - no algorithm documentation affected."` and continue to create_summary.
+
+**3. For each algorithm doc, check ownership intersection:**
+
+```bash
+ALGORITHM_SYNC=""
+for f in .planning/algorithms/*.md; do
+  # Extract owned files from frontmatter
+  OWNS=$(sed -n '/^owns:/,/^[^- ]/p' "$f" | grep "^  - " | sed 's/^  - //')
+
+  # Check if any owned file was modified
+  for owned in $OWNS; do
+    if echo "$FILES_MODIFIED" | grep -q "$owned"; then
+      ALGO_NAME=$(basename "$f" .md)
+      ALGORITHM_SYNC="${ALGORITHM_SYNC}- Modified \`${owned}\` — verify \`.planning/algorithms/${ALGO_NAME}.md\` accuracy\n"
+    fi
+  done
+done
+```
+
+**4. Set Algorithm Sync content:**
+
+If `ALGORITHM_SYNC` is empty:
+```
+ALGORITHM_SYNC="None - no algorithm documentation affected."
+```
+
+Pass `ALGORITHM_SYNC` to create_summary step for inclusion in SUMMARY.md.
+
+</step>
+
 <step name="create_summary">
 Create `{phase}-{plan}-SUMMARY.md` as specified in the prompt's `<output>` section.
 Use ~/.claude/get-shit-done/templates/summary.md for structure.

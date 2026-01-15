@@ -316,6 +316,58 @@ Assess each pending todo - relevant to this phase? Natural to address now?
 - Concerns being verified (from "Next Phase Readiness")
 </step>
 
+<step name="load_algorithm_context">
+**Load algorithm docs whose `owns:` intersects phase files.**
+
+Check if algorithm documentation exists:
+
+```bash
+ls .planning/algorithms/*.md 2>/dev/null
+```
+
+**If algorithm docs exist:**
+
+For each algorithm doc, check if it owns files relevant to this phase:
+
+```bash
+# For each algorithm file, extract owns: list and check intersection
+for f in .planning/algorithms/*.md; do
+  # Extract owned files from frontmatter
+  OWNS=$(sed -n '/^owns:/,/^[^- ]/p' "$f" | grep "^  - " | sed 's/^  - //')
+  echo "Algorithm: $f"
+  echo "Owns: $OWNS"
+done
+```
+
+**Intersection check:**
+
+Compare algorithm `owns:` paths against:
+1. Files mentioned in phase description (from ROADMAP.md)
+2. Files in prior phase summaries' `key-files` sections
+3. Source files you plan to touch based on phase goal
+
+**If intersection found:**
+
+Include algorithm doc in PLAN.md `<context>` section:
+
+```markdown
+<context>
+@.planning/PROJECT.md
+@.planning/ROADMAP.md
+@.planning/algorithms/[matching-algorithm].md  <!-- Algorithm spec for owned files -->
+@path/to/source.ts
+</context>
+```
+
+**Track for write_phase_prompt step:**
+- Which algorithm docs were loaded (for @context references)
+- What invariants to maintain (from algorithm's Invariants section)
+- What validation to include (from algorithm's Validation section)
+
+**If no intersection or no algorithm docs:** Continue to gather_phase_context.
+
+</step>
+
 <step name="gather_phase_context">
 Understand:
 - Phase goal (from roadmap)
@@ -324,6 +376,7 @@ Understand:
 - Any {phase}-RESEARCH.md (from /gsd:research-phase)
 - Any DISCOVERY.md (from mandatory discovery)
 - Any {phase}-CONTEXT.md (from /gsd:discuss-phase)
+- Any algorithm docs loaded (from load_algorithm_context)
 
 ```bash
 # If mid-project, understand current state

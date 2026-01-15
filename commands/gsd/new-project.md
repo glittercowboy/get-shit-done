@@ -215,6 +215,35 @@ Do not compress. Capture everything gathered.
 
 </step>
 
+<step name="algorithm_check">
+
+**For greenfield projects (no existing codebase map):**
+
+If `.planning/codebase/` does NOT exist (greenfield), ask about algorithm documentation:
+
+Use AskUserQuestion:
+- header: "Algorithms"
+- question: "Do you have algorithms to document (math, ML, pipelines)?"
+- options:
+  - "No" — Skip algorithm documentation (most projects)
+  - "Yes" — Create `.planning/algorithms/` for algorithm specs
+
+**If "Yes":**
+```bash
+mkdir -p .planning/algorithms
+```
+
+Note in PROJECT.md under Constraints or a new "## Technical Context" section:
+```markdown
+## Technical Context
+
+Algorithm documentation enabled. Create specs in `.planning/algorithms/` using the algorithm template.
+```
+
+**If "No" or brownfield:** Continue to workflow_preferences.
+
+</step>
+
 <step name="workflow_preferences">
 
 Ask all workflow preferences in a single AskUserQuestion call (3 questions):
