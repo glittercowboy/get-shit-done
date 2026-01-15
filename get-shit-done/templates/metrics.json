@@ -1,0 +1,21 @@
+{
+  "gsd_version": "2.0.0",
+  "project_name": "",
+  "last_updated": "",
+
+  "current_phase": {
+    "number": 1,
+    "name": "",
+    "status": "planned",
+    "plans_complete": 0,
+    "plans_total": 0
+  },
+
+  "overall_progress": {
+    "phases_complete": 0,
+    "phases_total": 0,
+    "percentage": 0
+  },
+
+  "milestones": []
+}
