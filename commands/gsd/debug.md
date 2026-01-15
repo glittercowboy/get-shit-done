@@ -1,7 +1,7 @@
 ---
 name: gsd:debug
 description: Systematic debugging with persistent state across context resets
-argument-hint: [issue description]
+argument-hint: "[issue description] [--think <framework>]"
 allowed-tools:
   - Read
   - Bash
@@ -18,7 +18,9 @@ Debug issues using scientific method with subagent isolation.
 </objective>
 
 <context>
-User's issue: $ARGUMENTS
+**Parse --think first:** Strip trailing `--think <framework>` from $ARGUMENTS. CLEAN_ARGS is the issue description (flag never pollutes issue text). If THINK_MODE set, load `@~/.claude/get-shit-done/frameworks/${THINK_MODE}.md` as investigation lens.
+
+User's issue: CLEAN_ARGS
 
 Check for active sessions:
 ```bash

@@ -325,6 +325,15 @@ Usage: `/gsd:whats-new`
         └── 02-01-SUMMARY.md
 ```
 
+**Installed GSD Files:**
+```
+~/.claude/get-shit-done/
+├── frameworks/           # Mental frameworks for --think mode (12 files)
+├── references/           # Reference docs including think-mode.md
+├── workflows/            # Command workflow definitions
+└── templates/            # File templates
+```
+
 ## Workflow Modes
 
 Set during `/gsd:new-project`:
@@ -342,6 +351,34 @@ Set during `/gsd:new-project`:
 - Only stops for critical checkpoints
 
 Change anytime by editing `.planning/config.json`
+
+## Think Mode
+
+Apply mental frameworks with `--think <framework>` (must be last):
+
+| Framework | Best For |
+|-----------|----------|
+| pareto | Prioritization (80/20) |
+| first-principles | Architecture |
+| inversion | Risk analysis |
+| 5-whys | Root cause |
+| second-order | Consequences |
+| via-negativa | Scope reduction |
+| opportunity-cost | Trade-offs |
+| swot | Assessment |
+| eisenhower-matrix | Task priority |
+| one-thing | Focus |
+| occams-razor | Simplicity |
+| 10-10-10 | Time perspective |
+
+**Examples:**
+```
+/gsd:plan-phase 1 --think pareto
+/gsd:debug "login broken" --think 5-whys
+/gsd:define-requirements --think inversion
+```
+
+**Supported:** plan-phase, debug, define-requirements, discuss-phase, new-project
 
 ## Common Workflows
 

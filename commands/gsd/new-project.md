@@ -1,6 +1,7 @@
 ---
 name: gsd:new-project
 description: Initialize a new project with deep context gathering and PROJECT.md
+argument-hint: "[--think <framework>]"
 allowed-tools:
   - Read
   - Bash
@@ -20,6 +21,7 @@ Creates `.planning/` with PROJECT.md and config.json.
 
 <execution_context>
 
+@~/.claude/get-shit-done/references/think-mode.md
 @~/.claude/get-shit-done/references/principles.md
 @~/.claude/get-shit-done/references/questioning.md
 @~/.claude/get-shit-done/templates/project.md
@@ -28,6 +30,8 @@ Creates `.planning/` with PROJECT.md and config.json.
 </execution_context>
 
 <process>
+
+**Parse --think first:** Strip trailing `--think <framework>` from $ARGUMENTS. CLEAN_ARGS should be empty. If THINK_MODE set, load `@~/.claude/get-shit-done/frameworks/${THINK_MODE}.md` as project lens. Invariant: First question stays freeform.
 
 <step name="setup">
 

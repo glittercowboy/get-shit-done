@@ -1,7 +1,7 @@
 ---
 name: gsd:plan-phase
 description: Create detailed execution plan for a phase (PLAN.md)
-argument-hint: "[phase] [--gaps]"
+argument-hint: "[phase] [--gaps] [--think <framework>]"
 allowed-tools:
   - Read
   - Bash
@@ -24,6 +24,7 @@ When invoked with `--gaps`, plans address gaps identified by the verifier. Load 
 </objective>
 
 <execution_context>
+@~/.claude/get-shit-done/references/think-mode.md
 @~/.claude/get-shit-done/references/principles.md
 @~/.claude/get-shit-done/workflows/plan-phase.md
 @~/.claude/get-shit-done/templates/phase-prompt.md
@@ -35,8 +36,10 @@ When invoked with `--gaps`, plans address gaps identified by the verifier. Load 
 </execution_context>
 
 <context>
-Phase number: $ARGUMENTS (optional - auto-detects next unplanned phase if not provided)
-Gap closure mode: `--gaps` flag triggers gap closure workflow
+**Parse --think first:** Strip trailing `--think <framework>` from $ARGUMENTS. CLEAN_ARGS contains `[phase] [--gaps]`. If THINK_MODE set, load `@~/.claude/get-shit-done/frameworks/${THINK_MODE}.md` as planning lens.
+
+Phase number: CLEAN_ARGS (optional - auto-detects next unplanned phase if not provided)
+Gap closure mode: `--gaps` flag in CLEAN_ARGS triggers gap closure workflow
 
 **Load project state first:**
 @.planning/STATE.md

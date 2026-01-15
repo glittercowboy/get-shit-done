@@ -1,6 +1,7 @@
 ---
 name: gsd:define-requirements
 description: Define what "done" looks like with checkable requirements
+argument-hint: "[--think <framework>]"
 allowed-tools:
   - Read
   - Write
@@ -22,12 +23,15 @@ Output: `.planning/REQUIREMENTS.md`
 </objective>
 
 <execution_context>
+@~/.claude/get-shit-done/references/think-mode.md
 @~/.claude/get-shit-done/references/principles.md
 @~/.claude/get-shit-done/workflows/define-requirements.md
 @~/.claude/get-shit-done/templates/requirements.md
 </execution_context>
 
 <context>
+**Parse --think first:** Strip trailing `--think <framework>` from $ARGUMENTS. CLEAN_ARGS should be empty. If THINK_MODE set, load `@~/.claude/get-shit-done/frameworks/${THINK_MODE}.md` as scoping lens.
+
 @.planning/PROJECT.md
 @.planning/research/FEATURES.md (if exists)
 @.planning/research/SUMMARY.md (if exists)

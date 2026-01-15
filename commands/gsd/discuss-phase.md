@@ -1,7 +1,7 @@
 ---
 name: gsd:discuss-phase
 description: Gather phase context through adaptive questioning before planning
-argument-hint: "[phase]"
+argument-hint: "<phase> [--think <framework>]"
 ---
 
 <objective>
@@ -13,13 +13,16 @@ Output: {phase}-CONTEXT.md capturing the user's vision for the phase
 </objective>
 
 <execution_context>
+@~/.claude/get-shit-done/references/think-mode.md
 @~/.claude/get-shit-done/references/principles.md
 @~/.claude/get-shit-done/workflows/discuss-phase.md
 @~/.claude/get-shit-done/templates/context.md
 </execution_context>
 
 <context>
-Phase number: $ARGUMENTS (required)
+**Parse --think first:** Strip trailing `--think <framework>` from $ARGUMENTS. CLEAN_ARGS is the phase number. If THINK_MODE set, load `@~/.claude/get-shit-done/frameworks/${THINK_MODE}.md` as discussion lens. Invariant: ALL questions still use AskUserQuestion.
+
+Phase number: CLEAN_ARGS (required)
 
 **Load project state first:**
 @.planning/STATE.md
