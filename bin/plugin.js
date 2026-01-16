@@ -850,7 +850,12 @@ function enablePlugin(pluginName) {
   // Write updated manifest
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-  console.log(`  ${green}Done!${reset} Plugin ${cyan}${pluginName}${reset} enabled`);
+  // Start services if plugin has them
+  const hasServices = manifest.gsd?.services?.['docker-compose'];
+  const servicesStarted = hasServices ? startServices(pluginName) : false;
+
+  const serviceMsg = servicesStarted ? ' (services started)' : '';
+  console.log(`  ${green}Done!${reset} Plugin ${cyan}${pluginName}${reset} enabled${serviceMsg}`);
 }
 
 /**
@@ -976,6 +981,10 @@ function disablePlugin(pluginName) {
     process.exit(0);
   }
 
+  // Stop services before disabling if plugin has them
+  const hasServices = manifest.gsd?.services?.['docker-compose'];
+  const servicesStopped = hasServices ? stopServices(pluginName) : false;
+
   // Disable the plugin
   manifest._installed = manifest._installed || {};
   manifest._installed.enabled = false;
@@ -983,7 +992,8 @@ function disablePlugin(pluginName) {
   // Write updated manifest
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-  console.log(`  ${green}Done!${reset} Plugin ${cyan}${pluginName}${reset} disabled`);
+  const serviceMsg = servicesStopped ? ' (services stopped)' : '';
+  console.log(`  ${green}Done!${reset} Plugin ${cyan}${pluginName}${reset} disabled${serviceMsg}`);
 }
 
 /**
@@ -1129,6 +1139,12 @@ function installPlugin(source) {
 
     const verb = link ? 'Linked' : 'Installed';
     console.log(`  ${green}✓${reset} ${verb} ${installedFiles.length} files to ~/.claude/${manifest.name}/`);
+
+    // Start services if plugin has them (plugins are enabled by default on install)
+    const hasServices = manifest.gsd?.services?.['docker-compose'];
+    if (hasServices) {
+      startServices(manifest.name);
+    }
 
     // Clean up temp directory
     cleanup(tempDir);
