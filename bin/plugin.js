@@ -504,6 +504,7 @@ function showHelp() {
     plugin info <name>        Show detailed plugin information
     plugin enable <name>      Enable a disabled plugin
     plugin disable <name>     Disable a plugin (keeps files)
+    plugin commands           List all plugin commands
     plugin uninstall <name>   Remove an installed plugin
 
   ${yellow}Examples:${reset}
@@ -746,6 +747,94 @@ function enablePlugin(pluginName) {
 }
 
 /**
+ * List all commands from enabled plugins
+ */
+function listCommands() {
+  const configDir = getConfigDir();
+  const commandsDir = path.join(configDir, 'commands');
+
+  // Check if commands directory exists
+  if (!fs.existsSync(commandsDir)) {
+    return [];
+  }
+
+  const commands = [];
+
+  // Scan commands directory for plugin subdirectories (skip 'gsd' - core)
+  const entries = fs.readdirSync(commandsDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === 'gsd') continue; // Skip core GSD commands
+
+    const pluginName = entry.name;
+    const manifestPath = path.join(configDir, pluginName, 'plugin.json');
+
+    // Check if plugin manifest exists
+    if (!fs.existsSync(manifestPath)) continue;
+
+    // Read manifest
+    let manifest;
+    try {
+      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    } catch {
+      continue; // Skip corrupted manifests
+    }
+
+    // Check if plugin is enabled (default true if not set)
+    const enabled = manifest._installed?.enabled !== false;
+    if (!enabled) continue;
+
+    // Extract commands from manifest
+    const gsd = manifest.gsd || {};
+    if (!gsd.commands || !Array.isArray(gsd.commands)) continue;
+
+    for (const cmd of gsd.commands) {
+      commands.push({
+        name: cmd.name,
+        description: cmd.description || '',
+        plugin: pluginName,
+        file: cmd.file,
+      });
+    }
+  }
+
+  return commands;
+}
+
+/**
+ * Display all plugin commands grouped by plugin
+ */
+function showCommands() {
+  const commands = listCommands();
+
+  if (commands.length === 0) {
+    console.log(`\n  No plugin commands installed.`);
+    return;
+  }
+
+  // Group by plugin
+  const byPlugin = {};
+  for (const cmd of commands) {
+    if (!byPlugin[cmd.plugin]) {
+      byPlugin[cmd.plugin] = [];
+    }
+    byPlugin[cmd.plugin].push(cmd);
+  }
+
+  console.log(`\n  ${cyan}Plugin Commands:${reset}\n`);
+
+  for (const pluginName of Object.keys(byPlugin).sort()) {
+    console.log(`  ${cyan}${pluginName}:${reset}`);
+    for (const cmd of byPlugin[pluginName]) {
+      const desc = cmd.description ? ` - ${dim}${cmd.description}${reset}` : '';
+      console.log(`    /${cmd.name}${desc}`);
+    }
+    console.log('');
+  }
+}
+
+/**
  * Disable a plugin (keeps files but marks as inactive)
  */
 function disablePlugin(pluginName) {
@@ -974,6 +1063,9 @@ switch (command) {
     break;
   case 'disable':
     disablePlugin(source);
+    break;
+  case 'commands':
+    showCommands();
     break;
   default:
     console.error(`  ${red}Error:${reset} Unknown command: ${command}`);
