@@ -3,8 +3,8 @@ package-lock.json
 .DS_Store
 TO-DOS.md
 CLAUDE.md
-.planning
 /research.claude/
+/research
 
 # Local test installs
 .claude/
