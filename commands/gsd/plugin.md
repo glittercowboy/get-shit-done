@@ -14,7 +14,7 @@ Plugin management for GSD. Install, uninstall, and manage plugins.
 - `/gsd:plugin install <path> --link` - Link for development (changes reflect immediately)
 - `/gsd:plugin uninstall <name>` - Remove an installed plugin
 - `/gsd:plugin uninstall <name> --dry-run` - Preview what would be removed
-- `/gsd:plugin list` - List installed plugins (Phase 3)
+- `/gsd:plugin list` - List all installed plugins with status
 </overview>
 
 <process>
@@ -33,7 +33,8 @@ Parse the user's command and execute the appropriate action.
 4. Report results
 
 **For list:**
-Tell user this command is coming in Phase 3.
+1. Run: `node ~/.claude/get-shit-done/bin/plugin.js list`
+2. Report the list of installed plugins with their name, version, description, and linked status
 
 **Error handling:**
 If the plugin.js command fails, show the error output to the user.
@@ -61,6 +62,19 @@ Examples:
 </process>
 
 <examples>
+List installed plugins:
+`/gsd:plugin list`
+Output:
+```
+Installed Plugins:
+
+my-plugin v1.0.0
+  My awesome GSD plugin
+
+another-plugin v2.1.0 (linked)
+  Another plugin for development
+```
+
 Install from GitHub:
 `/gsd:plugin install https://github.com/user/my-gsd-plugin`
 

@@ -500,10 +500,13 @@ function showHelp() {
 
   ${yellow}Usage:${reset}
     plugin install <source>   Install a plugin from git URL or local path
-    plugin list               List installed plugins (not yet implemented)
+    plugin list               List all installed plugins with status
     plugin uninstall <name>   Remove an installed plugin
 
   ${yellow}Examples:${reset}
+    ${dim}# List all installed plugins${reset}
+    plugin list
+
     ${dim}# Install from git repository${reset}
     plugin install https://github.com/user/my-plugin
 
@@ -763,7 +766,7 @@ switch (command) {
     installPlugin(source);
     break;
   case 'list':
-    console.log(`  ${yellow}Not yet implemented${reset} - coming in Phase 3`);
+    listPlugins();
     break;
   case 'uninstall':
     uninstallPlugin(source);
