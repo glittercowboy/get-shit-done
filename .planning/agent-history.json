@@ -1,0 +1,55 @@
+{
+  "version": "1.2",
+  "max_entries": 50,
+  "entries": [
+    {
+      "agent_id": "ae52a03",
+      "task_description": "Parallel: Execute 01-01-PLAN.md",
+      "phase": "01",
+      "plan": "01",
+      "parallel_group": "pg-wave1",
+      "granularity": "plan",
+      "wave": 1,
+      "depends_on": [],
+      "timestamp": "2026-01-16T07:20:15Z",
+      "status": "spawned",
+      "files_modified": [],
+      "completion_timestamp": null,
+      "deviations": []
+    },
+    {
+      "agent_id": "a0b131d",
+      "task_description": "Parallel: Execute 01-02-PLAN.md",
+      "phase": "01",
+      "plan": "02",
+      "parallel_group": "pg-wave2",
+      "granularity": "plan",
+      "wave": 2,
+      "depends_on": [
+        "01-01"
+      ],
+      "timestamp": "2026-01-16T12:47:49Z",
+      "status": "spawned",
+      "files_modified": [],
+      "completion_timestamp": null,
+      "deviations": []
+    },
+    {
+      "agent_id": "a66397d",
+      "task_description": "Parallel: Execute 01-03-PLAN.md",
+      "phase": "01",
+      "plan": "03",
+      "parallel_group": "pg-wave2",
+      "granularity": "plan",
+      "wave": 2,
+      "depends_on": [
+        "01-01"
+      ],
+      "timestamp": "2026-01-16T12:47:49Z",
+      "status": "spawned",
+      "files_modified": [],
+      "completion_timestamp": null,
+      "deviations": []
+    }
+  ]
+}

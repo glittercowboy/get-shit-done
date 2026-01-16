@@ -14,7 +14,7 @@ None
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Plugin Format Specification** - Define unified plugin structure that scales from simple to complex
+- [x] **Phase 1: Plugin Format Specification** - Define unified plugin structure that scales from simple to complex
 - [ ] **Phase 2: Plugin Installation** - Package-manager style install from git repos and local paths
 - [ ] **Phase 3: Plugin Discovery** - List available and installed plugins
 - [ ] **Phase 4: Plugin Activation** - Command-based activation with optional parameters
@@ -30,9 +30,9 @@ None
 **Plans**: TBD
 
 Plans:
-- [ ] 01-01: Plugin manifest schema (plugin.json)
-- [ ] 01-02: Plugin folder structure and file conventions
-- [ ] 01-03: Plugin hooks and lifecycle events
+- [x] 01-01: Plugin manifest schema (plugin.json)
+- [x] 01-02: Plugin folder structure and file conventions
+- [x] 01-03: Plugin hooks and lifecycle events
 
 ### Phase 2: Plugin Installation
 **Goal**: Implement `/gsd:plugin install <source>` that clones git repos or copies local paths into the plugins directory
@@ -95,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Plugin Format Specification | 0/3 | Not started | - |
+| 1. Plugin Format Specification | 3/3 | Complete | 2026-01-16 |
 | 2. Plugin Installation | 0/3 | Not started | - |
 | 3. Plugin Discovery | 0/2 | Not started | - |
 | 4. Plugin Activation | 0/2 | Not started | - |
