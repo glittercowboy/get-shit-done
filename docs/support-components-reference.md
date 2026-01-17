@@ -283,10 +283,46 @@ Comprehensive reference for GSD workflows, templates, and reference documents.
 | continue-here.md | .continue-here.md | execute-plan | State, Work, Next Action |
 | planner-subagent-prompt.md | (agent prompt) | plan-phase | Planning Context, Quality Gate |
 | debug-subagent-prompt.md | (agent prompt) | debug/diagnose | Symptoms, Mode, Debug File |
+| research-project/SUMMARY.md | .planning/research/SUMMARY.md | gsd-research-synthesizer | Executive Summary, Key Findings, Roadmap Implications |
+| research-project/STACK.md | .planning/research/STACK.md | gsd-project-researcher | Recommended Stack, Alternatives, Version Compatibility |
+| research-project/FEATURES.md | .planning/research/FEATURES.md | gsd-project-researcher | Feature Landscape, Dependencies, MVP Definition |
+| research-project/ARCHITECTURE.md | .planning/research/ARCHITECTURE.md | gsd-project-researcher | Standard Architecture, Patterns, Data Flow |
+| research-project/PITFALLS.md | .planning/research/PITFALLS.md | gsd-project-researcher | Critical Pitfalls, Gotchas, Recovery Strategies |
+| codebase/stack.md | .planning/codebase/STACK.md | gsd-codebase-mapper | Languages, Runtime, Frameworks |
+| codebase/integrations.md | .planning/codebase/INTEGRATIONS.md | gsd-codebase-mapper | External Services, Data Storage, Webhooks |
+| codebase/architecture.md | .planning/codebase/ARCHITECTURE.md | gsd-codebase-mapper | Pattern Overview, Layers, Data Flow |
+| codebase/structure.md | .planning/codebase/STRUCTURE.md | gsd-codebase-mapper | Directory Layout, Key Files, Naming |
+| codebase/conventions.md | .planning/codebase/CONVENTIONS.md | gsd-codebase-mapper | Naming Patterns, Code Style, Imports |
+| codebase/testing.md | .planning/codebase/TESTING.md | gsd-codebase-mapper | Test Framework, Organization, Mocking |
+| codebase/concerns.md | .planning/codebase/CONCERNS.md | gsd-codebase-mapper | Tech Debt, Bugs, Performance |
 | todo.md | .planning/todos/pending/*.md, .planning/todos/done/*.md | add-todo | Problem, Solution, Metadata |
 | config.json | .planning/config.json | /gsd:new-project | mode, depth, parallelization, gates, safety |
 
 ---
+
+### Research Project Templates — Required Sections
+
+Required headings for files in `get-shit-done/templates/research-project/*.md`:
+
+- **SUMMARY.md:** Executive Summary; Key Findings (Recommended Stack, Expected Features, Architecture Approach, Critical Pitfalls); Implications for Roadmap; Confidence Assessment; Sources.
+- **STACK.md:** Recommended Stack (Core Technologies, Supporting Libraries, Development Tools); Installation; Alternatives Considered; What NOT to Use; Stack Patterns by Variant; Version Compatibility; Sources.
+- **FEATURES.md:** Feature Landscape (Table Stakes, Differentiators, Anti-Features); Feature Dependencies; MVP Definition; Feature Prioritization Matrix; Competitor Feature Analysis; Sources.
+- **ARCHITECTURE.md:** Standard Architecture (System Overview, Component Responsibilities); Recommended Project Structure; Architectural Patterns; Data Flow; Scaling Considerations; Anti-Patterns; Integration Points; Sources.
+- **PITFALLS.md:** Critical Pitfalls; Technical Debt Patterns; Integration Gotchas; Performance Traps; Security Mistakes; UX Pitfalls; "Looks Done But Isn't" Checklist; Recovery Strategies; Pitfall-to-Phase Mapping; Sources.
+
+---
+
+### Codebase Templates — Required Sections
+
+Required headings for files in `get-shit-done/templates/codebase/*.md`:
+
+- **STACK.md:** Languages; Runtime; Frameworks; Key Dependencies; Configuration; Platform Requirements.
+- **INTEGRATIONS.md:** APIs & External Services; Data Storage; Authentication & Identity; Monitoring & Observability; CI/CD & Deployment; Environment Configuration; Webhooks & Callbacks.
+- **ARCHITECTURE.md:** Pattern Overview; Layers; Data Flow; Key Abstractions; Entry Points; Error Handling; Cross-Cutting Concerns.
+- **STRUCTURE.md:** Directory Layout; Directory Purposes; Key File Locations; Naming Conventions; Where to Add New Code; Special Directories.
+- **CONVENTIONS.md:** Naming Patterns; Code Style; Import Organization; Error Handling; Logging; Comments; Function Design; Module Design.
+- **TESTING.md:** Test Framework; Test File Organization; Test Structure; Mocking; Fixtures and Factories; Coverage; Test Types; Common Patterns.
+- **CONCERNS.md:** Tech Debt; Known Bugs; Security Considerations; Performance Bottlenecks; Fragile Areas; Scaling Limits; Dependencies at Risk; Missing Critical Features; Test Coverage Gaps.
 
 ### Frontmatter Schemas
 
@@ -692,6 +728,18 @@ user_setup:
 | VERIFICATION.md | verify-phase | plan-phase --gaps |
 | UAT.md | verify-work | plan-phase --gaps, diagnose-issues |
 | DEBUG.md | gsd-debugger | User, plan-phase --gaps |
+| .planning/research/STACK.md | gsd-project-researcher | gsd-research-synthesizer, gsd-roadmapper |
+| .planning/research/FEATURES.md | gsd-project-researcher | gsd-research-synthesizer, gsd-roadmapper |
+| .planning/research/ARCHITECTURE.md | gsd-project-researcher | gsd-research-synthesizer, gsd-roadmapper |
+| .planning/research/PITFALLS.md | gsd-project-researcher | gsd-research-synthesizer, gsd-roadmapper |
+| .planning/research/SUMMARY.md | gsd-research-synthesizer | gsd-roadmapper, gsd-planner |
+| .planning/codebase/STACK.md | /gsd:map-codebase | gsd-planner, gsd-executor |
+| .planning/codebase/INTEGRATIONS.md | /gsd:map-codebase | gsd-planner, gsd-executor |
+| .planning/codebase/ARCHITECTURE.md | /gsd:map-codebase | gsd-planner, gsd-executor |
+| .planning/codebase/STRUCTURE.md | /gsd:map-codebase | gsd-planner, gsd-executor |
+| .planning/codebase/CONVENTIONS.md | /gsd:map-codebase | gsd-planner, gsd-executor |
+| .planning/codebase/TESTING.md | /gsd:map-codebase | gsd-planner, gsd-executor |
+| .planning/codebase/CONCERNS.md | /gsd:map-codebase | gsd-planner, gsd-executor |
 | todo.md | add-todo | check-todos, resume-work, STATE.md |
 
 ### Reference → Usage Mapping
