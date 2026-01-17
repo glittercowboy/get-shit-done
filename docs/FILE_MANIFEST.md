@@ -46,8 +46,8 @@ Complete inventory of all GSD system files with metadata for documentation and m
 |------|---------|-------|--------|
 | new-project.md | Initialize new project with questioning → research → requirements → roadmap | 896 | gsd-project-researcher, gsd-research-synthesizer, gsd-roadmapper |
 | plan-phase.md | Create detailed execution plan for a phase (PLAN.md) with verification loop | 475 | gsd-phase-researcher, gsd-planner, gsd-plan-checker |
-| execute-phase.md | Execute all plans in a phase with wave-based parallelization | 304 | gsd-executor |
-| verify-work.md | Validate built features through conversational UAT | 219 | gsd-debugger, gsd-planner |
+| execute-phase.md | Execute all plans in a phase with wave-based parallelization | 304 | gsd-executor, gsd-verifier |
+| verify-work.md | Validate built features through conversational UAT | 219 | gsd-debugger, gsd-planner, gsd-plan-checker |
 
 ### Roadmap Management Commands
 
@@ -64,7 +64,7 @@ Complete inventory of all GSD system files with metadata for documentation and m
 | new-milestone.md | Start new milestone cycle — update PROJECT.md and route to requirements | 717 | gsd-project-researcher, gsd-roadmapper |
 | complete-milestone.md | Archive completed milestone and prepare for next version | 136 | None |
 | audit-milestone.md | Audit milestone completion against original intent before archiving | 258 | gsd-integration-checker |
-| plan-milestone-gaps.md | Create phases to close all gaps identified by milestone audit | 284 | gsd-planner |
+| plan-milestone-gaps.md | Create phases to close all gaps identified by milestone audit | 284 | None |
 
 ### Session Management Commands
 
@@ -105,7 +105,7 @@ Complete inventory of all GSD system files with metadata for documentation and m
 | verify-phase.md | Goal-backward phase verification after execution | 629 | gsd-verifier |
 | verify-work.md | Conversational UAT with persistent state | 563 | /gsd:verify-work |
 | complete-milestone.md | Archive milestone and prepare for next version | 750 | /gsd:complete-milestone |
-| discovery-phase.md | Initial project discovery process | 293 | /gsd:new-project |
+| discovery-phase.md | Initial project discovery process | 293 | plan-phase |
 | discuss-phase.md | Adaptive questioning to gather phase context | 422 | /gsd:discuss-phase |
 | diagnose-issues.md | Parallel diagnosis of UAT failures | 233 | /gsd:verify-work |
 | map-codebase.md | Parallel codebase analysis orchestration | 289 | /gsd:map-codebase |
@@ -140,7 +140,7 @@ Complete inventory of all GSD system files with metadata for documentation and m
 | File | Produces | Filled By | Lines |
 |------|----------|-----------|-------|
 | research.md | {phase}-RESEARCH.md | gsd-phase-researcher | 529 |
-| discovery.md | Discovery notes | /gsd:new-project | 146 |
+| discovery.md | Discovery notes | plan-phase discovery | 146 |
 
 ### Research Project Templates (get-shit-done/templates/research-project/*.md)
 
