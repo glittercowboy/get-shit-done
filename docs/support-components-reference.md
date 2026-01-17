@@ -312,6 +312,63 @@ Required headings for files in `get-shit-done/templates/research-project/*.md`:
 
 ---
 
+### Planning Templates — Required Sections
+
+Required headings/frontmatter for planning templates in `get-shit-done/templates/*.md`:
+
+- **PROJECT.md:** Project Name (H1); What This Is; Core Value; Requirements (Validated, Active, Out of Scope); Context; Constraints; Key Decisions; Last updated footer line.  
+- **ROADMAP.md:** Roadmap title (H1); Overview; Phases; Phase Details; Progress.  
+- **REQUIREMENTS.md:** Requirements title (H1); Defined/Core Value metadata; v1 Requirements (category subsections); v2 Requirements; Out of Scope; Traceability; Coverage summary; defined/updated footer lines.  
+- **STATE.md:** Project State title (H1); Project Reference; Current Position; Performance Metrics; Accumulated Context (Decisions, Pending Todos, Blockers/Concerns); Session Continuity.  
+
+---
+
+### Milestone Templates — Required Sections
+
+Required headings for milestone artifacts in `get-shit-done/templates/milestone*.md`:
+
+- **MILESTONES.md entry (milestone.md):** Version header (`## vX.Y ...`); Delivered; Phases completed; Key accomplishments; Stats; Git range; What's next; entry divider.  
+- **MILESTONES.md file header:** Project Milestones title (H1) and reverse chronological entries.  
+- **Milestone archive file (milestone-archive.md):** Milestone title (H1); Status/Phases/Total Plans metadata block; Overview; Phases (per-phase subheads with Goal/Depends on/Plans/Details); Milestone Summary (Decimal Phases, Key Decisions, Issues Resolved, Issues Deferred, Technical Debt Incurred); Roadmap reference footer.  
+
+---
+
+### Milestone Audit Output — Required Sections
+
+Required frontmatter and report layout for `MILESTONE-AUDIT.md` from `/gsd:audit-milestone` (see `commands/gsd/audit-milestone.md`):
+
+**Frontmatter schema:**
+```yaml
+---
+milestone: {version}
+audited: {timestamp}
+status: passed | gaps_found | tech_debt
+scores:
+  requirements: N/M
+  phases: N/M
+  integration: N/M
+  flows: N/M
+gaps:
+  requirements: [...]
+  integration: [...]
+  flows: [...]
+tech_debt:
+  - phase: 01-auth
+    items:
+      - "TODO: add rate limiting"
+      - "Warning: no password strength validation"
+---
+```
+
+**Report sections (in order):**
+- Requirements coverage table (per requirement status)
+- Phase verification table (per phase status/verification)
+- Integration findings table (cross-phase wiring)
+- End-to-end flows table (flow status/breaks)
+- Tech debt summary by phase (if any)
+
+---
+
 ### Codebase Templates — Required Sections
 
 Required headings for files in `get-shit-done/templates/codebase/*.md`:
