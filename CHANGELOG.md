@@ -15,6 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`/gsd:audit-plan` command** — Audit plan quality before execution with structural checks, action specificity analysis, verification validation, dependency checks, and scope assessment
 - **`gsd-codebase-researcher` agent** — Parallel specialized investigation modes (file discovery, flow tracing, data mapping, pattern matching, risk assessment, test coverage)
 - **`/gsd:settings` command** — Guided wizard to view and update `.planning/config.json` with multi-choice prompts and explanations
+- **`/gsd:migrate-config` command** — Upgrade `.planning/config.json` to the latest template (adds missing keys, preserves overrides)
+- **`/gsd:doctor` command** — Health check for config validity, missing hooks, active sessions, and git status
 - **Enhancements config in `/gsd:new-project`** — Workflow preferences now include optional enhanced workflows selection
 
 ### Changed

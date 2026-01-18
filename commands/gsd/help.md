@@ -298,6 +298,25 @@ Guided wizard to view and update `.planning/config.json`.
 
 Usage: `/gsd:settings`
 
+**`/gsd:migrate-config`**
+Upgrade `.planning/config.json` to the latest template.
+
+- Adds missing keys introduced by newer GSD versions
+- Preserves existing values and unknown keys
+- Optional backup + optional git commit
+
+Usage: `/gsd:migrate-config`
+
+**`/gsd:doctor`**
+Diagnose common setup/project issues (config, hooks, sessions, git).
+
+- Validates `.planning/` structure and config schema
+- Checks required hooks are installed
+- Shows active sessions and warns about concurrency
+- Warns if git is dirty before execution
+
+Usage: `/gsd:doctor`
+
 ## Files & Structure
 
 ```
