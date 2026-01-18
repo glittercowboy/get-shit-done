@@ -289,6 +289,15 @@ See what's changed since your installed version.
 
 Usage: `/gsd:whats-new`
 
+**`/gsd:settings`**
+Guided wizard to view and update `.planning/config.json`.
+
+- Walks through mode, depth, enhancements, gates, and safety rails
+- Multi-choice prompts with explanations and current values
+- Writes updated config (optional git commit)
+
+Usage: `/gsd:settings`
+
 ## Files & Structure
 
 ```

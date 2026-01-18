@@ -17,7 +17,8 @@
     "confirm_plan": true,
     "execute_next_plan": true,
     "issues_review": true,
-    "confirm_transition": true
+    "confirm_transition": true,
+    "confirm_milestone_scope": true
   },
   "safety": {
     "always_confirm_destructive": true,
