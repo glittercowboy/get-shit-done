@@ -6,9 +6,7 @@
 | **Type** | Agent |
 | **Location** | `agents/gsd-debugger.md` |
 | **Size** | 1184 lines |
-| **Documentation Tier** | Enhanced Standard |
-| **Complexity Score** | 2+3+2+2 = **9/12** |
-| **Verified Against** | Source code 2026-01-18 |
+| **Verified Against** | `agents/gsd-debugger.md`, `commands/gsd/debug.md`, `get-shit-done/workflows/diagnose-issues.md` |
 
 ---
 
@@ -37,7 +35,7 @@ Investigates bugs using systematic scientific method, manages persistent debug s
 |------|---------|----------|
 | **find_and_fix** (default) | No flags | Find root cause, fix, verify, archive session |
 | **find_root_cause_only** | `goal: find_root_cause_only` | Diagnose only, skip fix_and_verify, return diagnosis |
-| **symptoms_prefilled** | `symptoms_prefilled: true` | Skip symptom gathering, start at investigation loop |
+| **symptoms_prefilled** | `symptoms_prefilled: true` | Skip symptom gathering, start at investigation loop with status "investigating" |
 
 ---
 
@@ -80,7 +78,7 @@ When debugging code you wrote, you're fighting your own mental model.
 **Source:** `<research_vs_reasoning>` lines ~400-500
 
 ```
-Is this a library error message I don't recognize?
+Is this an error message I don't recognize?
 ├─ YES → Web search the error message
 └─ NO ↓
 
@@ -178,7 +176,7 @@ files_changed: []
 
 ```
 1. check_active_session
-   ├── ls .planning/debug/*.md | grep -v resolved
+   ├── ls .planning/debug/*.md 2>/dev/null | grep -v resolved
    ├── If sessions exist AND no $ARGUMENTS → list sessions
    ├── If sessions exist AND $ARGUMENTS → new session
    └── If no sessions → prompt for issue description
@@ -186,7 +184,7 @@ files_changed: []
 2. create_debug_file
    ├── Generate slug (lowercase, hyphens, max 30 chars)
    ├── mkdir -p .planning/debug
-   ├── Create file with status: gathering
+   ├── Create file with status: gathering (or "investigating" if symptoms_prefilled)
    └── Proceed to symptom_gathering
 
 3. symptom_gathering (SKIP if symptoms_prefilled: true)
@@ -215,9 +213,15 @@ files_changed: []
    ├── Update status to "fixing"
    ├── Implement MINIMAL fix
    ├── Update Resolution
+   ├── Update status to "verifying"
    ├── Verify fix against original symptoms
+   ├── If verification fails → status "investigating" and return to investigation_loop
+   └── If verification passes → proceed to archive_session
+
+6. archive_session
    ├── Update status to "resolved"
-   └── Move to .planning/debug/resolved/
+   ├── Move to .planning/debug/resolved/
+   └── Commit with root cause + debug session path in message
 ```
 
 ---
@@ -252,8 +256,8 @@ files_changed: []
 | Category | Details |
 |----------|---------|
 | **Reads** | Codebase files, test output, error logs |
-| **Writes** | `.planning/debug/{slug}.md`, `.planning/debug/resolved/{slug}.md`, code fixes |
-| **Spawned By** | `/gsd:debug`, `diagnose-issues` workflow |
+| **Writes** | `.planning/debug/{slug}.md` (moves to `.planning/debug/resolved/` after verified fix), code fixes |
+| **Spawned By** | `/gsd:debug` command |
 | **Consumed By** | User (debug session state persists across context resets) |
 
 ---
@@ -279,7 +283,6 @@ files_changed: []
 | Overwrite Eliminated section | Re-investigate disproven theories | APPEND only |
 | Vague hypotheses | Unfalsifiable | Specific, falsifiable: "X causes Y when Z" |
 | Jump to fix before confirming | Wrong fix wastes time | Confirm root cause with evidence first |
-| Delete debug file on failure | Lose investigation context | Archive to resolved/, keep for reference |
 
 ---
 
@@ -289,7 +292,6 @@ files_changed: []
 
 **Upstream Impact:**
 - `debug` command — May need to update spawning context
-- `diagnose-issues` workflow — Expects specific return formats
 
 **Downstream Impact:**
 - Debug files — Schema changes break file parsing on resume
@@ -325,7 +327,7 @@ files_changed: []
 ```
 WHAT:     Scientific debugging with persistent state
 MODES:    find_and_fix (default), find_root_cause_only, symptoms_prefilled
-OUTPUT:   .planning/debug/{slug}.md → .planning/debug/resolved/{slug}.md
+OUTPUT:   .planning/debug/{slug}.md (moves to resolved/ only after verified fix)
 
 CORE RULES:
 • Create debug file IMMEDIATELY, update BEFORE actions
@@ -334,6 +336,6 @@ CORE RULES:
 • User = reporter (what they saw), You = investigator (find cause)
 • Meta-debugging: treat your own code as foreign
 
-SPAWNED BY: /gsd:debug, diagnose-issues workflow
+SPAWNED BY: /gsd:debug command
 CONSUMED BY: User (session state persists across context resets)
 ```
