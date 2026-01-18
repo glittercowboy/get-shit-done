@@ -60,6 +60,69 @@ Installs GSD into a Claude Code configuration directory (global or project-local
 
 ---
 
+## settings.json Schema
+
+Claude Code settings file structure managed by GSD installer (see `bin/install.js`):
+
+**Location:** `~/.claude/settings.json`
+
+**Full Schema:**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node \"$HOME/.claude/hooks/statusline.js\""
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/hooks/gsd-check-update.js\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Field Descriptions:**
+
+| Field | Purpose | Required |
+|-------|---------|----------|
+| `statusLine.type` | Must be "command" | Yes |
+| `statusLine.command` | Path to statusline script | Yes |
+| `hooks.SessionStart` | Hooks run when Claude Code starts | No |
+| `hooks.SessionStart[].matcher` | Regex to match directory (empty = all) | No |
+| `hooks.SessionStart[].hooks` | Array of hook commands | No |
+
+**Installer Merge Behavior:**
+
+When settings.json exists, installer:
+1. Reads existing content
+2. Preserves all non-GSD settings
+3. Updates/adds statusLine configuration
+4. Updates/adds SessionStart hooks
+5. Writes merged result
+
+**Manual Modification:**
+- Safe to add custom hooks alongside GSD hooks
+- Don't remove statusLine — breaks GSD status display
+- Don't remove SessionStart hook — breaks update checks
+
+**Troubleshooting:**
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| No status bar | statusLine missing/broken | Re-run installer |
+| No update notifications | SessionStart hook missing | Re-run installer |
+| Settings overwritten | Manual edit after install | Re-run installer with --force-statusline |
+
+---
+
 ## hooks/statusline.js
 
 ### Purpose

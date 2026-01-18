@@ -88,6 +88,38 @@ Create detailed execution plan for a phase (PLAN.md files) with integrated resea
 | `--gaps` | No | Gap closure mode (reads VERIFICATION.md) | — |
 | `--skip-verify` | No | Skip planner → checker verification loop | — |
 
+### Plan-Phase Flags
+
+| Flag | Purpose | When to Use |
+|------|---------|-------------|
+| `--gaps` | Gap closure mode | After verification found gaps |
+| `--skip-research` | Skip phase researcher | Research already done or simple phase |
+| `--skip-verify` | Skip plan-checker | Re-planning after minor changes |
+
+**--skip-verify Details:**
+
+Skips the gsd-plan-checker verification step. Use when:
+- Making minor plan adjustments that don't affect coverage
+- Re-planning after external changes (not gap closure)
+- Plans are known to be complete from previous verification
+
+**Warning:** Using --skip-verify on new plans risks:
+- Missing requirements (no coverage check)
+- Circular dependencies (no graph validation)
+- Scope creep (no scope sanity check)
+
+**Recommended usage:**
+```bash
+# First time planning - always verify
+/gsd:plan-phase 3
+
+# After minor edits to existing verified plans
+/gsd:plan-phase 3 --skip-verify
+
+# After gaps found - always verify gap plans
+/gsd:plan-phase 3 --gaps  # (verification included)
+```
+
 ### Execution Flow
 1. **Validate Environment** — Check `.planning/` exists
 2. **Parse Arguments** — Extract phase number, normalize (8 → 08, 2.1 → 02.1)
@@ -229,6 +261,52 @@ Route based on verification status:
 - **Plan Complete:** `docs({phase}-{plan}): complete [plan-name] plan`
 - **Phase Complete:** `docs({phase}): complete {phase-name} phase`
 - **NEVER:** `git add .` or `git add -A`
+
+### Checkpoint Types
+
+Three checkpoint types can pause execution for user input (set `autonomous: false` in PLAN.md):
+
+| Type | Tag | When Used | User Action |
+|------|-----|-----------|-------------|
+| `human-verify` | `<checkpoint:human-verify>` | After visible change | Confirm it looks/works right |
+| `human-action` | `<checkpoint:human-action>` | External action needed | Complete action, report result |
+| `decision` | `<checkpoint:decision>` | Implementation choice needed | Choose from options |
+
+**human-verify Example:**
+```xml
+<checkpoint:human-verify>
+Check that the login form renders correctly:
+- Email and password fields visible
+- Submit button enabled
+- Error states display properly
+</checkpoint:human-verify>
+```
+
+**human-action Example:**
+```xml
+<checkpoint:human-action>
+Run the database migration:
+1. Execute: `npx prisma migrate deploy`
+2. Verify migration completed without errors
+3. Report: success or error message
+</checkpoint:human-action>
+```
+
+**decision Example:**
+```xml
+<checkpoint:decision>
+Choose authentication strategy:
+A) JWT tokens (stateless, better for API)
+B) Session cookies (stateful, better for web app)
+C) Both (flexibility, more complexity)
+</checkpoint:decision>
+```
+
+**Checkpoint Behavior:**
+- Execution pauses, context preserved
+- User response recorded in SUMMARY.md
+- If user reports failure, task marked incomplete
+- Decisions become part of project context
 
 ---
 

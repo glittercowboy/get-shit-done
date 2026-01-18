@@ -2,7 +2,7 @@
 
 > **Created:** 2026-01-18
 > **Last Updated:** 2026-01-18
-> **Current Stage:** 5 of 7 (Complete)
+> **Current Stage:** 6 of 7 (Complete)
 
 ## Task Status Legend
 - [ ] Not started
@@ -42,9 +42,9 @@
 - [x] 5.2 Add gsd-research-synthesizer to Critical Agent Sections
 
 ## Stage 6: Core & Operational Updates (P2)
-- [ ] 6.1 Add checkpoint types detail to core-commands-reference.md
-- [ ] 6.2 Document --skip-verify flag behavior for plan-phase
-- [ ] 6.3 Add settings.json schema to operational-components-reference.md
+- [x] 6.1 Add checkpoint types detail to core-commands-reference.md
+- [x] 6.2 Document --skip-verify flag behavior for plan-phase
+- [x] 6.3 Add settings.json schema to operational-components-reference.md
 
 ## Stage 7: Verification & Summary
 - [ ] 7.1 Cross-reference all changes against source
@@ -64,5 +64,7 @@
 | 3 | 3.1-3.4 | support-components-reference.md | Complete | 4 schemas added |
 | 4 | 4.1-4.3 | secondary-commands-reference.md | Complete | 3 command sections added/expanded |
 | 5 | 5.1-5.2 | GSD_ARCHITECTURE_SCAFFOLDING.md | Complete | Flow 4 + synthesizer sections added |
+| 6 | 6.1-6.2 | core-commands-reference.md | Complete | Checkpoints + flags added |
+| 6 | 6.3 | operational-components-reference.md | Complete | settings.json schema added |
 
 ---
