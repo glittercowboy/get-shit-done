@@ -6,7 +6,10 @@ set -e
 # =============================================================================
 # Prerequisites:
 #   - AWS CLI configured (aws configure)
-#   - Supabase CLI installed (npm install -g supabase)
+#   - Supabase CLI installed:
+#       macOS: brew install supabase/tap/supabase
+#       Linux: brew install supabase/tap/supabase (or see docs)
+#       Windows: scoop bucket add supabase https://github.com/supabase/scoop-bucket.git && scoop install supabase
 #   - Node.js 18+
 #   - Vercel CLI installed (npm install -g vercel)
 # =============================================================================
