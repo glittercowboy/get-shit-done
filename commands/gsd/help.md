@@ -113,9 +113,23 @@ Create detailed execution plan for a specific phase.
 - Breaks phase into concrete, actionable tasks
 - Includes verification criteria and success measures
 - Multiple plans per phase supported (XX-01, XX-02, etc.)
+- Optionally runs codebase research first (if `codebase_research` enhancement enabled)
 
 Usage: `/gsd:plan-phase 1`
 Result: Creates `.planning/phases/01-foundation/01-01-PLAN.md`
+
+**`/gsd:audit-plan [path | phase-number]`**
+Audit plan quality before execution.
+
+- Checks structural completeness (required fields, valid frontmatter)
+- Validates action specificity (no vague patterns like "set up", "handle")
+- Verifies executable verification commands
+- Checks project idiom compliance (references existing patterns)
+- Validates dependencies (no circular deps, correct waves)
+- Assesses scope reasonableness (task count, context budget)
+
+Usage: `/gsd:audit-plan 03-01-PLAN.md`
+Usage: `/gsd:audit-plan 3` (audit all plans in phase 3)
 
 ### Execution
 
@@ -321,6 +335,45 @@ Set during `/gsd:new-project`:
 - Only stops for critical checkpoints
 
 Change anytime by editing `.planning/config.json`
+
+## Enhanced Workflows (Optional)
+
+Enable via `.planning/config.json` `enhancements` section:
+
+```json
+{
+  "enhancements": {
+    "decision_ledger": false,
+    "codebase_research": false,
+    "plan_audit": false,
+    "session_safety": true
+  }
+}
+```
+
+**Session Safety** (default ON)
+- Pre-flight checks before execution
+- Session conflict detection
+- Context resume warnings
+- Progress recovery from PROGRESS.md
+
+**Decision Ledger** (opt-in)
+- Enhanced discuss-phase with verbatim decision tracking
+- Terminology & Concepts section in CONTEXT.md
+- Entry Points matrix for all create paths
+- Explicit ledger sign-off before proceeding
+
+**Codebase Research** (opt-in)
+- Phase-specific codebase investigation before planning
+- Parallel specialized modes: file discovery, flow tracing, data mapping
+- Pattern matching, risk assessment, test coverage analysis
+- Creates CODEBASE-RESEARCH.md for planner context
+
+**Plan Audit** (opt-in)
+- `/gsd:audit-plan` command for quality checks
+- Structural validation, action specificity, verification executability
+- Suggests existing patterns to reference
+- Catch issues before execution
 
 ## Common Workflows
 
