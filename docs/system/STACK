@@ -1,0 +1,75 @@
+# Technology Stack
+
+**Analysis Date:** 2026-01-16
+
+## Languages
+
+**Primary:**
+- JavaScript (Node.js) - CLI entry point (`bin/install.js`)
+- Markdown - All command definitions, workflows, templates, agent prompts, documentation
+
+**Secondary:**
+- YAML - Frontmatter in command files for metadata (name, description, tools)
+
+## Runtime
+
+**Environment:**
+- Node.js >= 16.7.0 - `package.json` engines field
+- Platform-agnostic: Works on macOS, Windows, and Linux
+
+**Package Manager:**
+- npm (standard with Node.js)
+- Lockfile: `package-lock.json` (gitignored)
+
+## Frameworks
+
+**Core:**
+- None (vanilla Node.js CLI) - Uses native modules only
+
+**Testing:**
+- Not detected - This is a meta-prompting system; verification happens during plan execution
+
+**Build/Dev:**
+- Not detected - Pure JavaScript/Markdown, no build step required
+
+## Key Dependencies
+
+**None in package.json** - The package is intentionally minimal with zero npm dependencies
+
+**Node.js Built-ins Used:**
+- `fs` - File system operations (`bin/install.js`)
+- `path` - Path manipulation (`bin/install.js`)
+- `os` - OS-specific operations (home directory, platform detection) (`bin/install.js`)
+- `readline` - Interactive CLI prompts (`bin/install.js`)
+
+## Configuration
+
+**Environment:**
+- `.env` files: Not detected
+- Configuration file: `get-shit-done/templates/config.json` - Defines mode (interactive), depth, parallelization, decision gates, and safety settings
+- Supports `CLAUDE_CONFIG_DIR` environment variable for custom Claude config directory location
+
+**Runtime Config:**
+- `--global` / `-g` flag - Install to `~/.claude/` (global)
+- `--local` / `-l` flag - Install to `./.claude/` (project-specific)
+- `--config-dir <path>` / `-c <path>` - Custom Claude config directory override
+
+**Build:**
+- No build configuration - pure JavaScript/Markdown system
+
+## Platform Requirements
+
+**Development:**
+- Any OS with Node.js 16.7.0+ (macOS, Windows, Linux)
+- No external dependencies or services required
+- Git (for version management, recommended)
+
+**Production:**
+- Distributed as npm package: `get-shit-done-cc` on npmjs.com
+- Installed via: `npx get-shit-done-cc` or `npm install -g get-shit-done-cc`
+- Entry point: `bin/install.js` (defined in package.json)
+
+---
+
+*Stack analysis: 2026-01-16*
+*Update after major dependency changes*
