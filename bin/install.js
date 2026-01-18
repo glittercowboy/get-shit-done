@@ -28,10 +28,22 @@ ${cyan}   ██████╗ ███████╗██████╗
   development system for Claude Code by TÂCHES.
 `;
 
+const codexBanner = `
+${cyan}   ██████╗ ███████╗██████╗
+  ██╔════╝ ██╔════╝██╔══██╗
+  ██║  ███╗███████╗██║  ██║
+  ██║   ██║╚════██║██║  ██║
+  ╚██████╔╝███████║██████╔╝
+   ╚═════╝ ╚══════╝╚═════╝${reset}
+
+  Get Shit Done ${dim}v${pkg.version}${reset}
+  Codex CLI installer by TÂCHES.
+`;
 // Parse args
 const args = process.argv.slice(2);
 const hasGlobal = args.includes('--global') || args.includes('-g');
 const hasLocal = args.includes('--local') || args.includes('-l');
+const hasCodex = args.includes('--codex');
 
 // Parse --config-dir argument
 function parseConfigDirArg() {
@@ -56,7 +68,8 @@ const explicitConfigDir = parseConfigDirArg();
 const hasHelp = args.includes('--help') || args.includes('-h');
 const forceStatusline = args.includes('--force-statusline');
 
-console.log(banner);
+const activeBanner = hasCodex ? codexBanner : banner;
+console.log(activeBanner);
 
 // Show help if requested
 if (hasHelp) {
@@ -66,6 +79,7 @@ if (hasHelp) {
     ${cyan}-g, --global${reset}              Install globally (to Claude config directory)
     ${cyan}-l, --local${reset}               Install locally (to ./.claude in current directory)
     ${cyan}-c, --config-dir <path>${reset}   Specify custom Claude config directory
+    ${cyan}--codex${reset}                   Install Codex prompts + seed (global Codex home)
     ${cyan}-h, --help${reset}                Show this help message
     ${cyan}--force-statusline${reset}        Replace existing statusline config
 
@@ -82,10 +96,14 @@ if (hasHelp) {
     ${dim}# Install to current project only${reset}
     npx get-shit-done-cc --local
 
+    ${dim}# Install Codex prompts + seed into global Codex home${reset}
+    npx get-shit-done-cc --codex
+
   ${yellow}Notes:${reset}
     The --config-dir option is useful when you have multiple Claude Code
     configurations (e.g., for different subscriptions). It takes priority
     over the CLAUDE_CONFIG_DIR environment variable.
+    Codex uses CODEX_HOME (default: ~/.codex).
 `);
   process.exit(0);
 }
@@ -149,6 +167,75 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
       fs.copyFileSync(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Recursively copy directory without path replacement
+ */
+function copyDirectory(srcDir, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirectory(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Resolve Codex home directory
+ */
+function resolveCodexHome() {
+  if (process.env.CODEX_HOME) {
+    return expandTilde(process.env.CODEX_HOME);
+  }
+  return path.join(os.homedir(), '.codex');
+}
+
+/**
+ * Install Codex prompts + seed into global home
+ */
+function installCodex() {
+  const src = path.join(__dirname, '..', 'codex');
+  const codexHome = resolveCodexHome();
+
+  const promptSrc = path.join(src, 'prompts', 'gsd-install.md');
+  const seedSrc = path.join(src, 'seed');
+
+  const promptDest = path.join(codexHome, 'prompts', 'gsd-install.md');
+  const seedDest = path.join(codexHome, 'gsd', 'seed');
+
+  console.log(`  Installing Codex assets to ${cyan}${codexHome}${reset}\n`);
+
+  if (!fs.existsSync(promptSrc) || !fs.existsSync(seedSrc)) {
+    console.error(`  ${yellow}✗${reset} Codex assets missing from package`);
+    process.exit(1);
+  }
+
+  fs.mkdirSync(path.dirname(promptDest), { recursive: true });
+  fs.copyFileSync(promptSrc, promptDest);
+  if (verifyFileInstalled(promptDest, 'codex prompt')) {
+    console.log(`  ${green}✓${reset} Installed prompt`);
+  }
+
+  if (fs.existsSync(seedDest)) {
+    fs.rmSync(seedDest, { recursive: true, force: true });
+  }
+  copyDirectory(seedSrc, seedDest);
+  if (verifyInstalled(seedDest, 'codex seed')) {
+    console.log(`  ${green}✓${reset} Installed seed`);
+  }
+
+  console.log(`
+  ${green}Done!${reset} Codex assets installed.
+  Run ${cyan}/prompts:gsd-install${reset} inside any project to scaffold local GSD assets.
+`);
 }
 
 /**
@@ -546,7 +633,10 @@ function promptLocation() {
 }
 
 // Main
-if (hasGlobal && hasLocal) {
+if (hasCodex) {
+  installCodex();
+  process.exit(0);
+} else if (hasGlobal && hasLocal) {
   console.error(`  ${yellow}Cannot specify both --global and --local${reset}`);
   process.exit(1);
 } else if (explicitConfigDir && hasLocal) {
