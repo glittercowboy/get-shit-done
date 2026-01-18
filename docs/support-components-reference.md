@@ -18,8 +18,8 @@ Comprehensive reference for GSD workflows, templates, and reference documents.
 | map-codebase.md | Analyze existing codebase structure | gsd-codebase-mapper | .planning/codebase/STACK.md, INTEGRATIONS.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, CONCERNS.md |
 | diagnose-issues.md | Parallel gap investigation from UAT | /gsd:verify-work | DEBUG.md files |
 | list-phase-assumptions.md | Surface implicit assumptions in phase | /gsd:list-phase-assumptions | Display output |
-| complete-milestone.md | Archive completed milestone | /gsd:complete-milestone | Milestone archive |
-| discovery-phase.md | Shallow research for library decisions | plan-phase | DISCOVERY.md |
+| complete-milestone.md | Archive completed milestone | /gsd:complete-milestone | Milestone archive, ROADMAP collapse, REQUIREMENTS archive/reset |
+| discovery-phase.md | Multi-depth discovery (quick verify → deep dive) for library/option decisions | plan-phase | DISCOVERY.md (levels 2-3 only) |
 
 ---
 
@@ -136,7 +136,7 @@ Comprehensive reference for GSD workflows, templates, and reference documents.
 - STATE.md is primary restoration source
 - .continue-here.md enables mid-task resume
 - Presents "Next Up" block with command
-- Cleans up .continue-here after successful resume
+- Resume flow reads .continue-here context for mid-task restoration (cleanup handled by pause/resume conventions)
 
 ---
 
@@ -232,7 +232,8 @@ Comprehensive reference for GSD workflows, templates, and reference documents.
 2. Create milestone entry in MILESTONES.md
 3. Archive phase details to .planning/milestones/
 4. Collapse completed phases in ROADMAP.md
-5. Update PROJECT.md to brownfield format
+5. Archive REQUIREMENTS.md and reset for the next milestone
+6. Update PROJECT.md to brownfield format
 
 **Key Behaviors:**
 - Milestones grouped by version (v1.0, v1.1, etc.)
@@ -244,17 +245,17 @@ Comprehensive reference for GSD workflows, templates, and reference documents.
 
 ### discovery-phase.md Details (Expanded)
 
-**Purpose:** Shallow research for library/option decisions during planning. Answers "which library should we use?" not "how do we build this system?"
+**Purpose:** Multi-depth discovery for library/option decisions during planning. Supports quick verification, standard comparison, and deep dives. Answers "which library should we use?" not "how do we build this system?"
 
 **Distinction from research-phase:**
 
 | Aspect | discovery-phase | research-phase |
 |--------|-----------------|----------------|
-| Depth | Shallow (which library) | Deep (ecosystem knowledge) |
+| Depth | Quick → deep options analysis | Deep (ecosystem knowledge) |
 | Scope | Single decision | Entire phase domain |
-| Output | DISCOVERY.md | {phase}-RESEARCH.md |
+| Output | DISCOVERY.md (levels 2-3) | {phase}-RESEARCH.md |
 | Trigger | During planning when choice needed | Before planning for complex domains |
-| Duration | Minutes | 10-30 minutes |
+| Duration | 2 min → 1+ hour | 10-30 minutes |
 
 **When to Use:**
 - "Should we use Prisma or Drizzle?"
@@ -330,7 +331,7 @@ Comprehensive reference for GSD workflows, templates, and reference documents.
 | milestone.md | MILESTONES.md entry | complete-milestone | Delivered, Stats, Git range |
 | milestone-archive.md | v{X.Y}-{name}.md | complete-milestone | Phases, Decisions, Issues |
 | user-setup.md | {phase}-USER-SETUP.md | execute-plan | Env Vars, Dashboard Config |
-| continue-here.md | .continue-here.md | execute-plan | State, Work, Next Action |
+| continue-here.md | .continue-here.md | pause-work | State, Work, Next Action |
 | planner-subagent-prompt.md | (agent prompt) | plan-phase | Planning Context, Quality Gate |
 | debug-subagent-prompt.md | (agent prompt) | debug/diagnose | Symptoms, Mode, Debug File |
 | research-project/SUMMARY.md | .planning/research/SUMMARY.md | gsd-research-synthesizer | Executive Summary, Key Findings, Roadmap Implications |
