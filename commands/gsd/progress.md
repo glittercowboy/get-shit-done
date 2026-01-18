@@ -21,6 +21,12 @@ Provides situational awareness before continuing work.
 <step name="verify">
 **Verify planning structure exists:**
 
+Use Bash (not Glob) to check—Glob respects .gitignore but .planning/ is often gitignored:
+
+```bash
+test -d .planning && echo "exists" || echo "missing"
+```
+
 If no `.planning/` directory:
 
 ```

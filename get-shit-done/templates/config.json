@@ -1,6 +1,10 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "planning": {
+    "commit_docs": true,
+    "search_gitignored": false
+  },
   "parallelization": {
     "enabled": true,
     "plan_level": true,

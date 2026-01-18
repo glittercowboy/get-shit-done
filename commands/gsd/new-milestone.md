@@ -8,37 +8,31 @@ allowed-tools:
   - Bash
   - Task
   - AskUserQuestion
-  - Glob
 ---
 
 <objective>
-
 Start a new milestone through unified flow: questioning → research (optional) → requirements → roadmap.
 
-This is the brownfield equivalent of new-project. The project exists, PROJECT.md has history. This command gathers "what's next" and takes you through the full cycle.
+This is the brownfield equivalent of new-project. The project exists, PROJECT.md has history. This command gathers "what's next", updates PROJECT.md, then continues through the full requirements → roadmap cycle.
 
 **Creates/Updates:**
 - `.planning/PROJECT.md` — updated with new milestone goals
-- `.planning/research/` — domain research (optional)
-- `.planning/REQUIREMENTS.md` — scoped requirements
-- `.planning/ROADMAP.md` — phase structure
-- `.planning/STATE.md` — updated project memory
+- `.planning/research/` — domain research (optional, focuses on NEW features)
+- `.planning/REQUIREMENTS.md` — scoped requirements for this milestone
+- `.planning/ROADMAP.md` — phase structure (continues numbering)
+- `.planning/STATE.md` — reset for new milestone
 
 **After this command:** Run `/gsd:plan-phase [N]` to start execution.
-
 </objective>
 
 <execution_context>
-
 @~/.claude/get-shit-done/references/questioning.md
 @~/.claude/get-shit-done/references/ui-brand.md
 @~/.claude/get-shit-done/templates/project.md
 @~/.claude/get-shit-done/templates/requirements.md
-
 </execution_context>
 
 <context>
-
 Milestone name: $ARGUMENTS (optional - will prompt if not provided)
 
 **Load project context:**
@@ -47,133 +41,40 @@ Milestone name: $ARGUMENTS (optional - will prompt if not provided)
 @.planning/MILESTONES.md
 @.planning/config.json
 
+**Load milestone context (if exists, from /gsd:discuss-milestone):**
+@.planning/MILESTONE-CONTEXT.md
 </context>
 
 <process>
 
-## Phase 1: Validate
+## Phase 1: Load Context
 
-**MANDATORY FIRST STEP — Execute these checks before ANY user interaction:**
+- Read PROJECT.md (existing project, Validated requirements, decisions)
+- Read MILESTONES.md (what shipped previously)
+- Read STATE.md (pending todos, blockers)
+- Check for MILESTONE-CONTEXT.md (from /gsd:discuss-milestone)
 
-1. **Verify project exists:**
-   ```bash
-   [ -f .planning/PROJECT.md ] || { echo "ERROR: No PROJECT.md. Run /gsd:new-project first."; exit 1; }
-   ```
+## Phase 2: Gather Milestone Goals
 
-2. **Check for active milestone (ROADMAP.md exists):**
-   ```bash
-   [ -f .planning/ROADMAP.md ] && echo "ACTIVE_MILESTONE" || echo "READY_FOR_NEW"
-   ```
+**If MILESTONE-CONTEXT.md exists:**
+- Use features and scope from discuss-milestone
+- Present summary for confirmation
 
-   **If ACTIVE_MILESTONE:**
-   Use AskUserQuestion:
-   - header: "Active Milestone"
-   - question: "A milestone is in progress. What would you like to do?"
-   - options:
-     - "Complete current first" — Run /gsd:complete-milestone
-     - "Continue anyway" — Start new milestone (will archive current)
+**If no context file:**
+- Present what shipped in last milestone
+- Ask: "What do you want to build next?"
+- Use AskUserQuestion to explore features
+- Probe for priorities, constraints, scope
 
-   If "Complete current first": Exit with routing to `/gsd:complete-milestone`
-   If "Continue anyway": Continue to Phase 2
+## Phase 3: Determine Milestone Version
 
-3. **Load previous milestone context:**
-   ```bash
-   cat .planning/MILESTONES.md 2>/dev/null || echo "NO_MILESTONES"
-   cat .planning/STATE.md
-   ```
+- Parse last version from MILESTONES.md
+- Suggest next version (v1.0 → v1.1, or v2.0 for major)
+- Confirm with user
 
-## Phase 2: Present Context
+## Phase 4: Update PROJECT.md
 
-**Display stage banner:**
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► NEW MILESTONE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**Present what shipped:**
-
-```
-Last milestone: v[X.Y] [Name] (shipped [DATE])
-
-Key accomplishments:
-- [From MILESTONES.md]
-- [From MILESTONES.md]
-- [From MILESTONES.md]
-
-Validated requirements:
-- [From PROJECT.md Validated section]
-
-Pending todos:
-- [From STATE.md if any]
-```
-
-## Phase 3: Deep Questioning
-
-**Display stage banner:**
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► QUESTIONING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**Open the conversation:**
-
-Ask inline (freeform, NOT AskUserQuestion):
-
-"What do you want to build next?"
-
-Wait for their response. This gives you the context needed to ask intelligent follow-up questions.
-
-**Follow the thread:**
-
-Based on what they said, ask follow-up questions that dig into their response. Use AskUserQuestion with options that probe what they mentioned — interpretations, clarifications, concrete examples.
-
-Keep following threads. Each answer opens new threads to explore. Ask about:
-- What excited them
-- What problem sparked this
-- What they mean by vague terms
-- What it would actually look like
-- What's already decided
-
-Consult `questioning.md` for techniques:
-- Challenge vagueness
-- Make abstract concrete
-- Surface assumptions
-- Find edges
-- Reveal motivation
-
-**Decision gate:**
-
-When you could update PROJECT.md with clear new goals, use AskUserQuestion:
-
-- header: "Ready?"
-- question: "I think I understand what you're after. Ready to update PROJECT.md?"
-- options:
-  - "Update PROJECT.md" — Let's move forward
-  - "Keep exploring" — I want to share more / ask me more
-
-If "Keep exploring" — ask what they want to add, or identify gaps and probe naturally.
-
-Loop until "Update PROJECT.md" selected.
-
-## Phase 4: Determine Milestone Version
-
-Parse last version from MILESTONES.md and suggest next:
-
-Use AskUserQuestion:
-- header: "Version"
-- question: "What version is this milestone?"
-- options:
-  - "v[X.Y+0.1] (patch)" — Minor update: [suggested name]
-  - "v[X+1].0 (major)" — Major release
-  - "Custom" — I'll specify
-
-## Phase 5: Update PROJECT.md
-
-Update `.planning/PROJECT.md` with new milestone section:
+Add/update these sections:
 
 ```markdown
 ## Current Milestone: v[X.Y] [Name]
@@ -186,30 +87,49 @@ Update `.planning/PROJECT.md` with new milestone section:
 - [Feature 3]
 ```
 
-Update Active requirements section with new goals (keep Validated section intact).
+Update Active requirements section with new goals.
 
 Update "Last updated" footer.
 
-**Commit PROJECT.md:**
+## Phase 5: Update STATE.md
 
-```bash
-git add .planning/PROJECT.md
-git commit -m "$(cat <<'EOF'
-docs: start milestone v[X.Y] [Name]
+```markdown
+## Current Position
 
-[One-liner describing milestone focus]
-EOF
-)"
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: [today] — Milestone v[X.Y] started
 ```
 
-## Phase 6: Research Decision
+Keep Accumulated Context section (decisions, blockers) from previous milestone.
+
+## Phase 6: Cleanup and Commit
+
+Delete MILESTONE-CONTEXT.md if exists (consumed).
+
+Check planning config:
+```bash
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+If `COMMIT_PLANNING_DOCS=false`: Skip git operations
+
+If `COMMIT_PLANNING_DOCS=true` (default):
+```bash
+git add .planning/PROJECT.md .planning/STATE.md
+git commit -m "docs: start milestone v[X.Y] [Name]"
+```
+
+## Phase 7: Research Decision
 
 Use AskUserQuestion:
 - header: "Research"
-- question: "Research the domain ecosystem before defining requirements?"
+- question: "Research the domain ecosystem for new features before defining requirements?"
 - options:
-  - "Research first (Recommended)" — Discover patterns, expected features, architecture
-  - "Skip research" — I know this domain well, go straight to requirements
+  - "Research first (Recommended)" — Discover patterns, expected features, architecture for NEW capabilities
+  - "Skip research" — I know what I need, go straight to requirements
 
 **If "Research first":**
 
@@ -219,7 +139,7 @@ Display stage banner:
  GSD ► RESEARCHING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Researching [domain] ecosystem...
+Researching [new features] ecosystem...
 ```
 
 Create research directory:
@@ -227,45 +147,52 @@ Create research directory:
 mkdir -p .planning/research
 ```
 
-**Milestone context is "subsequent"** — Research focuses on new features, not re-researching validated requirements.
-
 Display spawning indicator:
 ```
 ◆ Spawning 4 researchers in parallel...
-  → Stack research
+  → Stack research (for new features)
   → Features research
-  → Architecture research
+  → Architecture research (integration)
   → Pitfalls research
 ```
 
-Spawn 4 parallel gsd-project-researcher agents with context:
+Spawn 4 parallel gsd-project-researcher agents with milestone-aware context:
 
 ```
 Task(prompt="
 <research_type>
-Project Research — Stack dimension for [domain].
+Project Research — Stack dimension for [new features].
 </research_type>
 
 <milestone_context>
-Subsequent milestone (v[X.Y]).
+SUBSEQUENT MILESTONE — Adding [target features] to existing app.
 
-Research what's needed to add [target features] to an existing [domain] app. Don't re-research the existing system.
+Existing validated capabilities (DO NOT re-research):
+[List from PROJECT.md Validated requirements]
+
+Focus ONLY on what's needed for the NEW features.
 </milestone_context>
 
 <question>
-What's needed to add [target features] to [domain]?
+What stack additions/changes are needed for [new features]?
 </question>
 
 <project_context>
-[PROJECT.md summary - core value, validated requirements, new goals]
+[PROJECT.md summary - current state, new milestone goals]
 </project_context>
 
 <downstream_consumer>
 Your STACK.md feeds into roadmap creation. Be prescriptive:
-- Specific libraries with versions
-- Clear rationale for each choice
-- What NOT to use and why
+- Specific libraries with versions for NEW capabilities
+- Integration points with existing stack
+- What NOT to add and why
 </downstream_consumer>
+
+<quality_gate>
+- [ ] Versions are current (verify with Context7/official docs, not training data)
+- [ ] Rationale explains WHY, not just WHAT
+- [ ] Integration with existing stack considered
+</quality_gate>
 
 <output>
 Write to: .planning/research/STACK.md
@@ -275,29 +202,38 @@ Use template: ~/.claude/get-shit-done/templates/research-project/STACK.md
 
 Task(prompt="
 <research_type>
-Project Research — Features dimension for [domain].
+Project Research — Features dimension for [new features].
 </research_type>
 
 <milestone_context>
-Subsequent milestone (v[X.Y]).
+SUBSEQUENT MILESTONE — Adding [target features] to existing app.
 
-How do [target features] typically work? What's expected behavior?
+Existing features (already built):
+[List from PROJECT.md Validated requirements]
+
+Focus on how [new features] typically work, expected behavior.
 </milestone_context>
 
 <question>
-What features are expected for [target features]?
+How do [target features] typically work? What's expected behavior?
 </question>
 
 <project_context>
-[PROJECT.md summary]
+[PROJECT.md summary - new milestone goals]
 </project_context>
 
 <downstream_consumer>
 Your FEATURES.md feeds into requirements definition. Categorize clearly:
-- Table stakes (must have)
+- Table stakes (must have for these features)
 - Differentiators (competitive advantage)
 - Anti-features (things to deliberately NOT build)
 </downstream_consumer>
+
+<quality_gate>
+- [ ] Categories are clear (table stakes vs differentiators vs anti-features)
+- [ ] Complexity noted for each feature
+- [ ] Dependencies on existing features identified
+</quality_gate>
 
 <output>
 Write to: .planning/research/FEATURES.md
@@ -307,29 +243,39 @@ Use template: ~/.claude/get-shit-done/templates/research-project/FEATURES.md
 
 Task(prompt="
 <research_type>
-Project Research — Architecture dimension for [domain].
+Project Research — Architecture dimension for [new features].
 </research_type>
 
 <milestone_context>
-Subsequent milestone (v[X.Y]).
+SUBSEQUENT MILESTONE — Adding [target features] to existing app.
 
-How do [target features] integrate with existing [domain] architecture?
+Existing architecture:
+[Summary from PROJECT.md or codebase map]
+
+Focus on how [new features] integrate with existing architecture.
 </milestone_context>
 
 <question>
-How should [target features] integrate with the existing system?
+How do [target features] integrate with existing [domain] architecture?
 </question>
 
 <project_context>
-[PROJECT.md summary]
+[PROJECT.md summary - current architecture, new features]
 </project_context>
 
 <downstream_consumer>
 Your ARCHITECTURE.md informs phase structure in roadmap. Include:
-- Component boundaries (what talks to what)
-- Data flow (how information moves)
-- Suggested build order (dependencies between components)
+- Integration points with existing components
+- New components needed
+- Data flow changes
+- Suggested build order
 </downstream_consumer>
+
+<quality_gate>
+- [ ] Integration points clearly identified
+- [ ] New vs modified components explicit
+- [ ] Build order considers existing dependencies
+</quality_gate>
 
 <output>
 Write to: .planning/research/ARCHITECTURE.md
@@ -339,21 +285,21 @@ Use template: ~/.claude/get-shit-done/templates/research-project/ARCHITECTURE.md
 
 Task(prompt="
 <research_type>
-Project Research — Pitfalls dimension for [domain].
+Project Research — Pitfalls dimension for [new features].
 </research_type>
 
 <milestone_context>
-Subsequent milestone (v[X.Y]).
+SUBSEQUENT MILESTONE — Adding [target features] to existing app.
 
-What are common mistakes when adding [target features] to [domain]?
+Focus on common mistakes when ADDING these features to an existing system.
 </milestone_context>
 
 <question>
-What pitfalls should we avoid when adding [target features]?
+What are common mistakes when adding [target features] to [domain]?
 </question>
 
 <project_context>
-[PROJECT.md summary]
+[PROJECT.md summary - current state, new features]
 </project_context>
 
 <downstream_consumer>
@@ -363,6 +309,12 @@ Your PITFALLS.md prevents mistakes in roadmap/planning. For each pitfall:
 - Which phase should address it
 </downstream_consumer>
 
+<quality_gate>
+- [ ] Pitfalls are specific to adding these features (not generic)
+- [ ] Integration pitfalls with existing system covered
+- [ ] Prevention strategies are actionable
+</quality_gate>
+
 <output>
 Write to: .planning/research/PITFALLS.md
 Use template: ~/.claude/get-shit-done/templates/research-project/PITFALLS.md
@@ -370,7 +322,7 @@ Use template: ~/.claude/get-shit-done/templates/research-project/PITFALLS.md
 ", subagent_type="gsd-project-researcher", description="Pitfalls research")
 ```
 
-After all 4 agents complete, spawn synthesizer:
+After all 4 agents complete, spawn synthesizer to create SUMMARY.md:
 
 ```
 Task(prompt="
@@ -394,7 +346,7 @@ Commit after writing.
 ", subagent_type="gsd-research-synthesizer", description="Synthesize research")
 ```
 
-Display research complete:
+Display research complete banner and key findings:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  GSD ► RESEARCH COMPLETE ✓
@@ -402,16 +354,16 @@ Display research complete:
 
 ## Key Findings
 
-**Stack:** [from SUMMARY.md]
-**Table Stakes:** [from SUMMARY.md]
+**Stack additions:** [from SUMMARY.md]
+**New feature table stakes:** [from SUMMARY.md]
 **Watch Out For:** [from SUMMARY.md]
 
 Files: `.planning/research/`
 ```
 
-**If "Skip research":** Continue to Phase 7.
+**If "Skip research":** Continue to Phase 8.
 
-## Phase 7: Define Requirements
+## Phase 8: Define Requirements
 
 Display stage banner:
 ```
@@ -424,24 +376,24 @@ Display stage banner:
 
 Read PROJECT.md and extract:
 - Core value (the ONE thing that must work)
-- New milestone goals
-- Validated requirements (what already works)
-- Stated constraints
+- Current milestone goals
+- Validated requirements (what already exists)
 
 **If research exists:** Read research/FEATURES.md and extract feature categories.
 
 **Present features by category:**
 
 ```
-Here are the features for [milestone focus]:
+Here are the features for [new capabilities]:
 
 ## [Category 1]
 **Table stakes:**
-- [Feature]
-- [Feature]
+- Feature A
+- Feature B
 
 **Differentiators:**
-- [Feature]
+- Feature C
+- Feature D
 
 **Research notes:** [any relevant notes]
 
@@ -453,7 +405,7 @@ Here are the features for [milestone focus]:
 
 **If no research:** Gather requirements through conversation instead.
 
-Ask: "What are the main things users need to be able to do in this milestone?"
+Ask: "What are the main things users need to be able to do with [new features]?"
 
 For each capability mentioned:
 - Ask clarifying questions to make it specific
@@ -470,11 +422,12 @@ For each category, use AskUserQuestion:
 - options:
   - "[Feature 1]" — [brief description]
   - "[Feature 2]" — [brief description]
-  - "None for this milestone" — Defer
+  - "[Feature 3]" — [brief description]
+  - "None for this milestone" — Defer entire category
 
 Track responses:
-- Selected features → v1 requirements
-- Unselected table stakes → v2 (users expect these)
+- Selected features → this milestone's requirements
+- Unselected table stakes → future milestone
 - Unselected differentiators → out of scope
 
 **Identify gaps:**
@@ -486,38 +439,39 @@ Use AskUserQuestion:
   - "No, research covered it" — Proceed
   - "Yes, let me add some" — Capture additions
 
-**Validate core value:**
-
-Cross-check requirements against Core Value from PROJECT.md. If gaps detected, surface them.
-
 **Generate REQUIREMENTS.md:**
 
 Create `.planning/REQUIREMENTS.md` with:
-- v1 Requirements grouped by category (checkboxes, REQ-IDs)
-- v2 Requirements (deferred)
+- v1 Requirements for THIS milestone grouped by category (checkboxes, REQ-IDs)
+- Future Requirements (deferred to later milestones)
 - Out of Scope (explicit exclusions with reasoning)
 - Traceability section (empty, filled by roadmap)
 
-**REQ-ID format:** `[CATEGORY]-[NUMBER]` (AUTH-01, CONTENT-02)
+**REQ-ID format:** `[CATEGORY]-[NUMBER]` (AUTH-01, NOTIF-02)
+
+Continue numbering from existing requirements if applicable.
 
 **Requirement quality criteria:**
 
 Good requirements are:
 - **Specific and testable:** "User can reset password via email link" (not "Handle password reset")
 - **User-centric:** "User can X" (not "System does Y")
-- **Atomic:** One capability per requirement
+- **Atomic:** One capability per requirement (not "User can login and manage profile")
 - **Independent:** Minimal dependencies on other requirements
 
-**Present full requirements list for confirmation:**
+**Present full requirements list:**
 
 Show every requirement (not counts) for user confirmation:
 
 ```
-## v1 Requirements
+## Milestone v[X.Y] Requirements
 
-### [Category]
-- [ ] **[CAT]-01**: [Requirement description]
-- [ ] **[CAT]-02**: [Requirement description]
+### [Category 1]
+- [ ] **CAT1-01**: User can do X
+- [ ] **CAT1-02**: User can do Y
+
+### [Category 2]
+- [ ] **CAT2-01**: User can do Z
 
 [... full list ...]
 
@@ -530,18 +484,20 @@ If "adjust": Return to scoping.
 
 **Commit requirements:**
 
+Check planning config (same pattern as Phase 6).
+
+If committing:
 ```bash
 git add .planning/REQUIREMENTS.md
 git commit -m "$(cat <<'EOF'
-docs: define v[X.Y] requirements
+docs: define milestone v[X.Y] requirements
 
 [X] requirements across [N] categories
-[Y] requirements deferred to v2
 EOF
 )"
 ```
 
-## Phase 8: Create Roadmap
+## Phase 9: Create Roadmap
 
 Display stage banner:
 ```
@@ -552,15 +508,10 @@ Display stage banner:
 ◆ Spawning roadmapper...
 ```
 
-**Calculate starting phase number:**
+**Determine starting phase number:**
 
-```bash
-# Find highest existing phase number
-ls -d .planning/phases/[0-9]*-* 2>/dev/null | sort -V | tail -1 | grep -oE '[0-9]+' | head -1
-```
-
-If phases exist: New phases start at last + 1
-If no phases: Start at Phase 1
+Read MILESTONES.md to find the last phase number from previous milestone.
+New phases continue from there (e.g., if v1.0 ended at phase 5, v1.1 starts at phase 6).
 
 Spawn gsd-roadmapper agent with context:
 
@@ -580,20 +531,22 @@ Task(prompt="
 **Config:**
 @.planning/config.json
 
-**Starting phase number:** [N]
+**Previous milestone (for phase numbering):**
+@.planning/MILESTONES.md
 
 </planning_context>
 
 <instructions>
-Create roadmap:
-1. Derive phases from requirements (don't impose structure)
-2. Map every v1 requirement to exactly one phase
-3. Derive 2-5 success criteria per phase (observable user behaviors)
-4. Validate 100% coverage
-5. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability)
-6. Return ROADMAP CREATED with summary
+Create roadmap for milestone v[X.Y]:
+1. Start phase numbering from [N] (continues from previous milestone)
+2. Derive phases from THIS MILESTONE's requirements (don't include validated/existing)
+3. Map every requirement to exactly one phase
+4. Derive 2-5 success criteria per phase (observable user behaviors)
+5. Validate 100% coverage of new requirements
+6. Write files immediately (ROADMAP.md, STATE.md, update REQUIREMENTS.md traceability)
+7. Return ROADMAP CREATED with summary
 
-Write files first, then return.
+Write files first, then return. This ensures artifacts persist even if context is lost.
 </instructions>
 ", subagent_type="gsd-roadmapper", description="Create roadmap")
 ```
@@ -607,9 +560,36 @@ Write files first, then return.
 
 **If `## ROADMAP CREATED`:**
 
-Read the created ROADMAP.md and present it inline.
+Read the created ROADMAP.md and present it nicely inline:
 
-**Ask for approval:**
+```
+---
+
+## Proposed Roadmap
+
+**[N] phases** | **[X] requirements mapped** | All milestone requirements covered ✓
+
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| [N] | [Name] | [Goal] | [REQ-IDs] | [count] |
+| [N+1] | [Name] | [Goal] | [REQ-IDs] | [count] |
+...
+
+### Phase Details
+
+**Phase [N]: [Name]**
+Goal: [goal]
+Requirements: [REQ-IDs]
+Success criteria:
+1. [criterion]
+2. [criterion]
+
+[... continue for all phases ...]
+
+---
+```
+
+**CRITICAL: Ask for approval before committing:**
 
 Use AskUserQuestion:
 - header: "Roadmap"
@@ -623,27 +603,46 @@ Use AskUserQuestion:
 
 **If "Adjust phases":**
 - Get user's adjustment notes
-- Re-spawn roadmapper with revision context
-- Loop until approved
+- Re-spawn roadmapper with revision context:
+  ```
+  Task(prompt="
+  <revision>
+  User feedback on roadmap:
+  [user's notes]
 
-**Commit roadmap:**
+  Current ROADMAP.md: @.planning/ROADMAP.md
 
+  Update the roadmap based on feedback. Edit files in place.
+  Return ROADMAP REVISED with changes made.
+  </revision>
+  ", subagent_type="gsd-roadmapper", description="Revise roadmap")
+  ```
+- Present revised roadmap
+- Loop until user approves
+
+**If "Review full file":** Display raw `cat .planning/ROADMAP.md`, then re-ask.
+
+**Commit roadmap (after approval):**
+
+Check planning config (same pattern as Phase 6).
+
+If committing:
 ```bash
 git add .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md
 git commit -m "$(cat <<'EOF'
-docs: create v[X.Y] roadmap ([N] phases)
+docs: create milestone v[X.Y] roadmap ([N] phases)
 
 Phases:
-1. [phase-name]: [requirements covered]
-2. [phase-name]: [requirements covered]
+[N]. [phase-name]: [requirements covered]
+[N+1]. [phase-name]: [requirements covered]
 ...
 
-All v1 requirements mapped to phases.
+All milestone requirements mapped to phases.
 EOF
 )"
 ```
 
-## Phase 9: Done
+## Phase 10: Done
 
 Present completion with next steps:
 
@@ -652,10 +651,10 @@ Present completion with next steps:
  GSD ► MILESTONE INITIALIZED ✓
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**v[X.Y] [Name]**
+**Milestone v[X.Y]: [Name]**
 
 | Artifact       | Location                    |
-|----------------|-----------------------------
+|----------------|-----------------------------|
 | Project        | `.planning/PROJECT.md`      |
 | Research       | `.planning/research/`       |
 | Requirements   | `.planning/REQUIREMENTS.md` |
@@ -683,35 +682,20 @@ Present completion with next steps:
 
 </process>
 
-<output>
-
-- `.planning/PROJECT.md` (updated)
-- `.planning/research/` (if research selected)
-  - `STACK.md`
-  - `FEATURES.md`
-  - `ARCHITECTURE.md`
-  - `PITFALLS.md`
-  - `SUMMARY.md`
-- `.planning/REQUIREMENTS.md`
-- `.planning/ROADMAP.md`
-- `.planning/STATE.md`
-
-</output>
-
 <success_criteria>
-
-- [ ] Project validated (PROJECT.md exists)
-- [ ] Previous milestone context presented
-- [ ] Deep questioning completed (threads followed)
-- [ ] Milestone version determined
-- [ ] PROJECT.md updated with new milestone goals → **committed**
-- [ ] Research completed (if selected) → **committed**
-- [ ] Requirements gathered and scoped
-- [ ] REQUIREMENTS.md created with REQ-IDs → **committed**
-- [ ] gsd-roadmapper spawned with context
-- [ ] Roadmap files written immediately
+- [ ] PROJECT.md updated with Current Milestone section
+- [ ] STATE.md reset for new milestone
+- [ ] MILESTONE-CONTEXT.md consumed and deleted (if existed)
+- [ ] Research completed (if selected) — 4 parallel agents spawned, milestone-aware
+- [ ] Requirements gathered (from research or conversation)
+- [ ] User scoped each category
+- [ ] REQUIREMENTS.md created with REQ-IDs
+- [ ] gsd-roadmapper spawned with phase numbering context
+- [ ] Roadmap files written immediately (not draft)
 - [ ] User feedback incorporated (if any)
-- [ ] ROADMAP.md, STATE.md → **committed**
-- [ ] User knows next step is `/gsd:plan-phase [N]`
+- [ ] ROADMAP.md created with phases continuing from previous milestone
+- [ ] All commits made (if planning docs committed)
+- [ ] User knows next step is `/gsd:discuss-phase [N]`
 
+**Atomic commits:** Each phase commits its artifacts immediately. If context is lost, artifacts persist.
 </success_criteria>
