@@ -33,6 +33,20 @@ Phase number: $ARGUMENTS (required)
 </context>
 
 <process>
+
+## 0. Check Enhancements
+
+```bash
+DECISION_LEDGER=$(cat .planning/config.json 2>/dev/null | grep -o '"decision_ledger":[^,}]*' | cut -d':' -f2 | tr -d ' ')
+```
+
+**If `decision_ledger` is `true`:** Use Enhanced Flow (Decision Ledger mode)
+**Otherwise:** Use Standard Flow (gray areas mode)
+
+---
+
+## Standard Flow (decision_ledger: false or not set)
+
 1. Validate phase number (error if missing or not in roadmap)
 2. Check if CONTEXT.md exists (offer update/view/skip if yes)
 3. **Analyze phase** — Identify domain and generate phase-specific gray areas
@@ -40,6 +54,185 @@ Phase number: $ARGUMENTS (required)
 5. **Deep-dive each area** — 4 questions per area, then offer more/next
 6. **Write CONTEXT.md** — Sections match areas discussed
 7. Offer next steps (research or plan)
+
+---
+
+## Enhanced Flow (decision_ledger: true)
+
+### E1. Validate and Load Phase
+
+Same as standard: validate phase number, check existing CONTEXT.md
+
+### E2. Initialize Decision Ledger
+
+Create an in-memory Decision Ledger to track through the interview:
+
+```markdown
+## Decision Ledger (Draft)
+
+| # | Decision | Verbatim User Statement | Round |
+|---|----------|------------------------|-------|
+| 1 | ... | "..." | 1 |
+```
+
+**Rules:**
+- Capture exact wording, not paraphrased summaries
+- Include context that led to decision
+- Record which round each decision was made
+
+### E3. Analyze Phase for Discussion Areas
+
+Analyze the phase goal and identify:
+
+1. **Terminology & Concepts** — Core nouns that need definition
+   - What terms might mean different things?
+   - What conceptual model underpins this feature?
+   - Any renames or migrations from existing terms?
+
+2. **User Experience** — How it should look and feel
+   - What's the ideal flow?
+   - What should users see at each step?
+   - What's the "aha moment"?
+
+3. **Entry Points & Creation** — Where users start
+   - Single entry or multiple paths?
+   - What creation options exist? (manual, curated, generate, AI)
+   - What's gated vs always available?
+
+4. **Behaviors & Edge Cases** — What happens when
+   - Happy path flow
+   - Error handling
+   - Offline/interrupted/cancelled scenarios
+
+5. **Scope Boundaries** — What's in and out
+   - What might seem related but isn't part of this?
+   - What's explicitly deferred?
+
+### E4. Interview Rounds
+
+For each discussion area:
+
+**Ask 2-4 questions** using AskUserQuestion, probing:
+- Interpretations and meanings
+- Specific examples
+- Boundaries and edge cases
+- Priorities if tradeoffs needed
+
+**After each round:**
+1. Summarize "What I heard" in 5-10 bullets
+2. **Update Decision Ledger** with new decisions (verbatim)
+3. Ask: "Anything missing or wrong before we continue?"
+
+**Continue until you can answer:**
+- [ ] I can describe the complete user journey
+- [ ] Core nouns are defined (Terminology section complete)
+- [ ] All entry points enumerated
+- [ ] Scope boundaries explicit (in AND out)
+- [ ] No ambiguous words remain
+
+### E5. Decision Ledger Sign-off
+
+**REQUIRED before writing CONTEXT.md:**
+
+Present the complete Decision Ledger:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ DECISION LEDGER REVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{N} decisions captured:
+
+| # | Decision | Your Words |
+|---|----------|------------|
+| 1 | [decision] | "[exact quote]" |
+| 2 | [decision] | "[exact quote]" |
+...
+
+Is this complete and accurate?
+```
+
+Use AskUserQuestion:
+- header: "Ledger"
+- question: "Decision Ledger complete and accurate?"
+- options:
+  - "Approved" — Proceed to write CONTEXT.md
+  - "Missing something" — Add more decisions
+  - "Needs correction" — Fix incorrect entries
+
+Loop until "Approved".
+
+### E6. Write Enhanced CONTEXT.md
+
+Include additional sections from the Decision Ledger:
+
+```markdown
+# Phase {X}: {Name} — Context
+
+## Terminology & Concepts
+
+### Term Mappings
+| Old Term | New Term | Meaning |
+|----------|----------|---------|
+| ... | ... | ... |
+
+### Definitions
+- **{Noun}:** {plain language definition}
+- **{Noun}:** {plain language definition}
+
+### Relationship Model
+- {Thing} contains {Things}
+- {Thing} rotates through {Things}
+
+## Entry Points
+
+### Primary Entry
+{Where users start this flow}
+
+### Creation Options Matrix
+| Type | Manual | Curated | Generate | AI-Gated |
+|------|--------|---------|----------|----------|
+| {type} | Yes/No | Yes/No | Yes/No | Yes/No |
+
+## Decisions
+
+### Locked
+{Decisions from ledger that are final}
+
+### Claude's Discretion
+{Areas Claude can decide during implementation}
+
+## Behaviors
+
+### Happy Path
+1. User does X
+2. They see Y
+3. Result is Z
+
+### Edge Cases
+- If {condition}: {behavior}
+
+## Scope
+
+### In Scope
+- {explicit inclusions}
+
+### Out of Scope
+- {explicit exclusions with reasoning}
+
+### Deferred Ideas
+- {captured for future phases}
+
+## Decision Ledger (Approved)
+
+| # | Decision | Verbatim |
+|---|----------|----------|
+{full ledger}
+```
+
+### E7. Offer Next Steps
+
+Same as standard flow: offer research or plan
 
 **CRITICAL: Scope guardrail**
 - Phase boundary from ROADMAP.md is FIXED
@@ -71,10 +264,22 @@ Generate 3-4 **phase-specific** gray areas, not generic categories.
 </process>
 
 <success_criteria>
+
+**Standard Flow:**
 - Gray areas identified through intelligent analysis
 - User chose which areas to discuss
 - Each selected area explored until satisfied
 - Scope creep redirected to deferred ideas
 - CONTEXT.md captures decisions, not vague vision
 - User knows next steps
+
+**Enhanced Flow (decision_ledger: true):**
+- Decision Ledger initialized at start
+- All decisions captured verbatim (not summarized)
+- Terminology & Concepts section completed
+- Entry Points enumerated with creation matrix
+- Decision Ledger sign-off obtained before writing
+- CONTEXT.md includes full approved ledger
+- User knows next steps
+
 </success_criteria>
