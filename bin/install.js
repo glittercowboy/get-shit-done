@@ -101,6 +101,23 @@ function expandTilde(filePath) {
 }
 
 /**
+ * Convert an absolute path into a shell-friendly path for settings.json commands.
+ * - Rewrites the user's home prefix to $HOME when possible
+ * - Normalizes path separators to forward slashes
+ */
+function shellifyPath(absPath) {
+  if (!absPath) return absPath;
+  const home = os.homedir();
+  let p = absPath;
+  if (p === home) {
+    p = '$HOME';
+  } else if (p.startsWith(home + path.sep)) {
+    p = '$HOME' + p.slice(home.length);
+  }
+  return p.split(path.sep).join('/');
+}
+
+/**
  * Read and parse settings.json, returning empty object if doesn't exist
  */
 function readSettings(settingsPath) {
@@ -157,6 +174,10 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
 function cleanupOrphanedFiles(claudeDir) {
   const orphanedFiles = [
     'hooks/gsd-notify.sh',  // Removed in v1.6.x
+    'hooks/gsd-session.js', // Removed (session safety)
+    'hooks/session-start.js', // Removed (session safety)
+    'hooks/session-stop.js', // Removed (session safety)
+    'hooks/session-stop.sh', // Removed (session safety)
   ];
 
   for (const relPath of orphanedFiles) {
@@ -174,6 +195,9 @@ function cleanupOrphanedFiles(claudeDir) {
 function cleanupOrphanedHooks(settings) {
   const orphanedHookPatterns = [
     'gsd-notify.sh',  // Removed in v1.6.x
+    'session-start.js', // Removed (session safety)
+    'session-stop.js', // Removed (session safety)
+    'session-stop.sh', // Removed (session safety)
   ];
 
   let cleaned = false;
@@ -376,12 +400,12 @@ function install(isGlobal) {
   // Configure statusline and hooks in settings.json
   const settingsPath = path.join(claudeDir, 'settings.json');
   const settings = cleanupOrphanedHooks(readSettings(settingsPath));
-  const statuslineCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/statusline.js"'
-    : 'node .claude/hooks/statusline.js';
-  const updateCheckCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-check-update.js"'
-    : 'node .claude/hooks/gsd-check-update.js';
+  const hooksDirForCommand = isGlobal
+    ? shellifyPath(path.join(claudeDir, 'hooks'))
+    : '.claude/hooks';
+
+  const statuslineCommand = `node "${hooksDirForCommand}/statusline.js"`;
+  const updateCheckCommand = `node "${hooksDirForCommand}/gsd-check-update.js"`;
 
   // Configure SessionStart hook for update checking
   if (!settings.hooks) {

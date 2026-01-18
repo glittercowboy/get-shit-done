@@ -101,6 +101,83 @@ if [ -z "$PHASE_DIR" ]; then
 fi
 ```
 
+## 4.5. Handle Codebase Research (Enhancement)
+
+**Check if codebase research is enabled:**
+
+```bash
+CODEBASE_RESEARCH=$(node ~/.claude/hooks/gsd-config.js get enhancements.codebase_research --default false --format raw 2>/dev/null)
+```
+
+**If `codebase_research` is `true` AND phase involves code changes (not pure docs/config):**
+
+Check for existing codebase research:
+
+```bash
+ls "${PHASE_DIR}"/*-CODEBASE-RESEARCH.md 2>/dev/null
+```
+
+**If CODEBASE-RESEARCH.md exists AND not forcing re-research:**
+- Display: `Using existing codebase research: ${PHASE_DIR}/${PHASE}-CODEBASE-RESEARCH.md`
+- Proceed to step 5
+
+**If CODEBASE-RESEARCH.md missing:**
+
+Display stage banner:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► RESEARCHING CODEBASE FOR PHASE {X}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+◆ Spawning codebase researcher...
+```
+
+Extract phase goal and keywords from roadmap:
+
+```bash
+PHASE_GOAL=$(grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md | head -5)
+```
+
+Spawn gsd-codebase-researcher:
+
+```
+Task(
+  prompt="
+  <phase>
+  Number: ${PHASE}
+  Goal: ${PHASE_GOAL}
+  </phase>
+
+  <context>
+  Project state: @.planning/STATE.md
+  Phase context (if exists): @${PHASE_DIR}/${PHASE}-CONTEXT.md
+  Codebase docs (if exists): @.planning/codebase/ARCHITECTURE.md
+  </context>
+
+  <output>
+  Write to: ${PHASE_DIR}/${PHASE}-CODEBASE-RESEARCH.md
+  </output>
+
+  Research the codebase for files, flows, patterns, and risks relevant to implementing this phase.
+  ",
+  subagent_type="gsd-codebase-researcher",
+  description="Codebase research for Phase ${PHASE}"
+)
+```
+
+**Handle codebase researcher return:**
+
+**`## CODEBASE RESEARCH COMPLETE`:**
+- Display: `Codebase research complete. Proceeding to domain research...`
+- Continue to step 5
+
+**`## CODEBASE RESEARCH BLOCKED`:**
+- Display blocker information
+- Offer: 1) Provide more context, 2) Skip codebase research, 3) Abort
+- Wait for user response
+
+---
+
 ## 5. Handle Research
 
 **If `--gaps` flag:** Skip research (gap closure uses VERIFICATION.md instead).
@@ -218,6 +295,7 @@ REQUIREMENTS=.planning/REQUIREMENTS.md
 # Optional (created by earlier steps or commands)
 CONTEXT="${PHASE_DIR}/${PHASE}-CONTEXT.md"
 RESEARCH="${PHASE_DIR}/${PHASE}-RESEARCH.md"
+CODEBASE_RESEARCH="${PHASE_DIR}/${PHASE}-CODEBASE-RESEARCH.md"
 VERIFICATION="${PHASE_DIR}/${PHASE}-VERIFICATION.md"
 UAT="${PHASE_DIR}/${PHASE}-UAT.md"
 ```
@@ -253,8 +331,14 @@ Fill prompt and spawn:
 **Phase Context (if exists):**
 @.planning/phases/{phase_dir}/{phase}-CONTEXT.md
 
+**Decision Ledger (if exists):**
+@.planning/phases/{phase_dir}/{phase}-DECISION-LEDGER.md
+
 **Research (if exists):**
 @.planning/phases/{phase_dir}/{phase}-RESEARCH.md
+
+**Codebase Research (if exists):**
+@.planning/phases/{phase_dir}/{phase}-CODEBASE-RESEARCH.md
 
 **Gap Closure (if --gaps mode):**
 @.planning/phases/{phase_dir}/{phase}-VERIFICATION.md
@@ -463,6 +547,8 @@ Verification: {Passed | Passed with override | Skipped}
 - [ ] .planning/ directory validated
 - [ ] Phase validated against roadmap
 - [ ] Phase directory created if needed
+- [ ] Codebase research completed if enhancement enabled (unless exists or skipped)
+- [ ] gsd-codebase-researcher spawned if codebase research needed
 - [ ] Research completed (unless --skip-research or --gaps or exists)
 - [ ] gsd-phase-researcher spawned if research needed
 - [ ] Existing plans checked

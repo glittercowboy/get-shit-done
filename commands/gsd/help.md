@@ -113,9 +113,23 @@ Create detailed execution plan for a specific phase.
 - Breaks phase into concrete, actionable tasks
 - Includes verification criteria and success measures
 - Multiple plans per phase supported (XX-01, XX-02, etc.)
+- Optionally runs codebase research first (if `codebase_research` enhancement enabled)
 
 Usage: `/gsd:plan-phase 1`
 Result: Creates `.planning/phases/01-foundation/01-01-PLAN.md`
+
+**`/gsd:audit-plan [path | phase-number]`**
+Audit plan quality before execution.
+
+- Checks structural completeness (required fields, valid frontmatter)
+- Validates action specificity (no vague patterns like "set up", "handle")
+- Verifies executable verification commands
+- Checks project idiom compliance (references existing patterns)
+- Validates dependencies (no circular deps, correct waves)
+- Assesses scope reasonableness (task count, context budget)
+
+Usage: `/gsd:audit-plan 03-01-PLAN.md`
+Usage: `/gsd:audit-plan 3` (audit all plans in phase 3)
 
 ### Execution
 
@@ -124,6 +138,7 @@ Execute all plans in a phase.
 
 - Groups plans by wave (from frontmatter), executes waves sequentially
 - Plans within each wave run in parallel via Task tool
+- If `enhancements.plan_audit` is enabled, runs a pre-flight plan audit gate before execution
 - Verifies phase goal after all plans complete
 - Updates REQUIREMENTS.md, ROADMAP.md, STATE.md
 
@@ -274,6 +289,34 @@ See what's changed since your installed version.
 
 Usage: `/gsd:whats-new`
 
+**`/gsd:settings`**
+Guided wizard to view and update `.planning/config.json`.
+
+- Walks through mode, depth, enhancements, gates, and safety rails
+- Multi-choice prompts with explanations and current values
+- Writes updated config (optional git commit)
+
+Usage: `/gsd:settings`
+
+**`/gsd:migrate-config`**
+Upgrade `.planning/config.json` to the latest template.
+
+- Adds missing keys introduced by newer GSD versions
+- Preserves existing values and unknown keys
+- Optional backup + optional git commit
+
+Usage: `/gsd:migrate-config`
+
+**`/gsd:doctor`**
+Diagnose common setup/project issues (config, hooks, sessions, git).
+
+- Validates `.planning/` structure and config schema
+- Checks required hooks are installed
+- Shows active sessions and warns about concurrency
+- Warns if git is dirty before execution
+
+Usage: `/gsd:doctor`
+
 ## Files & Structure
 
 ```
@@ -321,6 +364,48 @@ Set during `/gsd:new-project`:
 - Only stops for critical checkpoints
 
 Change anytime by editing `.planning/config.json`
+
+## Enhanced Workflows (Optional)
+
+Enable via `.planning/config.json` `enhancements` section:
+
+```json
+{
+  "enhancements": {
+    "decision_ledger": false,
+    "codebase_research": false,
+    "plan_audit": false
+  }
+}
+```
+
+### When To Enable What
+
+Use these as heuristics so enhancements don’t turn into ceremony:
+
+- **Decision Ledger:** Enable when requirements are ambiguous/high-stakes, terminology is fuzzy, there are multiple entry points/creation paths, or you want explicit “we agreed to this” sign-off.
+- **Codebase Research:** Enable when working in an existing/unfamiliar/large codebase, you expect to touch multiple subsystems, or you’re worried about “wrong file/wrong pattern” mistakes.
+- **Plan Audit:** Enable when plan quality is untrusted (new planner prompts, repeated execution failures), the phase is risky (auth/payments/migrations/security), or you want a hard pre-flight gate before spending execution time.
+
+**Decision Ledger** (opt-in)
+- Enhanced discuss-phase with verbatim decision tracking
+- Writes `{phase}-DECISION-LEDGER.md` so you can review what was agreed (and check implementation later)
+- Terminology & Concepts section in CONTEXT.md
+- Entry Points matrix for all create paths
+- Explicit ledger sign-off before proceeding
+
+**Codebase Research** (opt-in)
+- Phase-specific codebase investigation before planning
+- Parallel specialized modes: file discovery, flow tracing, data mapping
+- Pattern matching, risk assessment, test coverage analysis
+- Creates CODEBASE-RESEARCH.md for planner context
+
+**Plan Audit** (opt-in)
+- `/gsd:audit-plan` command for quality checks
+- Structural validation, action specificity, verification executability
+- Suggests existing patterns to reference
+- Catch issues before execution
+- When enabled, `/gsd:execute-phase` runs an automatic audit gate and blocks on BLOCKER issues
 
 ## Common Workflows
 

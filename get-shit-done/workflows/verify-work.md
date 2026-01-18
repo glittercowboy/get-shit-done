@@ -79,9 +79,14 @@ PHASE_DIR=$(ls -d .planning/phases/${PADDED_PHASE}-* .planning/phases/${PHASE_AR
 
 # Find SUMMARY files
 ls "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null
+
+# Optional: Decision Ledger (from /gsd:discuss-phase with decision_ledger enabled)
+ls "$PHASE_DIR"/*-DECISION-LEDGER.md 2>/dev/null
 ```
 
 Read each SUMMARY.md to extract testable deliverables.
+
+If a `*-DECISION-LEDGER.md` exists, read it too — use it to add UAT tests for any user-visible “locked” decisions and edge cases that might not be obvious from SUMMARY.md alone.
 </step>
 
 <step name="extract_tests">
@@ -103,6 +108,10 @@ Examples:
   → Expected: "Clicking Reply opens inline composer below comment. Submitting shows reply nested under parent with visual indentation."
 
 Skip internal/non-observable items (refactors, type changes, etc.).
+
+**If Decision Ledger exists:**
+- Add additional tests for user-visible decisions and edge cases captured there (especially UX behaviors, creation paths, gating rules, error handling).
+- Don’t add tests for pure implementation choices that aren’t user-observable.
 </step>
 
 <step name="create_uat_file">

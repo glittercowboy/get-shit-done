@@ -211,6 +211,9 @@ For each area you select, it asks until you're satisfied. The output — `CONTEX
 
 The deeper you go here, the more the system builds what you actually want. Skip it and you get reasonable defaults. Use it and you get *your* vision.
 
+> [!TIP]
+> **Enhanced Workflows:** Enable `enhancements.decision_ledger` in `.planning/config.json` for even deeper requirements capture — verbatim decision tracking, terminology mapping, and entry point matrices. See `/gsd:help` for all enhancement options.
+
 **Creates:** `{phase}-CONTEXT.md`
 
 ---

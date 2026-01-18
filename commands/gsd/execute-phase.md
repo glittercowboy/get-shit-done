@@ -38,6 +38,24 @@ Phase: $ARGUMENTS
 </context>
 
 <process>
+0. **Parse & normalize phase**
+   Normalize the phase number once and reuse it (8 → 08, preserve decimals like 2.1 → 02.1).
+
+   ```bash
+   PHASE_ARG=$(echo "$ARGUMENTS" | awk '{print $1}')
+
+   if echo "$PHASE_ARG" | grep -Eq '^[0-9]+$'; then
+     PHASE=$(printf "%02d" "$PHASE_ARG")
+   elif echo "$PHASE_ARG" | grep -Eq '^[0-9]+\.[0-9]+$'; then
+     PHASE=$(printf "%02d.%s" "${PHASE_ARG%.*}" "${PHASE_ARG#*.}")
+   else
+     PHASE="$PHASE_ARG"
+   fi
+
+   # Used by audit/plan discovery steps
+   PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* .planning/phases/${PHASE_ARG}-* 2>/dev/null | head -1)
+   ```
+
 1. **Validate phase exists**
    - Find phase directory matching argument
    - Count PLAN.md files
@@ -48,6 +66,40 @@ Phase: $ARGUMENTS
    - Check which have *-SUMMARY.md (already complete)
    - If `--gaps-only`: filter to only plans with `gap_closure: true`
    - Build list of incomplete plans
+
+2.5. **Optional: Audit plans** (if `enhancements.plan_audit: true`)
+
+   **Check if plan audit is enabled:**
+   ```bash
+   PLAN_AUDIT=$(node ~/.claude/hooks/gsd-config.js get enhancements.plan_audit --default false --format raw 2>/dev/null)
+   ```
+
+   **If `plan_audit` is `true`:** Spawn plan auditor before executing.
+
+   ```
+   Task(
+     prompt="
+     Audit execution plans for Phase ${PHASE}.
+
+     Only evaluate plans that will be executed (skip plans with existing SUMMARY.md, and respect --gaps-only if set).
+
+     Context:
+     @.planning/ROADMAP.md
+     @.planning/STATE.md
+
+     Plans:
+     @${PHASE_DIR}/*-PLAN.md
+     @${PHASE_DIR}/*-SUMMARY.md
+     ",
+     subagent_type="gsd-plan-auditor",
+     description="Plan audit for Phase ${PHASE}"
+   )
+   ```
+
+   **Handle auditor status:**
+   - **BLOCKED:** Stop execution. Tell user to fix plans (run `/gsd:plan-phase {phase}` revision or edit plans) and re-run.
+   - **NEEDS FIXES:** Present warnings and ask: continue / stop and fix.
+   - **READY:** Proceed to wave grouping.
 
 3. **Group by wave**
    - Read `wave` from each plan's frontmatter

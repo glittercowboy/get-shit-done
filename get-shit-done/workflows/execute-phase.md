@@ -88,6 +88,43 @@ Build plan inventory:
 If all plans filtered out, report "No matching incomplete plans" and exit.
 </step>
 
+<step name="plan_audit">
+Optional plan audit gate (only if enabled in config).
+
+**Check if plan audit is enabled:**
+```bash
+PLAN_AUDIT=$(node ~/.claude/hooks/gsd-config.js get enhancements.plan_audit --default false --format raw 2>/dev/null)
+```
+
+**If `plan_audit` is `true`:**
+
+Spawn the plan auditor:
+```
+Task(
+  prompt="
+  Audit execution plans for Phase ${PHASE}.
+
+  Only evaluate plans that will be executed (skip plans with existing SUMMARY.md, and respect --gaps-only if set).
+
+  Context:
+  @.planning/ROADMAP.md
+  @.planning/STATE.md
+
+  Plans:
+  @${PHASE_DIR}/*-PLAN.md
+  @${PHASE_DIR}/*-SUMMARY.md
+  ",
+  subagent_type="gsd-plan-auditor",
+  description="Plan audit for Phase ${PHASE}"
+)
+```
+
+Route by auditor result:
+- **BLOCKED:** Stop execution, instruct user to fix plans and re-run.
+- **NEEDS FIXES:** Present warnings and ask: continue / stop and fix.
+- **READY:** Proceed.
+</step>
+
 <step name="group_by_wave">
 Read `wave` from each plan's frontmatter and group by wave number:
 

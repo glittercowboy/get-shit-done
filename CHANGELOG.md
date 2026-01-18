@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Enhanced workflows system** — Optional advanced workflows configurable via `.planning/config.json`
+  - **Decision Ledger** (opt-in) — Verbatim decision tracking in discuss-phase with explicit sign-off, terminology mapping, entry point matrices
+  - **Codebase Research** (opt-in) — Phase-specific codebase investigation before planning via `gsd-codebase-researcher` agent
+  - **Plan Audit** (opt-in) — Quality checks before execution via `/gsd:audit-plan` command
+- **`/gsd:audit-plan` command** — Audit plan quality before execution with structural checks, action specificity analysis, verification validation, dependency checks, and scope assessment
+- **`gsd-codebase-researcher` agent** — Parallel specialized investigation modes (file discovery, flow tracing, data mapping, pattern matching, risk assessment, test coverage)
+- **`/gsd:settings` command** — Guided wizard to view and update `.planning/config.json` with multi-choice prompts and explanations
+- **`/gsd:migrate-config` command** — Upgrade `.planning/config.json` to the latest template (adds missing keys, preserves overrides)
+- **`/gsd:doctor` command** — Health check for config validity, missing hooks, and git status
+- **Enhancements config in `/gsd:new-project`** — Workflow preferences now include optional enhanced workflows selection
+
+### Changed
+- Config template now includes `enhancements` section with `decision_ledger`, `codebase_research`, and `plan_audit` options
+- `/gsd:discuss-phase` now supports two flows: standard (gray areas) or enhanced (Decision Ledger mode with terminology and entry points)
+- `/gsd:plan-phase` now optionally spawns codebase researcher before domain research when enhancement enabled
+- Codebase research output is now more auditable: `*-CODEBASE-RESEARCH.md` includes `## Commands Run` and `## Gaps / Not Checked`, and the planner treats critical gaps as tasks/verification (not silent unknowns)
+
 ## [1.6.4] - 2026-01-17
 
 ### Fixed
