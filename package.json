@@ -10,7 +10,8 @@
     "commands",
     "get-shit-done",
     "agents",
-    "hooks"
+    "hooks",
+    "opencode"
   ],
   "keywords": [
     "claude",

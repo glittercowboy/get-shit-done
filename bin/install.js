@@ -28,10 +28,23 @@ ${cyan}   ██████╗ ███████╗██████╗
   development system for Claude Code by TÂCHES.
 `;
 
+const opencodeBanner = `
+${cyan}   ██████╗ ███████╗██████╗
+  ██╔════╝ ██╔════╝██╔══██╗
+  ██║  ███╗███████╗██║  ██║
+  ██║   ██║╚════██║██║  ██║
+  ╚██████╔╝███████║██████╔╝
+   ╚═════╝ ╚══════╝╚═════╝${reset}
+
+  Get Shit Done ${dim}v${pkg.version}${reset}
+  OpenCode plugin installer by TÂCHES.
+`;
+
 // Parse args
 const args = process.argv.slice(2);
 const hasGlobal = args.includes('--global') || args.includes('-g');
 const hasLocal = args.includes('--local') || args.includes('-l');
+const hasOpencode = args.includes('--opencode');
 
 // Parse --config-dir argument
 function parseConfigDirArg() {
@@ -56,7 +69,7 @@ const explicitConfigDir = parseConfigDirArg();
 const hasHelp = args.includes('--help') || args.includes('-h');
 const forceStatusline = args.includes('--force-statusline');
 
-console.log(banner);
+console.log(hasOpencode ? opencodeBanner : banner);
 
 // Show help if requested
 if (hasHelp) {
@@ -66,6 +79,7 @@ if (hasHelp) {
     ${cyan}-g, --global${reset}              Install globally (to Claude config directory)
     ${cyan}-l, --local${reset}               Install locally (to ./.claude in current directory)
     ${cyan}-c, --config-dir <path>${reset}   Specify custom Claude config directory
+    ${cyan}--opencode${reset}                Install OpenCode plugin + seed (global config)
     ${cyan}-h, --help${reset}                Show this help message
     ${cyan}--force-statusline${reset}        Replace existing statusline config
 
@@ -82,10 +96,14 @@ if (hasHelp) {
     ${dim}# Install to current project only${reset}
     npx get-shit-done-cc --local
 
+    ${dim}# Install OpenCode plugin + seed into global config${reset}
+    npx get-shit-done-cc --opencode
+
   ${yellow}Notes:${reset}
     The --config-dir option is useful when you have multiple Claude Code
     configurations (e.g., for different subscriptions). It takes priority
     over the CLAUDE_CONFIG_DIR environment variable.
+    OpenCode uses OPENCODE_CONFIG_DIR or XDG_CONFIG_HOME when set.
 `);
   process.exit(0);
 }
@@ -149,6 +167,86 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
       fs.copyFileSync(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Recursively copy directory without path replacement
+ */
+function copyDirectory(srcDir, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirectory(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Resolve OpenCode config directory
+ */
+function resolveOpencodeConfigDir() {
+  if (process.env.OPENCODE_CONFIG_DIR) {
+    return expandTilde(process.env.OPENCODE_CONFIG_DIR);
+  }
+  const xdgConfig = process.env.XDG_CONFIG_HOME
+    ? expandTilde(process.env.XDG_CONFIG_HOME)
+    : path.join(os.homedir(), '.config');
+  return path.join(xdgConfig, 'opencode');
+}
+
+/**
+ * Install OpenCode plugin + seed into global config
+ */
+function installOpencodePlugin() {
+  const src = path.join(__dirname, '..', 'opencode');
+  const configDir = resolveOpencodeConfigDir();
+
+  const pluginSrc = path.join(src, 'plugin', 'gsd-install.js');
+  const commandSrc = path.join(src, 'command', 'gsd-install.md');
+  const seedSrc = path.join(src, 'seed');
+
+  const pluginDest = path.join(configDir, 'plugin', 'gsd-install.js');
+  const commandDest = path.join(configDir, 'command', 'gsd-install.md');
+  const seedDest = path.join(configDir, 'gsd', 'seed');
+
+  console.log(`  Installing OpenCode plugin to ${cyan}${configDir}${reset}\n`);
+
+  if (!fs.existsSync(pluginSrc) || !fs.existsSync(commandSrc) || !fs.existsSync(seedSrc)) {
+    console.error(`  ${yellow}✗${reset} OpenCode assets missing from package`);
+    process.exit(1);
+  }
+
+  fs.mkdirSync(path.dirname(pluginDest), { recursive: true });
+  fs.copyFileSync(pluginSrc, pluginDest);
+  if (verifyFileInstalled(pluginDest, 'opencode plugin')) {
+    console.log(`  ${green}✓${reset} Installed plugin`);
+  }
+
+  fs.mkdirSync(path.dirname(commandDest), { recursive: true });
+  fs.copyFileSync(commandSrc, commandDest);
+  if (verifyFileInstalled(commandDest, 'opencode command')) {
+    console.log(`  ${green}✓${reset} Installed command`);
+  }
+
+  if (fs.existsSync(seedDest)) {
+    fs.rmSync(seedDest, { recursive: true, force: true });
+  }
+  copyDirectory(seedSrc, seedDest);
+  if (verifyInstalled(seedDest, 'opencode seed')) {
+    console.log(`  ${green}✓${reset} Installed seed`);
+  }
+
+  console.log(`
+  ${green}Done!${reset} OpenCode plugin installed.
+  Run ${cyan}/gsd-install${reset} inside any project to scaffold local GSD assets.
+`);
 }
 
 /**
@@ -546,7 +644,10 @@ function promptLocation() {
 }
 
 // Main
-if (hasGlobal && hasLocal) {
+if (hasOpencode) {
+  installOpencodePlugin();
+  process.exit(0);
+} else if (hasGlobal && hasLocal) {
   console.error(`  ${yellow}Cannot specify both --global and --local${reset}`);
   process.exit(1);
 } else if (explicitConfigDir && hasLocal) {

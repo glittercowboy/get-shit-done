@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-5.2",
+  "agent": {
+    "build": {
+      "model": "openai/gpt-5.2"
+    },
+    "plan": {
+      "model": "openai/gpt-5.2"
+    },
+    "verifier": {
+      "model": "openai/gpt-5.2"
+    },
+    "research": {
+      "model": "openai/gpt-5.2"
+    }
+  }
+}
