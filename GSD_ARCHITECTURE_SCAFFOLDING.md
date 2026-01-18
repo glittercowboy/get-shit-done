@@ -103,6 +103,7 @@
 | **gsd-verifier** | `<verification_process>`, `<core_principle>`, `<output>` |
 | **gsd-debugger** | `<investigation_techniques>`, `<hypothesis_testing>` |
 | **gsd-project-researcher** | `<research_modes>`, `<source_hierarchy>`, `<verification_protocol>` |
+| **gsd-research-synthesizer** | `<execution_flow>`, `<output_format>`, `<success_criteria>` |
 
 ---
 
@@ -260,7 +261,40 @@ When agents perform research, sources are ranked by confidence:
     └─→ GAPS → offer gap closure planning
 ```
 
-### Flow 4: Verification & UAT
+### Flow 4: Milestone Completion
+```
+/gsd:audit-milestone
+├─→ Read all phase VERIFICATION.md files
+├─→ Aggregate tech debt and deferred gaps
+├─→ Spawn gsd-integration-checker
+│   ├─→ Build export/import map from SUMMARYs
+│   ├─→ Verify export usage (connected/orphaned)
+│   ├─→ Verify API coverage (routes → consumers)
+│   ├─→ Verify auth protection on sensitive routes
+│   └─→ Trace E2E flows (complete/broken)
+├─→ Check requirements coverage from REQUIREMENTS.md
+├─→ Generate v{version}-MILESTONE-AUDIT.md
+└─→ Route: passed → complete, gaps → plan-gaps, tech_debt → review
+
+/gsd:plan-milestone-gaps (if gaps found)
+├─→ Load MILESTONE-AUDIT.md
+├─→ Prioritize gaps by requirement priority
+├─→ Group related gaps into phases
+├─→ Present gap closure plan
+├─→ On approval, update ROADMAP.md
+└─→ Route to first gap phase
+
+/gsd:complete-milestone {version}
+├─→ Verify audit passed (or tech_debt accepted)
+├─→ Archive to .planning/milestones/v{version}/
+│   ├─→ v{version}-ROADMAP.md
+│   └─→ v{version}-REQUIREMENTS.md
+├─→ Update PROJECT.md to brownfield format
+├─→ Git tag v{version}
+└─→ Offer /gsd:new-milestone
+```
+
+### Flow 5: Verification & UAT
 ```
 /gsd:verify-work [phase]
 ├─→ Interactive testing session
@@ -327,6 +361,17 @@ When agents perform research, sources are ranked by confidence:
 | Confidence levels | `<verification_protocol>` | HIGH/MEDIUM/LOW with justification |
 | No commit | `<execution_flow>` | Researchers write files but DON'T commit |
 
+### gsd-research-synthesizer — `agents/gsd-research-synthesizer.md`
+
+| Behavior | Section | Key Rules |
+|----------|---------|-----------|
+| 4-file synthesis | `<execution_flow>` | Reads STACK, FEATURES, ARCHITECTURE, PITFALLS |
+| Cross-referencing | `<execution_flow>` | Validates consistency across research files |
+| Priority conflicts | `<execution_flow>` | Resolves contradictions between sources |
+| Output format | `<output_format>` | Produces SUMMARY.md with actionable synthesis |
+
+**Key insight:** Synthesizer runs AFTER parallel researchers complete. It doesn't do research — it reconciles and prioritizes findings from the 4 research dimensions.
+
 ---
 
 ## Numeric Limits Quick Reference
@@ -385,5 +430,5 @@ When modifying a component, extract behavioral details from source:
 ## Version
 
 - **GSD Version:** 1.6.3
-- **Scaffolding Version:** v4
+- **Scaffolding Version:** v5
 - **Updated:** 2026-01-18
