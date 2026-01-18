@@ -336,25 +336,25 @@ executor ──► SUMMARY.md ──► verifier ──► VERIFICATION.md
 
 | Document | Lines | Est. Tokens |
 |----------|-------|-------------|
-| GSD_ARCHITECTURE_SCAFFOLDING.md | 384 | ~2,200 |
-| gsd-planner-reference.md | 463 | ~800 |
-| gsd-executor-reference.md | 385 | ~650 |
-| gsd-verifier-reference.md | 479 | ~800 |
-| gsd-plan-checker-reference.md | 475 | ~750 |
-| gsd-project-researcher-reference.md | 86 | ~150 |
-| gsd-phase-researcher-reference.md | 114 | ~200 |
-| gsd-debugger-reference.md | 123 | ~200 |
-| gsd-codebase-mapper-reference.md | 125 | ~200 |
-| gsd-roadmapper-reference.md | 143 | ~250 |
-| gsd-integration-checker-reference.md | 164 | ~300 |
-| gsd-research-synthesizer-reference.md | 182 | ~350 |
-| core-commands-reference.md | 341 | ~600 |
-| secondary-commands-reference.md | 366 | ~650 |
-| support-components-reference.md | 927 | ~1,600 |
-| operational-components-reference.md | 196 | ~550 |
-| FILE_MANIFEST.md | 265 | ~500 |
-| GSD-STYLE.md | ~400 | ~400 |
-| **Total Documentation** | ~5,369 | ~11,400 |
+| GSD_ARCHITECTURE_SCAFFOLDING.md | 434 | ~2,200 |
+| gsd-planner-reference.md | 464 | ~800 |
+| gsd-executor-reference.md | 407 | ~650 |
+| gsd-verifier-reference.md | 497 | ~800 |
+| gsd-plan-checker-reference.md | 479 | ~750 |
+| gsd-project-researcher-reference.md | 321 | ~150 |
+| gsd-phase-researcher-reference.md | 417 | ~200 |
+| gsd-debugger-reference.md | 341 | ~200 |
+| gsd-codebase-mapper-reference.md | 131 | ~200 |
+| gsd-roadmapper-reference.md | 413 | ~250 |
+| gsd-integration-checker-reference.md | 173 | ~300 |
+| gsd-research-synthesizer-reference.md | 185 | ~350 |
+| core-commands-reference.md | 419 | ~600 |
+| secondary-commands-reference.md | 458 | ~650 |
+| support-components-reference.md | 1,187 | ~1,600 |
+| operational-components-reference.md | 259 | ~550 |
+| FILE_MANIFEST.md | 340 | ~500 |
+| GSD-STYLE.md | 434 | ~400 |
+| **Total Documentation** | ~7,359 | ~11,400 |
 
 ### Recommended Loading Strategy
 
