@@ -5,7 +5,7 @@
 |-----------|-------|
 | **Type** | Agent |
 | **Location** | `agents/gsd-codebase-mapper.md` |
-| **Size** | 739 lines |
+| **Size** | 738 lines |
 | **Documentation Tier** | Standard |
 | **Complexity Score** | 2+2+2+1 = **7/12** |
 
@@ -19,7 +19,7 @@
 
 ## Purpose
 
-Explores a codebase for a specific focus area and writes structured analysis documents directly to `.planning/codebase/`. Designed to reduce orchestrator context load by writing documents directly rather than returning findings. Documents are consumed by plan-phase (to understand existing patterns) and execute-phase (to follow conventions).
+Explores a codebase for a specific focus area and writes structured analysis documents directly to `.planning/codebase/`. Designed to reduce orchestrator context load by writing documents directly rather than returning findings. Documents are consumed by plan-phase (to understand existing patterns) and execute-phase (to follow conventions). The orchestrator can request a focused subsystem map, but each mapper agent still handles one of the four focus areas.
 
 ---
 
@@ -28,6 +28,8 @@ Explores a codebase for a specific focus area and writes structured analysis doc
 - **MUST write documents DIRECTLY** — Do not return findings to orchestrator; write to `.planning/codebase/`
 - **MUST include file paths everywhere** — Every finding needs a path in backticks (`src/services/user.ts`)
 - **MUST use the templates** — Fill in provided structure, don't invent own format
+- **MUST fill template placeholders** — Replace `[YYYY-MM-DD]`; use "Not detected" or "Not applicable" when needed
+- **MUST use UPPERCASE filenames** — `STACK.md`, `ARCHITECTURE.md`, etc.
 - **MUST return only confirmation** — Response should be ~10 lines max confirming what was written
 - **DO NOT commit** — Orchestrator handles git operations
 
@@ -56,6 +58,7 @@ Explores a codebase for a specific focus area and writes structured analysis doc
 | testing, tests | TESTING.md, CONVENTIONS.md |
 | integration, external API | INTEGRATIONS.md, STACK.md |
 | refactor, cleanup | CONCERNS.md, ARCHITECTURE.md |
+| setup, config | STACK.md, STRUCTURE.md |
 
 **`/gsd:execute-phase`** references docs to:
 - Follow existing conventions when writing code
@@ -74,6 +77,8 @@ Explores a codebase for a specific focus area and writes structured analysis doc
 | **Be prescriptive** | "Use camelCase for functions" not "Some functions use camelCase" |
 | **CONCERNS.md drives priorities** | Issues identified may become future phases; be specific about impact |
 | **STRUCTURE.md answers "where?"** | Include guidance for adding new code, not just describing existing |
+| **Current state only** | Document what exists now; avoid historical or speculative language |
+| **Quality over brevity** | Prefer detailed, actionable docs over terse summaries |
 
 ---
 
@@ -116,10 +121,11 @@ OUTPUT:   .planning/codebase/ (STACK, INTEGRATIONS, ARCHITECTURE, STRUCTURE, CON
 CORE RULES:
 • Write documents DIRECTLY to .planning/codebase/ (don't return findings)
 • ALWAYS include file paths in backticks
-• Use provided templates exactly
+• Use provided templates exactly (see `get-shit-done/templates/codebase/`)
+• Replace template placeholders (date, "Not detected"/"Not applicable")
 • Return only confirmation (~10 lines)
 • DO NOT commit — orchestrator handles git
 
-SPAWNED BY: /gsd:map-codebase (with focus parameter)
+SPAWNED BY: /gsd:map-codebase (with focus parameter; may request subsystem-specific mapping)
 CONSUMED BY: gsd-planner (phase type → relevant docs), gsd-executor (conventions, structure)
 ```
