@@ -101,6 +101,23 @@ function expandTilde(filePath) {
 }
 
 /**
+ * Convert an absolute path into a shell-friendly path for settings.json commands.
+ * - Rewrites the user's home prefix to $HOME when possible
+ * - Normalizes path separators to forward slashes
+ */
+function shellifyPath(absPath) {
+  if (!absPath) return absPath;
+  const home = os.homedir();
+  let p = absPath;
+  if (p === home) {
+    p = '$HOME';
+  } else if (p.startsWith(home + path.sep)) {
+    p = '$HOME' + p.slice(home.length);
+  }
+  return p.split(path.sep).join('/');
+}
+
+/**
  * Read and parse settings.json, returning empty object if doesn't exist
  */
 function readSettings(settingsPath) {
@@ -376,12 +393,14 @@ function install(isGlobal) {
   // Configure statusline and hooks in settings.json
   const settingsPath = path.join(claudeDir, 'settings.json');
   const settings = cleanupOrphanedHooks(readSettings(settingsPath));
-  const statuslineCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/statusline.js"'
-    : 'node .claude/hooks/statusline.js';
-  const updateCheckCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-check-update.js"'
-    : 'node .claude/hooks/gsd-check-update.js';
+  const hooksDirForCommand = isGlobal
+    ? shellifyPath(path.join(claudeDir, 'hooks'))
+    : '.claude/hooks';
+
+  const statuslineCommand = `node "${hooksDirForCommand}/statusline.js"`;
+  const updateCheckCommand = `node "${hooksDirForCommand}/gsd-check-update.js"`;
+  const sessionStartCommand = `node "${hooksDirForCommand}/session-start.js"`;
+  const sessionStopCommand = `node "${hooksDirForCommand}/session-stop.js"`;
 
   // Configure SessionStart hook for update checking
   if (!settings.hooks) {
@@ -406,6 +425,44 @@ function install(isGlobal) {
       ]
     });
     console.log(`  ${green}✓${reset} Configured update check hook`);
+  }
+
+  // Configure SessionStart hook for session safety housekeeping (silent unless active sessions exist)
+  const hasSessionStartHook = settings.hooks.SessionStart.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('session-start'))
+  );
+
+  if (!hasSessionStartHook) {
+    settings.hooks.SessionStart.push({
+      hooks: [
+        {
+          type: 'command',
+          command: sessionStartCommand
+        }
+      ]
+    });
+    console.log(`  ${green}✓${reset} Configured session start hook`);
+  }
+
+  // Configure Stop hook for session cleanup
+  if (!settings.hooks.Stop) {
+    settings.hooks.Stop = [];
+  }
+
+  const hasSessionStopHook = settings.hooks.Stop.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('session-stop'))
+  );
+
+  if (!hasSessionStopHook) {
+    settings.hooks.Stop.push({
+      hooks: [
+        {
+          type: 'command',
+          command: sessionStopCommand
+        }
+      ]
+    });
+    console.log(`  ${green}✓${reset} Configured session stop hook`);
   }
 
   return { settingsPath, settings, statuslineCommand };

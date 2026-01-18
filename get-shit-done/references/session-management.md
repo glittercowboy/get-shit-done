@@ -33,28 +33,16 @@ Examples:
 ### 1. Registration (Start of execute-phase)
 
 ```bash
-# Generate session ID
 PHASE="03"
-TIMESTAMP=$(date +%s)
-SESSION_ID="${PHASE}-${TIMESTAMP}"
 
-# Create file if missing
-if [ ! -f .planning/ACTIVE-SESSIONS.json ]; then
-  echo '{"sessions":[]}' > .planning/ACTIVE-SESSIONS.json
-fi
+# Initialize sessions file and prune stale entries (4h TTL)
+node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400
 
-# Add session entry
-jq --arg id "$SESSION_ID" \
-   --arg phase "$PHASE" \
-   --arg started "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-   '.sessions += [{
-     "id": $id,
-     "phase": $phase,
-     "started": $started,
-     "last_activity": $started,
-     "status": "executing"
-   }]' .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-   && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+# Register a new session (prints the session id)
+SESSION_ID=$(node ~/.claude/hooks/gsd-session.js register --phase "$PHASE")
+
+# Export for stop hook best-effort cleanup
+export GSD_SESSION_ID="$SESSION_ID"
 ```
 
 ### 2. Conflict Detection
@@ -62,9 +50,7 @@ jq --arg id "$SESSION_ID" \
 Before registration, check for existing sessions on same phase:
 
 ```bash
-CONFLICTS=$(jq -r --arg phase "$PHASE" \
-  '.sessions[] | select(.phase == $phase) | .id' \
-  .planning/ACTIVE-SESSIONS.json 2>/dev/null)
+CONFLICTS=$(node ~/.claude/hooks/gsd-session.js list --phase "$PHASE" --format lines 2>/dev/null)
 ```
 
 If conflicts found, present to user with options.
@@ -74,18 +60,19 @@ If conflicts found, present to user with options.
 User chooses one of:
 1. **Continue anyway** — Register this session, may cause git conflicts
 2. **Wait** — Exit without execution, check back later
-3. **Claim phase** — Remove old session, register this one (use if old session is stale)
+3. **Claim phase** — Remove old session(s), register this one (use if old session is stale)
+
+Claim implementation:
+```bash
+node ~/.claude/hooks/gsd-session.js claim --phase "$PHASE" 2>/dev/null
+```
 
 ### 4. Heartbeat (Between waves)
 
 Update `last_activity` after each wave completes:
 
 ```bash
-jq --arg id "$SESSION_ID" \
-   --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-   '(.sessions[] | select(.id == $id)).last_activity = $now' \
-   .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-   && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+node ~/.claude/hooks/gsd-session.js heartbeat --id "$SESSION_ID" 2>/dev/null || true
 ```
 
 ### 5. Cleanup (Completion or exit)
@@ -93,10 +80,7 @@ jq --arg id "$SESSION_ID" \
 Remove session entry when execution completes:
 
 ```bash
-jq --arg id "$SESSION_ID" \
-   '.sessions = [.sessions[] | select(.id != $id)]' \
-   .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-   && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+node ~/.claude/hooks/gsd-session.js cleanup --id "$SESSION_ID" 2>/dev/null || true
 ```
 
 ## Stale Session Detection
@@ -104,15 +88,7 @@ jq --arg id "$SESSION_ID" \
 Sessions older than 4 hours are considered stale:
 
 ```bash
-NOW=$(date +%s)
-FOUR_HOURS=14400
-
-jq --argjson now "$NOW" --argjson ttl "$FOUR_HOURS" '
-  .sessions = [.sessions[] | select(
-    ($now - (.started | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)) < $ttl
-  )]
-' .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-  && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400
 ```
 
 Run this at session start to auto-clean stale entries.
@@ -129,14 +105,14 @@ The stop hook uses this to clean up on session exit.
 
 ## Hook Integration
 
-### Session Start (hooks/session-start.sh)
+### Session Start (hooks/session-start.js)
 
 Optional hook that runs on Claude session start:
 - Creates ACTIVE-SESSIONS.json if missing
 - Cleans stale sessions
 - Shows warning if active sessions exist
 
-### Session Stop (hooks/session-stop.sh)
+### Session Stop (hooks/session-stop.js)
 
 Runs on Claude session exit:
 - Reads `GSD_SESSION_ID` from environment
@@ -149,7 +125,9 @@ Add to `.planning/config.json`:
 
 ```json
 {
-  "session_safety": false
+  "enhancements": {
+    "session_safety": false
+  }
 }
 ```
 

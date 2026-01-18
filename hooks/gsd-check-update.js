@@ -4,13 +4,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const { execSync, spawn } = require('child_process');
+const { spawn } = require('child_process');
 
-const homeDir = os.homedir();
-const cacheDir = path.join(homeDir, '.claude', 'cache');
+// Resolve Claude config directory from this hook's location:
+// - Global install: {configDir}/hooks/gsd-check-update.js
+// - Local install:  {project}/.claude/hooks/gsd-check-update.js
+const claudeDir = path.resolve(__dirname, '..');
+const cacheDir = path.join(claudeDir, 'cache');
 const cacheFile = path.join(cacheDir, 'gsd-update-check.json');
-const versionFile = path.join(homeDir, '.claude', 'get-shit-done', 'VERSION');
+const versionFile = path.join(claudeDir, 'get-shit-done', 'VERSION');
 
 // Ensure cache directory exists
 if (!fs.existsSync(cacheDir)) {

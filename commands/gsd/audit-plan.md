@@ -50,9 +50,25 @@ If nothing: audit most recent unexecuted plan
 [ -f "$ARGUMENTS" ] && echo "Found: $ARGUMENTS"
 ```
 
+**If plan ID provided (e.g., `03-01` or `02.1-03`):**
+```bash
+# Resolve plan ID to a PLAN.md path
+if echo "$ARGUMENTS" | grep -Eq '^[0-9]+(\.[0-9]+)?-[0-9]+$'; then
+  PLAN_ID="$ARGUMENTS"
+  ls .planning/phases/*/"${PLAN_ID}"-PLAN.md 2>/dev/null
+fi
+```
+
 **If phase number provided:**
 ```bash
-PHASE=$(printf "%02d" $ARGUMENTS 2>/dev/null || echo "$ARGUMENTS")
+# Normalize phase number (8 → 08, preserve decimals like 2.1 → 02.1)
+if echo "$ARGUMENTS" | grep -Eq '^[0-9]+$'; then
+  PHASE=$(printf "%02d" "$ARGUMENTS")
+elif echo "$ARGUMENTS" | grep -Eq '^[0-9]+\.[0-9]+$'; then
+  PHASE=$(printf "%02d.%s" "${ARGUMENTS%.*}" "${ARGUMENTS#*.}")
+else
+  PHASE="$ARGUMENTS"
+fi
 ls .planning/phases/${PHASE}-*/*-PLAN.md 2>/dev/null
 ```
 
@@ -73,16 +89,24 @@ For each plan file:
 
 ### 2a. Frontmatter Validation
 
-Check required frontmatter fields:
+Check frontmatter exists and includes required fields:
 ```bash
-grep -E "^wave:|^depends_on:|^files_modified:|^autonomous:" "$PLAN_FILE"
+# Show frontmatter for inspection (first YAML block)
+awk 'NR==1 && $0!="---"{exit} NR>1 && $0=="---"{exit} {print}' "$PLAN_FILE" | sed -n '1,120p'
+
+# Quick required-field presence check
+grep -nE "^(phase|plan|type|wave|depends_on|files_modified|autonomous):|^must_haves:" "$PLAN_FILE"
 ```
 
 **Required fields:**
-- `wave:` — integer for parallel grouping
-- `depends_on:` — list or empty
-- `files_modified:` — list of file paths
+- `phase:` — phase directory slug (e.g., `01-foundation`)
+- `plan:` — plan number within phase (e.g., `01`)
+- `type:` — typically `execute` (or `tdd`)
+- `wave:` — integer execution wave (1, 2, 3...)
+- `depends_on:` — list/array or empty
+- `files_modified:` — list/array of file paths
 - `autonomous:` — true/false
+- `must_haves:` — goal-backward verification block (truths/artifacts/key_links)
 
 **Issues:**
 - Missing field → BLOCKER
@@ -90,9 +114,10 @@ grep -E "^wave:|^depends_on:|^files_modified:|^autonomous:" "$PLAN_FILE"
 
 ### 2b. Task Structure Validation
 
-Each task must have:
+Each `<task type="auto">` must have:
 ```xml
-<task name="...">
+<task type="auto">
+  <name>...</name>
   <files>...</files>
   <action>...</action>
   <verify>...</verify>
@@ -102,23 +127,64 @@ Each task must have:
 
 Search for incomplete tasks:
 ```bash
-# Count tasks vs complete structures
-TASK_COUNT=$(grep -c '<task name=' "$PLAN_FILE")
+# Count tasks vs required tags (auto tasks)
+TASK_COUNT=$(grep -c '<task ' "$PLAN_FILE")
+TASK_END_COUNT=$(grep -c '</task>' "$PLAN_FILE")
+NAME_COUNT=$(grep -c '<name>' "$PLAN_FILE")
 FILES_COUNT=$(grep -c '<files>' "$PLAN_FILE")
 ACTION_COUNT=$(grep -c '<action>' "$PLAN_FILE")
 VERIFY_COUNT=$(grep -c '<verify>' "$PLAN_FILE")
 DONE_COUNT=$(grep -c '<done>' "$PLAN_FILE")
+
+echo "TASKS: $TASK_COUNT (ends: $TASK_END_COUNT)"
+echo "TAGS:  name=$NAME_COUNT files=$FILES_COUNT action=$ACTION_COUNT verify=$VERIFY_COUNT done=$DONE_COUNT"
+
+# Per-task validation for auto tasks (prints missing tags with line numbers)
+awk '
+  function reset_task() { in_task=0; task_type=""; name=files=action=verify=done=0; task_start_line=0 }
+  BEGIN { reset_task(); task_index=0 }
+  /<task[[:space:]][^>]*type="/ {
+    task_index++;
+    in_task=1;
+    task_start_line=NR;
+    if (match($0, /type="[^"]+"/)) { task_type=substr($0, RSTART+6, RLENGTH-7) } else { task_type="" }
+    name=files=action=verify=done=0;
+  }
+  in_task && /<name>/   { name=1 }
+  in_task && /<files>/  { files=1 }
+  in_task && /<action>/ { action=1 }
+  in_task && /<verify>/ { verify=1 }
+  in_task && /<done>/   { done=1 }
+  /<\/task>/ && in_task {
+    if (task_type=="auto" || task_type=="tdd" || task_type=="") {
+      if (!name || !files || !action || !verify || !done) {
+        printf("MISSING: task %d (%s) at line %d: %s%s%s%s%s\n",
+          task_index, task_type, task_start_line,
+          (!name ? " <name>" : ""),
+          (!files ? " <files>" : ""),
+          (!action ? " <action>" : ""),
+          (!verify ? " <verify>" : ""),
+          (!done ? " <done>" : "")
+        );
+      }
+    }
+    reset_task();
+  }
+' "$PLAN_FILE"
 ```
 
-**If counts don't match:** List which tasks are incomplete → BLOCKER
+**If `<task>` and `</task>` counts don't match:** → BLOCKER (malformed task blocks)
+**If any `MISSING:` lines printed for `type="auto"`:** → BLOCKER
 
 ### 2c. must_haves Section
 
 ```bash
-grep -A20 '<must_haves>' "$PLAN_FILE"
+# must_haves is YAML frontmatter (not an XML tag)
+grep -nE "^must_haves:|^[[:space:]]+truths:|^[[:space:]]+artifacts:|^[[:space:]]+key_links:" "$PLAN_FILE"
 ```
 
-**If missing or empty:** → WARNING (verification won't know what to check)
+**If `must_haves` missing entirely:** → BLOCKER
+**If `truths/artifacts/key_links` exist but are empty:** → WARNING (verification will be weak)
 
 ## 3. Action Specificity Checks
 
@@ -147,8 +213,14 @@ For each `<verify>` block:
 
 **Check if command is executable:**
 ```bash
-# Extract verify commands
-grep -A5 '<verify>' "$PLAN_FILE" | grep -E "^\s*(npm|yarn|pnpm|bun|python|pytest|cargo|go|swift|xcodebuild|git|ls|cat|grep)"
+# Heuristic: show verify lines and flag obviously non-executable phrases
+awk '
+  /<verify>/ { in_verify=1; next }
+  /<\/verify>/ { in_verify=0 }
+  in_verify { print NR ": " $0 }
+' "$PLAN_FILE" | head -n 80
+
+grep -nEi "<verify>[^<]*(tests pass|it works|works correctly|build succeeds|looks good|should work)[^<]*</verify>" "$PLAN_FILE"
 ```
 
 **Issues:**
@@ -201,7 +273,7 @@ grep -iE "use|install|add|import" "$PLAN_FILE" | grep -v "node_modules"
 # Extract depends_on from each plan
 for plan in $PLANS; do
   name=$(basename "$plan" -PLAN.md)
-  deps=$(grep "depends_on:" "$plan" | sed 's/depends_on://')
+  deps=$(grep -nE "^depends_on:" "$plan" | head -1 | sed 's/depends_on:[[:space:]]*//')
   echo "$name: $deps"
 done
 ```
@@ -214,7 +286,7 @@ Build dependency graph and check for cycles → BLOCKER if found
 # Verify wave assignments match dependencies
 for plan in $PLANS; do
   wave=$(grep "wave:" "$plan" | awk '{print $2}')
-  deps=$(grep "depends_on:" "$plan")
+  deps=$(grep -nE "^depends_on:" "$plan" | head -1 | sed 's/depends_on:[[:space:]]*//')
   # Check that deps have lower wave numbers
 done
 ```
@@ -225,7 +297,7 @@ done
 
 ```bash
 # Check for same file modified by parallel tasks
-grep -h "files_modified:" $PLANS | sort | uniq -d
+grep -hE "^files_modified:" $PLANS | sort | uniq -d
 ```
 
 **If same file in multiple parallel plans:** → WARNING (potential conflicts)
@@ -235,7 +307,7 @@ grep -h "files_modified:" $PLANS | sort | uniq -d
 ### 7a. Task Count
 
 ```bash
-TASK_COUNT=$(grep -c '<task name=' "$PLAN_FILE")
+TASK_COUNT=$(grep -c '<task ' "$PLAN_FILE")
 ```
 
 | Count | Status |

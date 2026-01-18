@@ -28,47 +28,24 @@ SESSION_SAFETY=$(cat .planning/config.json 2>/dev/null | grep -o '"session_safet
 
 1. **Initialize and clean stale sessions:**
 ```bash
-if [ ! -f .planning/ACTIVE-SESSIONS.json ]; then
-  echo '{"sessions":[]}' > .planning/ACTIVE-SESSIONS.json
+if [ -f ~/.claude/hooks/gsd-session.js ]; then
+  node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400
 fi
-
-NOW=$(date +%s)
-FOUR_HOURS=14400
-jq --argjson now "$NOW" --argjson ttl "$FOUR_HOURS" '
-  .sessions = [.sessions[] | select(
-    ($now - (.started | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)) < $ttl
-  )]
-' .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-  && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
 ```
 
 2. **Check for conflicts:**
 ```bash
-CONFLICTS=$(jq -r --arg phase "$PHASE" \
-  '.sessions[] | select(.phase == $phase)' \
-  .planning/ACTIVE-SESSIONS.json 2>/dev/null)
+CONFLICTS=$(node ~/.claude/hooks/gsd-session.js list --phase "$PHASE" --format lines 2>/dev/null)
 ```
 
 If conflict found, present checkpoint with options: continue / wait / claim.
 
 3. **Register this session:**
 ```bash
-TIMESTAMP=$(date +%s)
-SESSION_ID="${PHASE}-${TIMESTAMP}"
-
-jq --arg id "$SESSION_ID" \
-   --arg phase "$PHASE" \
-   --arg started "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-   '.sessions += [{
-     "id": $id,
-     "phase": $phase,
-     "started": $started,
-     "last_activity": $started,
-     "status": "executing"
-   }]' .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-   && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
-
-export GSD_SESSION_ID="$SESSION_ID"
+if [ -f ~/.claude/hooks/gsd-session.js ]; then
+  SESSION_ID=$(node ~/.claude/hooks/gsd-session.js register --phase "$PHASE" 2>/dev/null)
+  export GSD_SESSION_ID="$SESSION_ID"
+fi
 ```
 </step>
 
@@ -146,6 +123,43 @@ Build plan inventory:
 - If `--gaps-only` flag: also skip plans where `gap_closure` is not `true`
 
 If all plans filtered out, report "No matching incomplete plans" and exit.
+</step>
+
+<step name="plan_audit">
+Optional plan audit gate (only if enabled in config).
+
+**Check if plan audit is enabled:**
+```bash
+PLAN_AUDIT=$(cat .planning/config.json 2>/dev/null | grep -o '"plan_audit":[^,}]*' | cut -d':' -f2 | tr -d ' ')
+```
+
+**If `plan_audit` is `true`:**
+
+Spawn the plan auditor:
+```
+Task(
+  prompt="
+  Audit execution plans for Phase ${PHASE}.
+
+  Only evaluate plans that will be executed (skip plans with existing SUMMARY.md, and respect --gaps-only if set).
+
+  Context:
+  @.planning/ROADMAP.md
+  @.planning/STATE.md
+
+  Plans:
+  @${PHASE_DIR}/*-PLAN.md
+  @${PHASE_DIR}/*-SUMMARY.md
+  ",
+  subagent_type="gsd-plan-auditor",
+  description="Plan audit for Phase ${PHASE}"
+)
+```
+
+Route by auditor result:
+- **BLOCKED:** Stop execution, instruct user to fix plans and re-run.
+- **NEEDS FIXES:** Present warnings and ask: continue / stop and fix.
+- **READY:** Proceed.
 </step>
 
 <step name="group_by_wave">
@@ -297,11 +311,9 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel.
 
 6. **Update session heartbeat** (if session safety enabled):
    ```bash
-   jq --arg id "$GSD_SESSION_ID" \
-      --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      '(.sessions[] | select(.id == $id)).last_activity = $now' \
-      .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-      && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+   if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
+     node ~/.claude/hooks/gsd-session.js heartbeat --id "$GSD_SESSION_ID" 2>/dev/null || true
+   fi
    ```
 
 7. **Proceed to next wave**
@@ -537,13 +549,12 @@ git commit -m "docs(phase-{X}): complete phase execution"
 Remove session entry on successful completion (if session safety enabled):
 
 ```bash
-jq --arg id "$GSD_SESSION_ID" \
-   '.sessions = [.sessions[] | select(.id != $id)]' \
-   .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-   && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
+  node ~/.claude/hooks/gsd-session.js cleanup --id "$GSD_SESSION_ID" 2>/dev/null || true
+fi
 ```
 
-Note: Stop hook (`hooks/session-stop.sh`) also attempts cleanup on session exit, but explicit cleanup here is more reliable.
+Note: Stop hook (`hooks/session-stop.js`) also attempts cleanup on session exit, but explicit cleanup here is more reliable.
 </step>
 
 <step name="offer_next">

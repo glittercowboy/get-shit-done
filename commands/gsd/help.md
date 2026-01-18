@@ -138,6 +138,7 @@ Execute all plans in a phase.
 
 - Groups plans by wave (from frontmatter), executes waves sequentially
 - Plans within each wave run in parallel via Task tool
+- If `enhancements.plan_audit` is enabled, runs a pre-flight plan audit gate before execution
 - Verifies phase goal after all plans complete
 - Updates REQUIREMENTS.md, ROADMAP.md, STATE.md
 
@@ -374,6 +375,7 @@ Enable via `.planning/config.json` `enhancements` section:
 - Structural validation, action specificity, verification executability
 - Suggests existing patterns to reference
 - Catch issues before execution
+- When enabled, `/gsd:execute-phase` runs an automatic audit gate and blocks on BLOCKER issues
 
 ## Common Workflows
 

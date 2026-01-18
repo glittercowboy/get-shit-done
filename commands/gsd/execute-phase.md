@@ -43,6 +43,23 @@ Phase: $ARGUMENTS
 
 Reference: `@~/.claude/get-shit-done/references/session-management.md`
 
+### 0.0 Parse & Normalize Phase
+
+Extract the phase number from `$ARGUMENTS` (first token) and normalize it before any session operations:
+
+```bash
+PHASE_ARG=$(echo "$ARGUMENTS" | awk '{print $1}')
+
+# Normalize phase number (8 → 08, preserve decimals like 2.1 → 02.1)
+if echo "$PHASE_ARG" | grep -Eq '^[0-9]+$'; then
+  PHASE=$(printf "%02d" "$PHASE_ARG")
+elif echo "$PHASE_ARG" | grep -Eq '^[0-9]+\.[0-9]+$'; then
+  PHASE=$(printf "%02d.%s" "${PHASE_ARG%.*}" "${PHASE_ARG#*.}")
+else
+  PHASE="$PHASE_ARG"
+fi
+```
+
 **Check if session safety is enabled:**
 ```bash
 SESSION_SAFETY=$(cat .planning/config.json 2>/dev/null | grep -o '"session_safety":[^,}]*' | cut -d':' -f2 | tr -d ' ')
@@ -52,32 +69,23 @@ SESSION_SAFETY=$(cat .planning/config.json 2>/dev/null | grep -o '"session_safet
 
 **Otherwise (default ON):**
 
-### 0a. Initialize Session File & Clean Stale Sessions
+### 0a. Initialize Session File & Clean Stale Sessions (jq-free)
 
 ```bash
-# Create file if missing
-if [ ! -f .planning/ACTIVE-SESSIONS.json ]; then
-  echo '{"sessions":[]}' > .planning/ACTIVE-SESSIONS.json
+# Preferred path: Node session helper (installed with GSD)
+if [ -f ~/.claude/hooks/gsd-session.js ]; then
+  node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400
+else
+  echo "⚠ session safety: ~/.claude/hooks/gsd-session.js not found; skipping session tracking"
 fi
-
-# Clean stale sessions (>4 hours old)
-NOW=$(date +%s)
-FOUR_HOURS=14400
-jq --argjson now "$NOW" --argjson ttl "$FOUR_HOURS" '
-  .sessions = [.sessions[] | select(
-    ($now - (.started | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)) < $ttl
-  )]
-' .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-  && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
 ```
 
 ### 0a.1. Check for Conflicts
 
 ```bash
-# PHASE is the target phase (normalized in step 1)
-CONFLICTS=$(jq -r --arg phase "$PHASE" \
-  '.sessions[] | select(.phase == $phase)' \
-  .planning/ACTIVE-SESSIONS.json 2>/dev/null)
+# PHASE is normalized in step 0.0
+CONFLICTS=$(node ~/.claude/hooks/gsd-session.js list --phase "$PHASE" --format lines 2>/dev/null)
+echo "$CONFLICTS"
 ```
 
 **If conflict found:**
@@ -99,30 +107,24 @@ Another session is working on Phase {X}:
 Handle response:
 - **continue** — Proceed with registration (may cause git conflicts)
 - **wait** — Exit gracefully, user will try later
-- **claim** — Remove old session entry, then register this one
+- **claim** — Remove old session entry/entries for this phase, then register this one
+
+If **claim** selected:
+```bash
+node ~/.claude/hooks/gsd-session.js claim --phase "$PHASE" 2>/dev/null
+```
 
 ### 0a.2. Register This Session
 
 ```bash
-# Generate session ID
-TIMESTAMP=$(date +%s)
-SESSION_ID="${PHASE}-${TIMESTAMP}"
-
-# Add session entry
-jq --arg id "$SESSION_ID" \
-   --arg phase "$PHASE" \
-   --arg started "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-   '.sessions += [{
-     "id": $id,
-     "phase": $phase,
-     "started": $started,
-     "last_activity": $started,
-     "status": "executing"
-   }]' .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-   && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
-
-# Export for stop hook cleanup
-export GSD_SESSION_ID="$SESSION_ID"
+# Register and export for stop hook cleanup
+if [ -f ~/.claude/hooks/gsd-session.js ]; then
+  SESSION_ID=$(node ~/.claude/hooks/gsd-session.js register --phase "$PHASE" 2>/dev/null)
+  if [ -n "$SESSION_ID" ]; then
+    export GSD_SESSION_ID="$SESSION_ID"
+    echo "Session registered: ${SESSION_ID}"
+  fi
+fi
 ```
 
 Display: `Session registered: ${SESSION_ID}`
@@ -178,6 +180,40 @@ Phase {X} appears complete. Re-run?
    - If `--gaps-only`: filter to only plans with `gap_closure: true`
    - Build list of incomplete plans
 
+2.5. **Optional: Audit plans** (if `enhancements.plan_audit: true`)
+
+   **Check if plan audit is enabled:**
+   ```bash
+   PLAN_AUDIT=$(cat .planning/config.json 2>/dev/null | grep -o '"plan_audit":[^,}]*' | cut -d':' -f2 | tr -d ' ')
+   ```
+
+   **If `plan_audit` is `true`:** Spawn plan auditor before executing.
+
+   ```
+   Task(
+     prompt="
+     Audit execution plans for Phase ${PHASE}.
+
+     Only evaluate plans that will be executed (skip plans with existing SUMMARY.md, and respect --gaps-only if set).
+
+     Context:
+     @.planning/ROADMAP.md
+     @.planning/STATE.md
+
+     Plans:
+     @${PHASE_DIR}/*-PLAN.md
+     @${PHASE_DIR}/*-SUMMARY.md
+     ",
+     subagent_type="gsd-plan-auditor",
+     description="Plan audit for Phase ${PHASE}"
+   )
+   ```
+
+   **Handle auditor status:**
+   - **BLOCKED:** Stop execution. Tell user to fix plans (run `/gsd:plan-phase {phase}` revision or edit plans) and re-run.
+   - **NEEDS FIXES:** Present warnings and ask: continue / stop and fix.
+   - **READY:** Proceed to wave grouping.
+
 3. **Group by wave**
    - Read `wave` from each plan's frontmatter
    - Group plans by wave number
@@ -190,11 +226,9 @@ Phase {X} appears complete. Re-run?
    - Verify SUMMARYs created
    - **Update session heartbeat** (if session safety enabled):
      ```bash
-     jq --arg id "$GSD_SESSION_ID" \
-        --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        '(.sessions[] | select(.id == $id)).last_activity = $now' \
-        .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-        && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+     if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
+       node ~/.claude/hooks/gsd-session.js heartbeat --id "$GSD_SESSION_ID" 2>/dev/null || true
+     fi
      ```
    - Proceed to next wave
 
@@ -243,10 +277,9 @@ Phase {X} appears complete. Re-run?
 
 11. **Clean up session** (if session safety enabled)
     ```bash
-    jq --arg id "$GSD_SESSION_ID" \
-       '.sessions = [.sessions[] | select(.id != $id)]' \
-       .planning/ACTIVE-SESSIONS.json > .planning/ACTIVE-SESSIONS.json.tmp \
-       && mv .planning/ACTIVE-SESSIONS.json.tmp .planning/ACTIVE-SESSIONS.json
+    if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
+      node ~/.claude/hooks/gsd-session.js cleanup --id "$GSD_SESSION_ID" 2>/dev/null || true
+    fi
     ```
 
 12. **Offer next steps**
