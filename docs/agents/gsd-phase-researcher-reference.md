@@ -30,9 +30,9 @@ Researches how to implement a specific phase before planning, producing findings
 |------------|------|----------------|
 | Be PRESCRIPTIVE | "Use X" not "Consider X or Y"; research becomes planner instructions | `<downstream_consumer>` |
 | Respect CONTEXT.md | If user locked decisions, research THOSE deeply, don't explore alternatives | `<upstream_input>` |
-| Follow source hierarchy | Context7 > Official Docs > WebSearch verified > WebSearch unverified | `<source_hierarchy>` |
+| Follow source hierarchy | Context7 > Official Docs > WebSearch verified > WebSearch unverified | `<verification_protocol>` |
 | Include confidence levels | HIGH/MEDIUM/LOW on all findings | `<verification_protocol>` |
-| MUST commit RESEARCH.md | Unlike project-researcher, commit your own output | `<execution_flow>` Step 5 |
+| MUST commit RESEARCH.md | Unlike project-researcher, commit your own output | `<execution_flow>` Step 6 |
 
 ---
 
@@ -93,50 +93,115 @@ The planner expects these specific sections:
 
 ### Complete RESEARCH.md Template
 
+**Location:** `.planning/phases/XX-name/{phase}-RESEARCH.md`
+
 ```markdown
 # Phase [X]: [Name] - Research
 
 **Researched:** [date]
-**Confidence:** [HIGH/MEDIUM/LOW overall]
+**Domain:** [primary technology/problem domain]
+**Confidence:** [HIGH/MEDIUM/LOW]
+
+## Summary
+
+[2-3 paragraph executive summary]
+- What was researched
+- What the standard approach is
+- Key recommendations
+
+**Primary recommendation:** [one-liner actionable guidance]
 
 ## Standard Stack
 
-| Library | Version | Purpose | Confidence |
-|---------|---------|---------|------------|
-| [lib] | [ver] | [what it does] | [H/M/L] |
+The established libraries/tools for this domain:
+
+### Core
+| Library | Version | Purpose | Why Standard |
+|---------|---------|---------|--------------|
+| [name] | [ver] | [what it does] | [why experts use it] |
+
+### Supporting
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| [name] | [ver] | [what it does] | [use case] |
+
+### Alternatives Considered
+| Instead of | Could Use | Tradeoff |
+|------------|-----------|----------|
+| [standard] | [alternative] | [when alternative makes sense] |
+
+**Installation:**
+\`\`\`bash
+npm install [packages]
+\`\`\`
 
 ## Architecture Patterns
 
-### [Pattern Name]
-- **What:** [description]
-- **When:** [when to use]
-- **Example:** [brief code or structure]
+### Recommended Project Structure
+\`\`\`
+src/
+├── [folder]/        # [purpose]
+├── [folder]/        # [purpose]
+└── [folder]/        # [purpose]
+\`\`\`
+
+### Pattern 1: [Pattern Name]
+**What:** [description]
+**When to use:** [conditions]
+**Example:**
+\`\`\`typescript
+// Source: [Context7/official docs URL]
+[code]
+\`\`\`
+
+### Anti-Patterns to Avoid
+- **[Anti-pattern]:** [why it's bad, what to do instead]
 
 ## Don't Hand-Roll
 
-| Problem | Use Instead | Why |
-|---------|-------------|-----|
-| [problem] | [solution] | [rationale] |
+Problems that look simple but have existing solutions:
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| [problem] | [what you'd build] | [library] | [edge cases, complexity] |
+
+**Key insight:** [why custom solutions are worse in this domain]
 
 ## Common Pitfalls
 
-| Pitfall | Symptom | Prevention |
-|---------|---------|------------|
-| [mistake] | [how you notice] | [how to avoid] |
+### Pitfall 1: [Name]
+**What goes wrong:** [description]
+**Why it happens:** [root cause]
+**How to avoid:** [prevention strategy]
+**Warning signs:** [how to detect early]
 
 ## Code Examples
 
-### [Example Name]
-\`\`\`[language]
-// [code snippet]
+Verified patterns from official sources:
+
+### [Common Operation 1]
+\`\`\`typescript
+// Source: [Context7/official docs URL]
+[code]
 \`\`\`
+
+## State of the Art
+
+| Old Approach | Current Approach | When Changed | Impact |
+|--------------|------------------|--------------|--------|
+| [old] | [new] | [date/version] | [what it means] |
+
+**Deprecated/outdated:**
+- [Thing]: [why, what replaced it]
 
 ## Open Questions
 
-**[Question]**
-- What we know: [partial info]
-- What's unclear: [the gap]
-- Recommendation: [how to handle]
+Things that couldn't be fully resolved:
+
+1. **[Question]**
+   - What we know: [partial info]
+   - What's unclear: [the gap]
+   - Recommendation: [how to handle]
 
 ## Sources
 
@@ -163,7 +228,9 @@ The planner expects these specific sections:
 
 ---
 
-## Source Hierarchy
+## Verification Protocol & Source Hierarchy
+
+**Source:** `<verification_protocol>`
 
 | Level | Sources | Use |
 |-------|---------|-----|
@@ -179,8 +246,10 @@ The planner expects these specific sections:
 
 ```
 Step 1: Receive Research Scope and Load Context
-├── Orchestrator provides phase number, description, requirements
+├── Orchestrator provides phase number/name, description, requirements, constraints, output path
 ├── Load phase context (MANDATORY):
+│   ├── PADDED_PHASE=$(printf "%02d" ${PHASE} 2>/dev/null || echo "${PHASE}")
+│   ├── PHASE_DIR=$(ls -d .planning/phases/${PADDED_PHASE}-* .planning/phases/${PHASE}-* 2>/dev/null | head -1)
 │   └── cat "${PHASE_DIR}"/*-CONTEXT.md 2>/dev/null
 └── If CONTEXT.md exists, parse and apply constraints
 
@@ -204,14 +273,16 @@ Step 4: Quality Check
 ├── Negative claims verified with official docs
 ├── Multiple sources for critical claims
 ├── Confidence levels assigned honestly
-└── Section names match what plan-phase expects
+└── "What might I have missed?" review
 
-Step 5: Write and Commit RESEARCH.md
-├── Write to .planning/phases/XX-name/{phase}-RESEARCH.md
-├── Use complete template format
-└── git add && git commit (YOU commit, unlike project-researcher)
+Step 5: Write RESEARCH.md
+├── Write to ${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md
+└── Use complete template format
 
-Step 6: Return Structured Result
+Step 6: Commit RESEARCH.md
+└── git add "${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md" && git commit (YOU commit, unlike project-researcher)
+
+Step 7: Return Structured Result
 └── RESEARCH COMPLETE with summary
 ```
 
@@ -222,9 +293,9 @@ Step 6: Return Structured Result
 | Category | Details |
 |----------|---------|
 | **Reads** | `{phase}-CONTEXT.md` (if exists), Context7 docs, Official docs (WebFetch), WebSearch results |
-| **Writes** | `.planning/phases/XX-name/{phase}-RESEARCH.md` |
+| **Writes** | `${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md` |
 | **Spawned By** | `/gsd:plan-phase`, `/gsd:research-phase` |
-| **Consumed By** | `gsd-planner` (Standard Stack, Patterns, Pitfalls sections) |
+| **Consumed By** | `gsd-planner` (Standard Stack, Architecture Patterns, Don't Hand-Roll, Common Pitfalls, Code Examples) |
 
 ---
 
@@ -241,7 +312,15 @@ Step 6: Return Structured Result
 - [3-5 bullet points]
 
 ### File Created
-.planning/phases/XX-name/{phase}-RESEARCH.md
+`${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md`
+
+### Confidence Assessment
+
+| Area | Level | Reason |
+|------|-------|--------|
+| Standard Stack | [level] | [why] |
+| Architecture | [level] | [why] |
+| Pitfalls | [level] | [why] |
 
 ### Open Questions
 [Gaps for planner awareness]
@@ -292,7 +371,7 @@ Research complete and committed. Planner can now create PLAN.md files.
 - `research-phase` command — Same spawning pattern
 
 **Downstream Impact:**
-- `gsd-planner` — Parses specific sections (Standard Stack, Patterns, Pitfalls, Code Examples)
+- `gsd-planner` — Parses specific sections (Standard Stack, Architecture Patterns, Don't Hand-Roll, Common Pitfalls, Code Examples)
 - Plans reference RESEARCH.md content directly
 
 **Breaking Changes to Watch:**
@@ -307,15 +386,15 @@ Research complete and committed. Planner can now create PLAN.md files.
 
 | Section | Lines (approx) | Purpose |
 |---------|----------------|---------|
-| `<role>` | 1-30 | Identity, spawners, responsibilities |
-| `<upstream_input>` | 31-60 | CONTEXT.md integration |
-| `<downstream_consumer>` | 61-90 | How planner uses output |
-| `<philosophy>` | 91-150 | Training as hypothesis, honest reporting |
-| `<source_hierarchy>` | 151-200 | HIGH/MEDIUM/LOW sources |
-| `<output_format>` | 201-400 | Complete RESEARCH.md template |
-| `<execution_flow>` | 401-550 | Step-by-step process |
-| `<structured_returns>` | 551-600 | Return message formats |
-| `<success_criteria>` | 601-633 | Completion checklist |
+| `<role>` | 8-24 | Identity, spawners, responsibilities |
+| `<upstream_input>` | 26-36 | CONTEXT.md integration |
+| `<downstream_consumer>` | 38-50 | How planner uses output |
+| `<philosophy>` | 52-96 | Training as hypothesis, honest reporting |
+| `<tool_strategy>` | 98-292 | Context7/WebFetch/WebSearch + verification protocol |
+| `<output_format>` | 294-431 | Complete RESEARCH.md template |
+| `<execution_flow>` | 433-543 | Step-by-step process |
+| `<structured_returns>` | 545-606 | Return message formats |
+| `<success_criteria>` | 608-632 | Completion checklist |
 
 ---
 
@@ -324,7 +403,7 @@ Research complete and committed. Planner can now create PLAN.md files.
 ```
 WHAT:     Phase-specific research to inform planning
 MODES:    Single mode (phase implementation research)
-OUTPUT:   .planning/phases/XX-name/{phase}-RESEARCH.md
+OUTPUT:   ${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md
 
 CORE RULES:
 • Be PRESCRIPTIVE ("Use X") not exploratory ("Consider X or Y")
@@ -334,5 +413,5 @@ CORE RULES:
 • Training data is hypothesis — verify with current sources
 
 SPAWNED BY: /gsd:plan-phase, /gsd:research-phase
-CONSUMED BY: gsd-planner (Standard Stack, Patterns, Pitfalls sections)
+CONSUMED BY: gsd-planner (Standard Stack, Architecture Patterns, Don't Hand-Roll, Common Pitfalls, Code Examples)
 ```
