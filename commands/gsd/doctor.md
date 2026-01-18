@@ -1,6 +1,6 @@
 ---
 name: gsd:doctor
-description: Diagnose common GSD setup and project issues (config, hooks, sessions, git)
+description: Diagnose common GSD setup and project issues (config, hooks, git)
 allowed-tools:
   - Read
   - Bash
@@ -16,7 +16,6 @@ Detects:
 - Missing or invalid `.planning/config.json`
 - Missing planning artifacts (STATE/ROADMAP/PROJECT)
 - Missing required hooks/scripts in Claude config dir
-- Active/stale sessions in `.planning/ACTIVE-SESSIONS.json` (and whether it’s correctly untracked)
 - Dirty git status that may cause confusing diffs/conflicts
 
 Outputs a concise report with fix commands.
@@ -40,7 +39,6 @@ git --version 2>/dev/null || echo "git: missing"
 ```bash
 ls .planning 2>/dev/null || echo ".planning: missing"
 ls .planning/config.json 2>/dev/null || echo ".planning/config.json: missing"
-ls .planning/.gitignore 2>/dev/null || echo ".planning/.gitignore: missing"
 ls .planning/STATE.md 2>/dev/null || echo ".planning/STATE.md: missing"
 ls .planning/ROADMAP.md 2>/dev/null || echo ".planning/ROADMAP.md: missing"
 ls .planning/PROJECT.md 2>/dev/null || echo ".planning/PROJECT.md: missing"
@@ -63,9 +61,6 @@ Validate required hook scripts exist:
 
 ```bash
 ls ~/.claude/hooks/gsd-config.js 2>/dev/null || echo "missing: hooks/gsd-config.js"
-ls ~/.claude/hooks/gsd-session.js 2>/dev/null || echo "missing: hooks/gsd-session.js"
-ls ~/.claude/hooks/session-start.js 2>/dev/null || echo "missing: hooks/session-start.js"
-ls ~/.claude/hooks/session-stop.js 2>/dev/null || echo "missing: hooks/session-stop.js"
 ls ~/.claude/hooks/statusline.js 2>/dev/null || echo "missing: hooks/statusline.js"
 ls ~/.claude/hooks/gsd-check-update.js 2>/dev/null || echo "missing: hooks/gsd-check-update.js"
 ```
@@ -75,21 +70,7 @@ If any missing: recommend reinstall/update:
 npx get-shit-done-cc@latest --global
 ```
 
-## 5. Session Status
-
-```bash
-node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400 2>/dev/null || true
-node ~/.claude/hooks/gsd-session.js list --format lines 2>/dev/null || true
-```
-
-If sessions exist: warn about potential concurrency conflicts and show the entries.
-
-Also check that session tracking stays untracked:
-```bash
-rg -n "ACTIVE-SESSIONS\\.json" .planning/.gitignore 2>/dev/null || echo "⚠ recommend ignoring .planning/ACTIVE-SESSIONS.json (add to .planning/.gitignore)"
-```
-
-## 6. Git Status
+## 5. Git Status
 
 ```bash
 git rev-parse --is-inside-work-tree 2>/dev/null && git status --porcelain || true
@@ -97,7 +78,7 @@ git rev-parse --is-inside-work-tree 2>/dev/null && git status --porcelain || tru
 
 If dirty: warn that plan execution may create mixed diffs; recommend committing/stashing before `/gsd:execute-phase`.
 
-## 7. Next Steps
+## 6. Next Steps
 
 Based on findings, present 1-3 recommended actions, e.g.:
 - `/gsd:new-project`
@@ -111,6 +92,5 @@ Based on findings, present 1-3 recommended actions, e.g.:
 - [ ] Produces a clear health report
 - [ ] Detects missing/invalid config and suggests migration
 - [ ] Detects missing hooks and suggests reinstall
-- [ ] Detects active sessions and warns
 - [ ] Detects dirty git status and warns
 </success_criteria>

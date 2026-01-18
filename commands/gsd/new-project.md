@@ -226,13 +226,7 @@ Do not compress. Capture everything gathered.
 
 ```bash
 mkdir -p .planning
-
-# Runtime session tracking should never be committed
-cat > .planning/.gitignore <<'EOF'
-ACTIVE-SESSIONS.json
-EOF
-
-git add .planning/PROJECT.md .planning/.gitignore
+git add .planning/PROJECT.md
 git commit -m "$(cat <<'EOF'
 docs: initialize project
 
@@ -294,7 +288,6 @@ Create `.planning/config.json` with chosen mode, depth, parallelization, and enh
 - "Decision Ledger" selected → `enhancements.decision_ledger: true`
 - "Codebase Research" selected → `enhancements.codebase_research: true`
 - "Plan Audit" selected → `enhancements.plan_audit: true`
-- `enhancements.session_safety: true` always (default on, low overhead)
 
 **Parallelization mapping:**
 - "Parallel" selected → `parallelization.enabled: true`

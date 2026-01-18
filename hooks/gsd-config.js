@@ -4,15 +4,28 @@
 const fs = require('fs');
 const path = require('path');
 
-// Reuse project-dir resolution from session helper (walk up to find .planning/)
-let resolveProjectDir;
-try {
-  // eslint-disable-next-line global-require
-  ({ resolveProjectDir } = require('./gsd-session.js'));
-} catch {
-  resolveProjectDir = function fallbackResolveProjectDir() {
-    return process.cwd();
-  };
+function findProjectDir(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 20; i++) {
+    if (fs.existsSync(path.join(dir, '.planning'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}
+
+function resolveProjectDir(argProjectDir) {
+  const fromArg = argProjectDir ? path.resolve(String(argProjectDir)) : null;
+  const fromEnv =
+    process.env.CLAUDE_PROJECT_DIR ||
+    process.env.GSD_PROJECT_DIR ||
+    process.env.INIT_CWD ||
+    null;
+
+  if (fromArg) return findProjectDir(fromArg);
+  if (fromEnv) return findProjectDir(path.resolve(fromEnv));
+  return findProjectDir(process.cwd());
 }
 
 function parseArgs(argv) {
@@ -191,7 +204,7 @@ Usage: gsd-config <command> [options]
 
 Commands:
   path                         Print resolved .planning/config.json path
-  get <dot.path>               Get a config value (e.g., enhancements.session_safety)
+  get <dot.path>               Get a config value (e.g., enhancements.decision_ledger)
   set <dot.path> <value>       Set a config value (value parsed as JSON when possible)
   validate                     Validate config.json and compare to template schema
   upgrade                      Merge config with template defaults (preserves overrides)

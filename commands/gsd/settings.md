@@ -106,7 +106,6 @@ Use AskUserQuestion:
   - "Decision Ledger" — `enhancements.decision_ledger` (best for ambiguous/high-stakes requirements; verbatim decisions + sign-off)
   - "Codebase Research" — `enhancements.codebase_research` (best for unfamiliar/large codebases; phase-specific file/flow mapping)
   - "Plan Audit" — `enhancements.plan_audit` (best for risky phases or untrusted plan quality; blocks on plan blockers)
-  - "Session Safety" — `enhancements.session_safety` (recommended; prevents concurrent phase execution conflicts)
 
 Update `enhancements.*` booleans accordingly (selected = true, not selected = false).
 

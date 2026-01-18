@@ -374,8 +374,7 @@ Enable via `.planning/config.json` `enhancements` section:
   "enhancements": {
     "decision_ledger": false,
     "codebase_research": false,
-    "plan_audit": false,
-    "session_safety": true
+    "plan_audit": false
   }
 }
 ```
@@ -384,16 +383,9 @@ Enable via `.planning/config.json` `enhancements` section:
 
 Use these as heuristics so enhancements don’t turn into ceremony:
 
-- **Session Safety** (default ON): Keep on unless you are certain you will never run concurrent Claude sessions against the same repo/phase.
 - **Decision Ledger:** Enable when requirements are ambiguous/high-stakes, terminology is fuzzy, there are multiple entry points/creation paths, or you want explicit “we agreed to this” sign-off.
 - **Codebase Research:** Enable when working in an existing/unfamiliar/large codebase, you expect to touch multiple subsystems, or you’re worried about “wrong file/wrong pattern” mistakes.
 - **Plan Audit:** Enable when plan quality is untrusted (new planner prompts, repeated execution failures), the phase is risky (auth/payments/migrations/security), or you want a hard pre-flight gate before spending execution time.
-
-**Session Safety** (default ON)
-- Pre-flight checks before execution
-- Session conflict detection
-- Context resume warnings
-- Progress recovery from PROGRESS.md
 
 **Decision Ledger** (opt-in)
 - Enhanced discuss-phase with verbatim decision tracking

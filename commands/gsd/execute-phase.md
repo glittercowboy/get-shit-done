@@ -38,136 +38,23 @@ Phase: $ARGUMENTS
 </context>
 
 <process>
+0. **Parse & normalize phase**
+   Normalize the phase number once and reuse it (8 → 08, preserve decimals like 2.1 → 02.1).
 
-## 0. Session Safety Pre-flight Checks
+   ```bash
+   PHASE_ARG=$(echo "$ARGUMENTS" | awk '{print $1}')
 
-Reference: `@~/.claude/get-shit-done/references/session-management.md`
+   if echo "$PHASE_ARG" | grep -Eq '^[0-9]+$'; then
+     PHASE=$(printf "%02d" "$PHASE_ARG")
+   elif echo "$PHASE_ARG" | grep -Eq '^[0-9]+\.[0-9]+$'; then
+     PHASE=$(printf "%02d.%s" "${PHASE_ARG%.*}" "${PHASE_ARG#*.}")
+   else
+     PHASE="$PHASE_ARG"
+   fi
 
-### 0.0 Parse & Normalize Phase
-
-Extract the phase number from `$ARGUMENTS` (first token) and normalize it before any session operations:
-
-```bash
-PHASE_ARG=$(echo "$ARGUMENTS" | awk '{print $1}')
-
-# Normalize phase number (8 → 08, preserve decimals like 2.1 → 02.1)
-if echo "$PHASE_ARG" | grep -Eq '^[0-9]+$'; then
-  PHASE=$(printf "%02d" "$PHASE_ARG")
-elif echo "$PHASE_ARG" | grep -Eq '^[0-9]+\.[0-9]+$'; then
-  PHASE=$(printf "%02d.%s" "${PHASE_ARG%.*}" "${PHASE_ARG#*.}")
-else
-  PHASE="$PHASE_ARG"
-fi
-```
-
-**Check if session safety is enabled:**
-```bash
-SESSION_SAFETY=$(node ~/.claude/hooks/gsd-config.js get enhancements.session_safety --default true --format raw 2>/dev/null)
-```
-
-**If `session_safety` is explicitly `false`:** Skip all session checks, proceed to step 0b.
-
-**Otherwise (default ON):**
-
-### 0a. Initialize Session File & Clean Stale Sessions (jq-free)
-
-```bash
-# Preferred path: Node session helper (installed with GSD)
-if [ -f ~/.claude/hooks/gsd-session.js ]; then
-  node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400
-else
-  echo "⚠ session safety: ~/.claude/hooks/gsd-session.js not found; skipping session tracking"
-fi
-```
-
-### 0a.1. Check for Conflicts
-
-```bash
-# PHASE is normalized in step 0.0
-CONFLICTS=$(node ~/.claude/hooks/gsd-session.js list --phase "$PHASE" --format lines 2>/dev/null)
-echo "$CONFLICTS"
-```
-
-**If conflict found:**
-```
-╔══════════════════════════════════════════════════════════════╗
-║  CHECKPOINT: Session Conflict                                ║
-╚══════════════════════════════════════════════════════════════╝
-
-Another session is working on Phase {X}:
-- Session ID: {id}
-- Started: {timestamp}
-- Last activity: {timestamp}
-
-──────────────────────────────────────────────────────────────
-→ Select: continue / wait / claim
-──────────────────────────────────────────────────────────────
-```
-
-Handle response:
-- **continue** — Proceed with registration (may cause git conflicts)
-- **wait** — Exit gracefully, user will try later
-- **claim** — Remove old session entry/entries for this phase, then register this one
-
-If **claim** selected:
-```bash
-node ~/.claude/hooks/gsd-session.js claim --phase "$PHASE" 2>/dev/null
-```
-
-### 0a.2. Register This Session
-
-```bash
-# Register and export for stop hook cleanup
-if [ -f ~/.claude/hooks/gsd-session.js ]; then
-  SESSION_ID=$(node ~/.claude/hooks/gsd-session.js register --phase "$PHASE" 2>/dev/null)
-  if [ -n "$SESSION_ID" ]; then
-    export GSD_SESSION_ID="$SESSION_ID"
-    echo "Session registered: ${SESSION_ID}"
-  fi
-fi
-```
-
-Display: `Session registered: ${SESSION_ID}`
-
-### 0b. Context Resume Detection
-
-**If conversation contains summary of prior work** (context was compacted):
-```
-⚠️ Context Resume Detected
-
-This session was continued from a previous conversation.
-Prior context has been compacted into a summary.
-
-For complex plans (5+ tasks): Recommend starting fresh session.
-
-Continue here? (y/n)
-```
-
-If user says no, provide command to restart fresh:
-```
-Run: /clear then /gsd:execute-phase {X}
-```
-
-### 0c. Previous Progress Check
-
-```bash
-ls .planning/phases/${PHASE}-*/*-PROGRESS.md 2>/dev/null
-ls .planning/phases/${PHASE}-*/*-SUMMARY.md 2>/dev/null
-```
-
-**If PROGRESS.md exists:** Resume from last checkpoint (read PROGRESS.md for state)
-
-**If SUMMARY.md exists (and no PROGRESS.md):**
-```
-Phase {X} appears complete. Re-run?
-1. Yes, re-execute all plans
-2. No, show me the summary
-3. Only run incomplete plans
-```
-
-**If neither exists:** Fresh execution, proceed to step 1.
-
----
+   # Used by audit/plan discovery steps
+   PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* .planning/phases/${PHASE_ARG}-* 2>/dev/null | head -1)
+   ```
 
 1. **Validate phase exists**
    - Find phase directory matching argument
@@ -224,12 +111,6 @@ Phase {X} appears complete. Re-run?
    - Spawn `gsd-executor` for each plan in wave (parallel Task calls)
    - Wait for completion (Task blocks)
    - Verify SUMMARYs created
-   - **Update session heartbeat** (if session safety enabled):
-     ```bash
-     if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
-       node ~/.claude/hooks/gsd-session.js heartbeat --id "$GSD_SESSION_ID" 2>/dev/null || true
-     fi
-     ```
    - Proceed to next wave
 
 5. **Aggregate results**
@@ -275,14 +156,7 @@ Phase {X} appears complete. Re-run?
     - Stage REQUIREMENTS.md if updated: `git add .planning/REQUIREMENTS.md`
     - Commit: `docs({phase}): complete {phase-name} phase`
 
-11. **Clean up session** (if session safety enabled)
-    ```bash
-    if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
-      node ~/.claude/hooks/gsd-session.js cleanup --id "$GSD_SESSION_ID" 2>/dev/null || true
-    fi
-    ```
-
-12. **Offer next steps**
+11. **Offer next steps**
     - Route to next action (see `<offer_next>`)
 </process>
 

@@ -174,6 +174,10 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix) {
 function cleanupOrphanedFiles(claudeDir) {
   const orphanedFiles = [
     'hooks/gsd-notify.sh',  // Removed in v1.6.x
+    'hooks/gsd-session.js', // Removed (session safety)
+    'hooks/session-start.js', // Removed (session safety)
+    'hooks/session-stop.js', // Removed (session safety)
+    'hooks/session-stop.sh', // Removed (session safety)
   ];
 
   for (const relPath of orphanedFiles) {
@@ -191,6 +195,9 @@ function cleanupOrphanedFiles(claudeDir) {
 function cleanupOrphanedHooks(settings) {
   const orphanedHookPatterns = [
     'gsd-notify.sh',  // Removed in v1.6.x
+    'session-start.js', // Removed (session safety)
+    'session-stop.js', // Removed (session safety)
+    'session-stop.sh', // Removed (session safety)
   ];
 
   let cleaned = false;
@@ -399,8 +406,6 @@ function install(isGlobal) {
 
   const statuslineCommand = `node "${hooksDirForCommand}/statusline.js"`;
   const updateCheckCommand = `node "${hooksDirForCommand}/gsd-check-update.js"`;
-  const sessionStartCommand = `node "${hooksDirForCommand}/session-start.js"`;
-  const sessionStopCommand = `node "${hooksDirForCommand}/session-stop.js"`;
 
   // Configure SessionStart hook for update checking
   if (!settings.hooks) {
@@ -425,44 +430,6 @@ function install(isGlobal) {
       ]
     });
     console.log(`  ${green}✓${reset} Configured update check hook`);
-  }
-
-  // Configure SessionStart hook for session safety housekeeping (silent unless active sessions exist)
-  const hasSessionStartHook = settings.hooks.SessionStart.some(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('session-start'))
-  );
-
-  if (!hasSessionStartHook) {
-    settings.hooks.SessionStart.push({
-      hooks: [
-        {
-          type: 'command',
-          command: sessionStartCommand
-        }
-      ]
-    });
-    console.log(`  ${green}✓${reset} Configured session start hook`);
-  }
-
-  // Configure Stop hook for session cleanup
-  if (!settings.hooks.Stop) {
-    settings.hooks.Stop = [];
-  }
-
-  const hasSessionStopHook = settings.hooks.Stop.some(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('session-stop'))
-  );
-
-  if (!hasSessionStopHook) {
-    settings.hooks.Stop.push({
-      hooks: [
-        {
-          type: 'command',
-          command: sessionStopCommand
-        }
-      ]
-    });
-    console.log(`  ${green}✓${reset} Configured session stop hook`);
   }
 
   return { settingsPath, settings, statuslineCommand };

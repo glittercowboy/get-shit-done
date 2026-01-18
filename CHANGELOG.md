@@ -8,7 +8,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - **Enhanced workflows system** — Optional advanced workflows configurable via `.planning/config.json`
-  - **Session safety** (default ON) — Pre-flight checks in execute-phase: session conflict detection, context resume warnings, progress recovery
   - **Decision Ledger** (opt-in) — Verbatim decision tracking in discuss-phase with explicit sign-off, terminology mapping, entry point matrices
   - **Codebase Research** (opt-in) — Phase-specific codebase investigation before planning via `gsd-codebase-researcher` agent
   - **Plan Audit** (opt-in) — Quality checks before execution via `/gsd:audit-plan` command
@@ -16,14 +15,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`gsd-codebase-researcher` agent** — Parallel specialized investigation modes (file discovery, flow tracing, data mapping, pattern matching, risk assessment, test coverage)
 - **`/gsd:settings` command** — Guided wizard to view and update `.planning/config.json` with multi-choice prompts and explanations
 - **`/gsd:migrate-config` command** — Upgrade `.planning/config.json` to the latest template (adds missing keys, preserves overrides)
-- **`/gsd:doctor` command** — Health check for config validity, missing hooks, active sessions, and git status
+- **`/gsd:doctor` command** — Health check for config validity, missing hooks, and git status
 - **Enhancements config in `/gsd:new-project`** — Workflow preferences now include optional enhanced workflows selection
 
 ### Changed
-- Config template now includes `enhancements` section with `decision_ledger`, `codebase_research`, `plan_audit`, and `session_safety` options
+- Config template now includes `enhancements` section with `decision_ledger`, `codebase_research`, and `plan_audit` options
 - `/gsd:discuss-phase` now supports two flows: standard (gray areas) or enhanced (Decision Ledger mode with terminology and entry points)
 - `/gsd:plan-phase` now optionally spawns codebase researcher before domain research when enhancement enabled
-- `/gsd:execute-phase` now includes session safety pre-flight checks (session conflicts, context resume detection, progress recovery)
 
 ## [1.6.4] - 2026-01-17
 

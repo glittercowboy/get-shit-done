@@ -12,44 +12,7 @@ Read STATE.md before any operation to load project context.
 
 <process>
 
-<step name="session_management" priority="first">
-Manage session safety before execution.
-
-Reference: `@~/.claude/get-shit-done/references/session-management.md`
-
-**Check if session safety is enabled:**
-```bash
-SESSION_SAFETY=$(node ~/.claude/hooks/gsd-config.js get enhancements.session_safety --default true --format raw 2>/dev/null)
-```
-
-**If `session_safety` is explicitly `false`:** Skip to load_project_state.
-
-**Otherwise (default ON):**
-
-1. **Initialize and clean stale sessions:**
-```bash
-if [ -f ~/.claude/hooks/gsd-session.js ]; then
-  node ~/.claude/hooks/gsd-session.js init --ttl-seconds 14400
-fi
-```
-
-2. **Check for conflicts:**
-```bash
-CONFLICTS=$(node ~/.claude/hooks/gsd-session.js list --phase "$PHASE" --format lines 2>/dev/null)
-```
-
-If conflict found, present checkpoint with options: continue / wait / claim.
-
-3. **Register this session:**
-```bash
-if [ -f ~/.claude/hooks/gsd-session.js ]; then
-  SESSION_ID=$(node ~/.claude/hooks/gsd-session.js register --phase "$PHASE" 2>/dev/null)
-  export GSD_SESSION_ID="$SESSION_ID"
-fi
-```
-</step>
-
-<step name="load_project_state">
+<step name="load_project_state" priority="first">
 Before any operation, read project state:
 
 ```bash
@@ -309,14 +272,7 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel.
 
    See `<checkpoint_handling>` for details.
 
-6. **Update session heartbeat** (if session safety enabled):
-   ```bash
-   if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
-     node ~/.claude/hooks/gsd-session.js heartbeat --id "$GSD_SESSION_ID" 2>/dev/null || true
-   fi
-   ```
-
-7. **Proceed to next wave**
+6. **Proceed to next wave**
 
 </step>
 
@@ -543,18 +499,6 @@ git add .planning/ROADMAP.md .planning/STATE.md .planning/phases/{phase_dir}/*-V
 git add .planning/REQUIREMENTS.md  # if updated
 git commit -m "docs(phase-{X}): complete phase execution"
 ```
-</step>
-
-<step name="cleanup_session">
-Remove session entry on successful completion (if session safety enabled):
-
-```bash
-if [ -n "$GSD_SESSION_ID" ] && [ -f ~/.claude/hooks/gsd-session.js ]; then
-  node ~/.claude/hooks/gsd-session.js cleanup --id "$GSD_SESSION_ID" 2>/dev/null || true
-fi
-```
-
-Note: Stop hook (`hooks/session-stop.js`) also attempts cleanup on session exit, but explicit cleanup here is more reliable.
 </step>
 
 <step name="offer_next">

@@ -27,7 +27,6 @@
   "enhancements": {
     "decision_ledger": false,
     "codebase_research": false,
-    "plan_audit": false,
-    "session_safety": true
+    "plan_audit": false
   }
 }
