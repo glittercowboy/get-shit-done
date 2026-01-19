@@ -4,6 +4,8 @@ Execute a phase prompt (PLAN.md) and create the outcome summary (SUMMARY.md).
 
 <required_reading>
 Read STATE.md before any operation to load project context.
+
+@~/.claude/get-shit-done/references/git-integration.md
 </required_reading>
 
 <process>
@@ -1574,7 +1576,7 @@ lmn012o feat(08-02): create user registration endpoint
 
 Each task has its own commit, followed by one metadata commit documenting plan completion.
 
-For commit message conventions, see ~/.claude/get-shit-done/references/git-integration.md
+See `git-integration.md` (loaded via required_reading) for commit message conventions.
 </step>
 
 <step name="update_codebase_map">
