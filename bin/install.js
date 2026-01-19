@@ -48,7 +48,12 @@ function parseConfigDirArg() {
   // Also handle --config-dir=value format
   const configDirArg = args.find(arg => arg.startsWith('--config-dir=') || arg.startsWith('-c='));
   if (configDirArg) {
-    return configDirArg.split('=')[1];
+    const value = configDirArg.split('=')[1];
+    if (!value) {
+      console.error(`  ${yellow}--config-dir requires a non-empty path${reset}`);
+      process.exit(1);
+    }
+    return value;
   }
   return null;
 }
