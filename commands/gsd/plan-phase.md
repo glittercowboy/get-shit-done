@@ -171,6 +171,9 @@ Answer: "What do I need to know to PLAN this phase well?"
 
 **Phase context (if any):**
 {phase_context}
+
+**User documentation (if available):**
+@.planning/codebase/USER-CONTEXT.md
 </context>
 
 <output>
@@ -222,6 +225,27 @@ VERIFICATION="${PHASE_DIR}/${PHASE}-VERIFICATION.md"
 UAT="${PHASE_DIR}/${PHASE}-UAT.md"
 ```
 
+## 7.5. Load User Documentation (if available)
+
+Check for user-provided documentation:
+
+```bash
+USER_DOCS_PATH=".planning/codebase/USER-CONTEXT.md"
+if [ -f "$USER_DOCS_PATH" ]; then
+  echo "USER_DOCS_AVAILABLE"
+else
+  echo "NO_USER_DOCS"
+fi
+```
+
+**If USER-CONTEXT.md exists:**
+- Include in context paths for both researcher and planner
+- Do NOT announce to user (transparent loading)
+
+**If USER-CONTEXT.md does NOT exist:**
+- Silent continue (no error, no suggestion to run map-codebase)
+- Proceed without user docs
+
 ## 8. Spawn gsd-planner Agent
 
 Display stage banner:
@@ -259,6 +283,9 @@ Fill prompt and spawn:
 **Gap Closure (if --gaps mode):**
 @.planning/phases/{phase_dir}/{phase}-VERIFICATION.md
 @.planning/phases/{phase_dir}/{phase}-UAT.md
+
+**User documentation (if available):**
+@.planning/codebase/USER-CONTEXT.md
 
 </planning_context>
 
