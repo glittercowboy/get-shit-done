@@ -1,0 +1,23 @@
+# Lineage Agent Dependencies
+# Phase 03: Column-Level Lineage
+
+# Core agent framework
+strands-agents>=1.0.0
+
+# AWS Bedrock access
+boto3>=1.35.0
+
+# Data models
+pydantic>=2.0.0
+
+# SQL parsing for column lineage
+sqlglot>=26.0.0
+
+# OpenLineage event schema
+openlineage-python>=1.25.0
+
+# HTTP client for emitting events
+requests>=2.31.0
+
+# Supabase client for graph storage
+supabase>=2.0.0
