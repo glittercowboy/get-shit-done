@@ -41,6 +41,35 @@ Capture implementation decisions before planning a phase. Use this when you have
 
 ---
 
+### `/gsd:list-phase-assumptions [N]`
+
+See what Claude is planning to do before it starts. Shows Claude's intended approach for a phase so you can course-correct if needed.
+
+**Output:** Conversational only (no files created)
+
+**Example:**
+```
+/gsd:list-phase-assumptions 03
+```
+
+---
+
+### `/gsd:research-phase [N]`
+
+Comprehensive ecosystem research for niche or complex domains. Use for 3D, games, audio, shaders, ML, and other specialized domains.
+
+**Creates:**
+- `.planning/phases/{N}-{name}/RESEARCH.md`
+
+**Note:** Usually use `/gsd:plan-phase` instead, which includes research automatically.
+
+**Example:**
+```
+/gsd:research-phase 03
+```
+
+---
+
 ### `/gsd:plan-phase [N]`
 
 Research and create an executable plan for a phase.
@@ -116,6 +145,32 @@ Ship the current milestone and prepare for the next.
 2. Tags release in git
 3. Archives phase artifacts
 4. Updates STATE.md
+
+---
+
+### `/gsd:audit-milestone [version]`
+
+Audit milestone completion against original intent before archiving.
+
+**Process:**
+1. Reads all phase VERIFICATION.md files
+2. Aggregates tech debt and deferred gaps
+3. Checks cross-phase integration
+4. Verifies E2E user flows
+
+**Creates:**
+- `.planning/v{version}-MILESTONE-AUDIT.md`
+
+---
+
+### `/gsd:plan-milestone-gaps`
+
+Create phases to close all gaps identified by `/gsd:audit-milestone`.
+
+**Process:**
+1. Reads MILESTONE-AUDIT.md
+2. Groups gaps into logical phases
+3. Creates phase entries in ROADMAP.md
 
 ---
 
@@ -288,6 +343,26 @@ feat(01-01): add user registration endpoint
 test(01-01): add registration validation tests
 fix(01-02): handle duplicate email error
 ```
+
+---
+
+## Utilities
+
+### `/gsd:help`
+
+Show all available GSD commands and usage guide.
+
+---
+
+### `/gsd:whats-new`
+
+See what's changed since your installed version. Shows changelog entries for versions you've missed and highlights breaking changes.
+
+---
+
+### `/gsd:update`
+
+Update GSD to the latest version with changelog display. Shows what's new before updating and asks for confirmation.
 
 ---
 
