@@ -111,6 +111,18 @@ Gray areas depend on what's being built. Analyze the phase goal:
 
 Generate 3-4 **phase-specific** gray areas, not generic categories.
 
+**User docs integration in gray area analysis:**
+
+If USER-CONTEXT.md was loaded:
+- Check if user docs already answer some gray areas (reduce question count)
+- Identify areas where user docs are unclear or potentially stale (prioritize these)
+- Reference specific doc content when framing questions
+
+Example adjustments:
+- User docs specify "REST API with JSON" - don't ask about API format
+- User docs unclear on auth approach - prioritize auth in gray areas
+- User docs mention "Phase 1 uses X" - verify if still current
+
 **Probing depth:**
 - Ask 4 questions per area before checking
 - "More questions about [area], or move to next?"
@@ -133,4 +145,5 @@ Generate 3-4 **phase-specific** gray areas, not generic categories.
 - Scope creep redirected to deferred ideas
 - CONTEXT.md captures decisions, not vague vision
 - User knows next steps
+- User docs considered when identifying gray areas (if available)
 </success_criteria>
