@@ -60,10 +60,12 @@ Plans:
   2. execute-phase command has access to user context during implementation
   3. discuss-phase command uses user docs to inform discussion
   4. Only docs relevant to current phase type are loaded (smart selection)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Integrate user docs into planning workflows (plan-phase, researcher, planner)
+- [ ] 03-02-PLAN.md — Integrate user docs into execution workflow (execute-phase, executor)
+- [ ] 03-03-PLAN.md — Integrate user docs into discussion workflow (discuss-phase)
 
 ### Phase 4: Documentation and Release
 **Goal**: Feature is documented for users and ready for release
@@ -87,7 +89,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Document Ingestion Core | 2/2 | Complete | 2026-01-19 |
 | 2. Document Validation | 2/2 | Complete | 2026-01-19 |
-| 3. Workflow Integration | 0/TBD | Not started | - |
+| 3. Workflow Integration | 0/3 | Planned | - |
 | 4. Documentation and Release | 0/TBD | Not started | - |
 
 ---
