@@ -21,12 +21,12 @@ CREATE TABLE IF NOT EXISTS lineage_nodes (
     data_type VARCHAR(100),           -- for columns: INT, VARCHAR, etc.
     metadata JSONB DEFAULT '{}',      -- flexible storage for additional properties
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-
-    -- Unique constraint with COALESCE for null parent_id
-    CONSTRAINT lineage_nodes_unique_key
-        UNIQUE (node_type, namespace, name, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::UUID))
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+-- Unique index with COALESCE for null parent_id handling
+CREATE UNIQUE INDEX IF NOT EXISTS lineage_nodes_unique_idx
+    ON lineage_nodes(node_type, namespace, name, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'::UUID));
 
 -- Add comment describing node_type values
 COMMENT ON COLUMN lineage_nodes.node_type IS 'Type of node: dataset (table), column, or job (transformation)';
@@ -50,12 +50,12 @@ CREATE TABLE IF NOT EXISTS lineage_edges (
     transformation_description TEXT,
     job_id UUID REFERENCES lineage_nodes(id) ON DELETE SET NULL,
     sql_hash VARCHAR(64),  -- SHA-256 hash of SQL that created this edge
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-
-    -- Unique constraint on source, target, job combination
-    CONSTRAINT lineage_edges_unique_key
-        UNIQUE (source_id, target_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::UUID))
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
+
+-- Unique index on source, target, job combination with COALESCE for null job_id
+CREATE UNIQUE INDEX IF NOT EXISTS lineage_edges_unique_idx
+    ON lineage_edges(source_id, target_id, COALESCE(job_id, '00000000-0000-0000-0000-000000000000'::UUID));
 
 COMMENT ON COLUMN lineage_edges.edge_type IS 'Edge direction: derives_from (target derives from source) or transforms_to';
 COMMENT ON COLUMN lineage_edges.transformation_type IS 'OpenLineage transformation type: DIRECT or INDIRECT';
