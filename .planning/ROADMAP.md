@@ -75,10 +75,10 @@ Plans:
   1. GSD help/docs explain the document ingestion feature
   2. Usage example shows how to provide documentation
   3. Changelog includes new functionality description
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Update README, help.md, and CHANGELOG with doc ingestion feature
 
 ## Progress
 
@@ -90,7 +90,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Document Ingestion Core | 2/2 | Complete | 2026-01-19 |
 | 2. Document Validation | 2/2 | Complete | 2026-01-19 |
 | 3. Workflow Integration | 3/3 | Complete | 2026-01-19 |
-| 4. Documentation and Release | 0/TBD | Not started | - |
+| 4. Documentation and Release | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-19*
