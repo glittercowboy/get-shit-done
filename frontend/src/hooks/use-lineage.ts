@@ -367,7 +367,7 @@ export function useLineageToReactFlow(graphData: LineageGraphData | undefined) {
 
       return {
         id: dataset.id,
-        type: 'table',
+        type: 'table' as const,
         position: { x: 0, y: 0 }, // Will be set by elkjs layout
         data: {
           label: dataset.name,
@@ -409,7 +409,7 @@ export function useLineageToReactFlow(graphData: LineageGraphData | undefined) {
         target: columnToDataset[edge.target_id],
         sourceHandle: `${columnIdToName[edge.source_id]}-source`,
         targetHandle: `${columnIdToName[edge.target_id]}-target`,
-        type: 'column',
+        type: 'column' as const,
         data: {
           transformationType: edge.transformation_type,
           transformationSubtype: edge.transformation_subtype,
