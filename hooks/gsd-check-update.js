@@ -17,7 +17,7 @@ if (!fs.existsSync(cacheDir)) {
   fs.mkdirSync(cacheDir, { recursive: true });
 }
 
-// Run check in background (spawn detached process)
+// Run check in background (spawn background process, windowsHide prevents console flash)
 const child = spawn(process.execPath, ['-e', `
   const fs = require('fs');
   const { execSync } = require('child_process');
@@ -32,7 +32,7 @@ const child = spawn(process.execPath, ['-e', `
 
   let latest = null;
   try {
-    latest = execSync('npm view get-shit-done-cc version', { encoding: 'utf8', timeout: 10000 }).trim();
+    latest = execSync('npm view get-shit-done-cc version', { encoding: 'utf8', timeout: 10000, windowsHide: true }).trim();
   } catch (e) {}
 
   const result = {
@@ -44,8 +44,8 @@ const child = spawn(process.execPath, ['-e', `
 
   fs.writeFileSync(cacheFile, JSON.stringify(result));
 `], {
-  detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
+  windowsHide: true
 });
 
 child.unref();
