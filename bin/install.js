@@ -387,10 +387,10 @@ function install(isGlobal) {
   const settingsPath = path.join(claudeDir, 'settings.json');
   const settings = cleanupOrphanedHooks(readSettings(settingsPath));
   const statuslineCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-statusline.js"'
+    ? `node "${path.join(os.homedir(), '.claude', 'hooks', 'gsd-statusline.js')}"`
     : 'node .claude/hooks/gsd-statusline.js';
   const updateCheckCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-check-update.js"'
+    ? `node "${path.join(os.homedir(), '.claude', 'hooks', 'gsd-check-update.js')}"`
     : 'node .claude/hooks/gsd-check-update.js';
 
   // Configure SessionStart hook for update checking
@@ -420,11 +420,11 @@ function install(isGlobal) {
 
   // Register intel hooks for codebase intelligence
   const intelIndexCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-intel-index.js"'
+    ? `node "${path.join(os.homedir(), '.claude', 'hooks', 'gsd-intel-index.js')}"`
     : 'node .claude/hooks/gsd-intel-index.js';
 
   const intelSessionCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-intel-session.js"'
+    ? `node "${path.join(os.homedir(), '.claude', 'hooks', 'gsd-intel-session.js')}"`
     : 'node .claude/hooks/gsd-intel-session.js';
 
   // PostToolUse hook for indexing
@@ -463,7 +463,7 @@ function install(isGlobal) {
 
   // Stop hook for pruning deleted files
   const intelPruneCommand = isGlobal
-    ? 'node "$HOME/.claude/hooks/gsd-intel-prune.js"'
+    ? `node "${path.join(os.homedir(), '.claude', 'hooks', 'gsd-intel-prune.js')}"`
     : 'node .claude/hooks/gsd-intel-prune.js';
 
   if (!settings.hooks.Stop) {
