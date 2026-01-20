@@ -166,6 +166,66 @@ If you prefer not to use that flag, add this to your project's `.claude/settings
 
 ## How It Works
 
+### GSD Workflow Overview
+
+```mermaid
+graph TD
+    subgraph Initialization
+        B1["/gsd:map-codebase (Optional)"] --> S1
+        B2["/gsd:analyze-codebase - Bootstrap codebase intelligence"]
+        B3["/gsd:query-intel - Query dependency graph"]
+        S1["/gsd:new-project (First Milestone)"] --> PC
+        S2["/gsd:new-milestone (Subsequent)"] --> PC
+        PC["Define Vision, Requirements & Roadmap"]
+    end
+
+    subgraph Phase_Execution_Loop
+        direction TB
+        D["/gsd:discuss-phase"] --> R["/gsd:research-phase (Optional)"]
+        R --> P["/gsd:plan-phase"]
+        P --> E["/gsd:execute-phase"]
+        E --> V["/gsd:verify-work (UAT)"]
+        V -- Repeat for all phases --> D
+    end
+
+    subgraph Quality_Gate_and_Archive
+        Audit["/gsd:audit-milestone"]
+        Audit -->|Gaps Found| GapFix["/gsd:plan-milestone-gaps"]
+        Audit -->|Audit Passed| Complete["/gsd:complete-milestone"]
+    end
+
+    subgraph Permanent_History
+        Archive[".planning/milestones/ Archive"]
+        History[".planning/phases/ Execution History"]
+    end
+
+    subgraph Utilities_and_Session
+        U1["/gsd:progress - GPS: Shows current status & routes to next step"]
+        U2["/gsd:resume-work - Restore: Instantly reloads session context"]
+        U3["/gsd:pause-work - Handoff: Save context when stopping mid-phase"]
+        U4["/gsd:debug - Investigation: Scientific root-cause discovery"]
+        U5["/gsd:add-todo - Inbox: Capture ideas without stopping flow"]
+        U6["/gsd:check-todos - Review: List pending todos"]
+        U7["/gsd:quick - Fast Lane: Small tasks with GSD guarantees, skip agents"]
+        U8["/gsd:help - Guide: Show all commands and usage"]
+        U9["/gsd:settings - Config: Configure model profile and agents"]
+    end
+
+    PC --> D
+    V --> Audit
+    GapFix -->|Execute Fixes| E
+    Complete -.-> Archive
+    Complete -.-> History
+    Complete -->|Starts Next Cycle| S2
+
+    style S1 fill:#e1f5fe,stroke:#01579b
+    style R fill:#fff9c4,stroke:#fbc02d,stroke-dasharray: 5 5
+    style Audit fill:#f8bbd0,stroke:#c2185b
+    style Complete fill:#f96,stroke:#333,stroke-width:2px
+    style Archive fill:#eee,stroke:#999
+    style History fill:#eee,stroke:#999
+```
+
 > **Already have code?** Run `/gsd:map-codebase` first. It spawns parallel agents to analyze your stack, architecture, conventions, and concerns. Then `/gsd:new-project` knows your codebase — questions focus on what you're adding, and planning automatically loads your patterns.
 
 ### 1. Initialize Project
