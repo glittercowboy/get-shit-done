@@ -376,6 +376,74 @@ Depth setting controls compression tolerance:
 
 ---
 
+## Quick Mode Patterns
+
+Quick mode provides GSD guarantees for ad-hoc tasks without full planning overhead.
+
+### When to Use Quick Mode
+
+**Quick mode:**
+- Task is small and self-contained
+- You know exactly what to do (no research needed)
+- Task doesn't warrant full phase planning
+- Mid-project fixes or small additions
+
+**Full planning:**
+- Task involves multiple subsystems
+- You need to investigate approach first
+- Task is part of a larger phase
+- Task might have hidden complexity
+
+### Quick Task Structure
+
+```
+.planning/quick/
+├── 001-add-dark-mode/
+│   ├── PLAN.md
+│   └── SUMMARY.md
+├── 002-fix-login-bug/
+│   ├── PLAN.md
+│   └── SUMMARY.md
+```
+
+Numbering: 3-digit sequential (001, 002, 003...)
+Slug: kebab-case from description, max 40 chars
+
+### Quick Mode Tracking
+
+Quick tasks update STATE.md, NOT ROADMAP.md:
+
+```markdown
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Add dark mode toggle | 2026-01-19 | abc123f | [001-add-dark-mode](./quick/001-add-dark-mode/) |
+```
+
+### Quick Mode Orchestration
+
+Unlike full phases, quick mode orchestration is inline in the command file — no separate workflow. The simplified flow:
+
+1. Validate ROADMAP.md exists (project active)
+2. Get task description
+3. Spawn planner (quick constraints)
+4. Spawn executor
+5. Update STATE.md
+6. Commit artifacts
+
+### Commit Convention
+
+```
+docs(quick-NNN): description
+
+Quick task completed.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
+
+---
+
 ## TDD Plans
 
 ### Detection Heuristic

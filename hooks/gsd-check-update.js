@@ -5,34 +5,44 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync, spawn } = require('child_process');
+const { spawn } = require('child_process');
 
 const homeDir = os.homedir();
+const cwd = process.cwd();
 const cacheDir = path.join(homeDir, '.claude', 'cache');
 const cacheFile = path.join(cacheDir, 'gsd-update-check.json');
-const versionFile = path.join(homeDir, '.claude', 'get-shit-done', 'VERSION');
+
+// VERSION file locations (check project first, then global)
+const projectVersionFile = path.join(cwd, '.claude', 'get-shit-done', 'VERSION');
+const globalVersionFile = path.join(homeDir, '.claude', 'get-shit-done', 'VERSION');
 
 // Ensure cache directory exists
 if (!fs.existsSync(cacheDir)) {
   fs.mkdirSync(cacheDir, { recursive: true });
 }
 
-// Run check in background (spawn detached process)
+// Run check in background (spawn background process, windowsHide prevents console flash)
 const child = spawn(process.execPath, ['-e', `
   const fs = require('fs');
   const { execSync } = require('child_process');
 
   const cacheFile = ${JSON.stringify(cacheFile)};
-  const versionFile = ${JSON.stringify(versionFile)};
+  const projectVersionFile = ${JSON.stringify(projectVersionFile)};
+  const globalVersionFile = ${JSON.stringify(globalVersionFile)};
 
+  // Check project directory first (local install), then global
   let installed = '0.0.0';
   try {
-    installed = fs.readFileSync(versionFile, 'utf8').trim();
+    if (fs.existsSync(projectVersionFile)) {
+      installed = fs.readFileSync(projectVersionFile, 'utf8').trim();
+    } else if (fs.existsSync(globalVersionFile)) {
+      installed = fs.readFileSync(globalVersionFile, 'utf8').trim();
+    }
   } catch (e) {}
 
   let latest = null;
   try {
-    latest = execSync('npm view get-shit-done-cc version', { encoding: 'utf8', timeout: 10000 }).trim();
+    latest = execSync('npm view get-shit-done-cc version', { encoding: 'utf8', timeout: 10000, windowsHide: true }).trim();
   } catch (e) {}
 
   const result = {
@@ -44,8 +54,8 @@ const child = spawn(process.execPath, ['-e', `
 
   fs.writeFileSync(cacheFile, JSON.stringify(result));
 `], {
-  detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
+  windowsHide: true
 });
 
 child.unref();

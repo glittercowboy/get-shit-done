@@ -129,6 +129,21 @@ Execute all plans in a phase.
 
 Usage: `/gsd:execute-phase 5`
 
+### Quick Mode
+
+**`/gsd:quick`**
+Execute small, ad-hoc tasks with GSD guarantees but skip optional agents.
+
+Quick mode uses the same system with a shorter path:
+- Spawns planner + executor (skips researcher, checker, verifier)
+- Quick tasks live in `.planning/quick/` separate from planned phases
+- Updates STATE.md tracking (not ROADMAP.md)
+
+Use when you know exactly what to do and the task is small enough to not need research or verification.
+
+Usage: `/gsd:quick`
+Result: Creates `.planning/quick/NNN-slug/PLAN.md`, `.planning/quick/NNN-slug/SUMMARY.md`
+
 ### Roadmap Management
 
 **`/gsd:add-phase <description>`**
@@ -321,6 +336,33 @@ Set during `/gsd:new-project`:
 - Only stops for critical checkpoints
 
 Change anytime by editing `.planning/config.json`
+
+## Planning Configuration
+
+Configure how planning artifacts are managed in `.planning/config.json`:
+
+**`planning.commit_docs`** (default: `true`)
+- `true`: Planning artifacts committed to git (standard workflow)
+- `false`: Planning artifacts kept local-only, not committed
+
+When `commit_docs: false`:
+- Add `.planning/` to your `.gitignore`
+- Useful for OSS contributions, client projects, or keeping planning private
+- All planning files still work normally, just not tracked in git
+
+**`planning.search_gitignored`** (default: `false`)
+- `true`: Add `--no-ignore` to broad ripgrep searches
+- Only needed when `.planning/` is gitignored and you want project-wide searches to include it
+
+Example config:
+```json
+{
+  "planning": {
+    "commit_docs": false,
+    "search_gitignored": true
+  }
+}
+```
 
 ## Common Workflows
 

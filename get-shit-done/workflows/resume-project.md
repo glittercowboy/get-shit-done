@@ -13,6 +13,10 @@ Enables seamless session continuity for fully autonomous workflows.
 "Where were we?" should have an immediate, complete answer.
 </purpose>
 
+<required_reading>
+@~/.claude/get-shit-done/references/continuation-format.md
+</required_reading>
+
 <process>
 
 <step name="detect_existing_project">

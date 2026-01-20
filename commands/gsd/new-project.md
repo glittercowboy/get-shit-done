@@ -237,7 +237,7 @@ EOF
 
 ## Phase 5: Workflow Preferences
 
-Ask all workflow preferences in a single AskUserQuestion call (3 questions):
+Ask all workflow preferences in a single AskUserQuestion call (4 questions):
 
 ```
 questions: [
@@ -268,11 +268,24 @@ questions: [
       { label: "Parallel (Recommended)", description: "Independent plans run simultaneously" },
       { label: "Sequential", description: "One plan at a time" }
     ]
+  },
+  {
+    header: "Git Tracking",
+    question: "Commit planning docs to git?",
+    multiSelect: false,
+    options: [
+      { label: "Yes (Recommended)", description: "Planning docs tracked in version control" },
+      { label: "No", description: "Keep .planning/ local-only (add to .gitignore)" }
+    ]
   }
 ]
 ```
 
-Create `.planning/config.json` with chosen mode, depth, and parallelization.
+Create `.planning/config.json` with chosen mode, depth, parallelization, and commit_docs setting.
+
+**If commit_docs = No:**
+- Set `planning.commit_docs: false` in config.json
+- Add `.planning/` to `.gitignore` (create if needed)
 
 **Commit config.json:**
 

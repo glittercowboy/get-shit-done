@@ -69,7 +69,7 @@ grep -A30 "### Decisions Made" .planning/STATE.md 2>/dev/null
 
 Present summary with phase description, requirements, prior decisions.
 
-## 4. Spawn gsd-researcher Agent
+## 4. Spawn gsd-phase-researcher Agent
 
 Research modes: ecosystem (default), feasibility, implementation, comparison.
 

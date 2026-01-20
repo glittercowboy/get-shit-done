@@ -4,6 +4,9 @@ Execute a phase prompt (PLAN.md) and create the outcome summary (SUMMARY.md).
 
 <required_reading>
 Read STATE.md before any operation to load project context.
+Read config.json for planning behavior settings.
+
+@~/.claude/get-shit-done/references/git-integration.md
 </required_reading>
 
 <process>
@@ -34,6 +37,17 @@ Options:
 **If .planning/ doesn't exist:** Error - project not initialized.
 
 This ensures every execution has full project context.
+
+**Load planning config:**
+
+```bash
+# Check if planning docs should be committed (default: true)
+COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+# Auto-detect gitignored (overrides config)
+git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+```
+
+Store `COMMIT_PLANNING_DOCS` for use in git operations.
 </step>
 
 <step name="identify_plan">
@@ -1511,6 +1525,17 @@ Commit execution metadata (SUMMARY + STATE + ROADMAP):
 **Note:** All task code has already been committed during execution (one commit per task).
 PLAN.md was already committed during plan-phase. This final commit captures execution results only.
 
+**Check planning config:**
+
+If `COMMIT_PLANNING_DOCS=false` (set in load_project_state):
+- Skip all git operations for .planning/ files
+- Planning docs exist locally but are gitignored
+- Log: "Skipping planning docs commit (commit_docs: false)"
+- Proceed to next step
+
+If `COMMIT_PLANNING_DOCS=true` (default):
+- Continue with git operations below
+
 **1. Stage execution artifacts:**
 
 ```bash
@@ -1574,7 +1599,7 @@ lmn012o feat(08-02): create user registration endpoint
 
 Each task has its own commit, followed by one metadata commit documenting plan completion.
 
-For commit message conventions, see ~/.claude/get-shit-done/references/git-integration.md
+See `git-integration.md` (loaded via required_reading) for commit message conventions.
 </step>
 
 <step name="update_codebase_map">

@@ -297,6 +297,31 @@ Then `/gsd:new-milestone` starts the next version — same flow as `new-project`
 
 ---
 
+### Quick Mode
+
+```
+/gsd:quick
+```
+
+**For ad-hoc tasks that don't need full planning.**
+
+Quick mode gives you GSD guarantees (atomic commits, state tracking) with a faster path:
+
+- **Same agents** — Planner + executor, same quality
+- **Skips optional steps** — No research, no plan checker, no verifier
+- **Separate tracking** — Lives in `.planning/quick/`, not phases
+
+Use for: bug fixes, small features, config changes, one-off tasks.
+
+```
+/gsd:quick
+> What do you want to do? "Add dark mode toggle to settings"
+```
+
+**Creates:** `.planning/quick/001-add-dark-mode-toggle/PLAN.md`, `SUMMARY.md`
+
+---
+
 ## Why It Works
 
 ### Context Engineering
@@ -429,6 +454,7 @@ You're never locked in. The system adapts.
 | `/gsd:add-todo [desc]` | Capture idea for later |
 | `/gsd:check-todos` | List pending todos |
 | `/gsd:debug [desc]` | Systematic debugging with persistent state |
+| `/gsd:quick` | Execute ad-hoc task with GSD guarantees |
 
 <sup>¹ Contributed by reddit user OracleGreyBeard</sup>
 

@@ -1,6 +1,6 @@
 {
   "name": "get-shit-done-cc",
-  "version": "1.6.4",
+  "version": "1.8.0",
   "description": "A meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.",
   "bin": {
     "get-shit-done-cc": "bin/install.js"
@@ -38,6 +38,10 @@
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^8.6.7"
   },  
+  "homepage": "https://github.com/glittercowboy/get-shit-done",
+  "bugs": {
+    "url": "https://github.com/glittercowboy/get-shit-done/issues"
+  },
   "engines": {
     "node": ">=16.7.0"
   }
