@@ -446,6 +446,25 @@ function install(isGlobal) {
     console.log(`  ${green}✓${reset} Configured intel indexing hook`);
   }
 
+  // PostToolUse hook for usage tracking
+  const usagePosttoolCommand = isGlobal
+    ? 'node "$HOME/.claude/hooks/gsd-usage-posttool.js"'
+    : 'node .claude/hooks/gsd-usage-posttool.js';
+
+  const hasUsagePosttoolHook = settings.hooks.PostToolUse.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-usage-posttool'))
+  );
+
+  if (!hasUsagePosttoolHook) {
+    settings.hooks.PostToolUse.push({
+      hooks: [{
+        type: 'command',
+        command: usagePosttoolCommand
+      }]
+    });
+    console.log(`  ${green}✓${reset} Configured usage tracking hook`);
+  }
+
   // SessionStart hook for context injection
   const hasIntelSessionHook = settings.hooks.SessionStart.some(entry =>
     entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-intel-session'))
@@ -459,6 +478,44 @@ function install(isGlobal) {
       }]
     });
     console.log(`  ${green}✓${reset} Configured intel session hook`);
+  }
+
+  // SessionStart hook for usage tracking session initialization
+  const usageSessionCommand = isGlobal
+    ? 'node "$HOME/.claude/hooks/gsd-usage-session.js"'
+    : 'node .claude/hooks/gsd-usage-session.js';
+
+  const hasUsageSessionHook = settings.hooks.SessionStart.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-usage-session'))
+  );
+
+  if (!hasUsageSessionHook) {
+    settings.hooks.SessionStart.push({
+      hooks: [{
+        type: 'command',
+        command: usageSessionCommand
+      }]
+    });
+    console.log(`  ${green}✓${reset} Configured usage session hook`);
+  }
+
+  // SessionStart hook for team plan check
+  const teamPlanCheckCommand = isGlobal
+    ? 'node "$HOME/.claude/hooks/gsd-team-plan-check.js"'
+    : 'node .claude/hooks/gsd-team-plan-check.js';
+
+  const hasTeamPlanCheckHook = settings.hooks.SessionStart.some(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-team-plan-check'))
+  );
+
+  if (!hasTeamPlanCheckHook) {
+    settings.hooks.SessionStart.push({
+      hooks: [{
+        type: 'command',
+        command: teamPlanCheckCommand
+      }]
+    });
+    console.log(`  ${green}✓${reset} Configured team plan check hook`);
   }
 
   // Stop hook for pruning deleted files

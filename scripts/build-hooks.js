@@ -27,7 +27,8 @@ const HOOKS_TO_COPY = [
   'gsd-team-plan-check.js',
   'gsd-statusline-enhanced.js',
   'gsd-usage-session.js',
-  'gsd-usage-log.js'
+  'gsd-usage-log.js',
+  'gsd-usage-posttool.js'
 ];
 
 async function build() {

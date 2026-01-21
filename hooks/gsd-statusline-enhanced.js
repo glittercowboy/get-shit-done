@@ -271,12 +271,23 @@ function formatCosts(gsdInfo, detailed) {
   // Calculate costs from usage
   const costs = calculateCosts(usage);
 
+  // Get current task cost if available
+  const taskCost = usage.current_task?.cost || 0;
+
   if (detailed) {
-    // Detailed: "$2.43/$18.76"
-    return `\x1b[32m$${costs.session.toFixed(2)}/$${costs.project.toFixed(2)}\x1b[0m`;
+    // Detailed: "t:$0.03 s:$2.43 p:$18.76"
+    if (taskCost > 0) {
+      return `\x1b[32mt:$${taskCost.toFixed(3)} s:$${costs.session.toFixed(2)} p:$${costs.project.toFixed(2)}\x1b[0m`;
+    } else {
+      // No current task, show session/project only
+      return `\x1b[32ms:$${costs.session.toFixed(2)} p:$${costs.project.toFixed(2)}\x1b[0m`;
+    }
   } else {
-    // Standard: "$2.43"
-    return `\x1b[32m$${costs.session.toFixed(2)}\x1b[0m`;
+    // Standard: "$2.43" (session cost)
+    if (costs.session > 0) {
+      return `\x1b[32m$${costs.session.toFixed(2)}\x1b[0m`;
+    }
+    return null; // Don't show if no costs yet
   }
 }
 
