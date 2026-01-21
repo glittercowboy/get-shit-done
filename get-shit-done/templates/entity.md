@@ -10,6 +10,8 @@ Template for `.planning/codebase/{entity-slug}.md` - file-level intelligence doc
 ---
 path: {path}
 type: {type}
+stack: {stack}
+framework: {framework}
 updated: {updated}
 status: {status}
 ---
@@ -47,6 +49,8 @@ status: {status}
 |-------|--------|-------------|
 | `path` | Absolute path | Full path to the file |
 | `type` | module, component, util, config, test, api, hook | Primary classification |
+| `stack` | javascript, typescript, python, csharp, go, rust, java, etc. | Programming language stack |
+| `framework` | react, django, aspnetcore, spring, etc. (optional) | Framework if detected |
 | `updated` | YYYY-MM-DD | Last time this entity was updated |
 | `status` | active, deprecated, stub | Current state |
 
@@ -116,6 +120,8 @@ Rule: Replace `/` and `.` with `-`, drop file extension.
 ---
 path: /project/src/lib/auth.ts
 type: util
+stack: typescript
+framework: nextjs
 updated: 2025-01-15
 status: active
 ---
@@ -153,6 +159,25 @@ JWT token management using jose library. Handles token creation, verification, a
 - Uses RS256 algorithm with keys from environment
 - WARNING: Never log token values, even in debug mode
 ```
+
+---
+
+## Stack and Framework
+
+The `stack` field identifies the programming language:
+- Derived from file extension and surrounding context
+- Values match stack IDs from `hooks/lib/stack-profiles.yaml`
+- Examples: `javascript`, `typescript`, `python`, `csharp`, `go`, `rust`
+
+The `framework` field is optional:
+- Only included when a specific framework is detected
+- Examples: `react`, `nextjs`, `django`, `flask`, `aspnetcore`, `spring`
+- Omit if no framework detected (don't use "none" or "unknown")
+
+**Why this matters:**
+- Enables queries like "find all Python models"
+- Allows filtering entities by language in polyglot codebases
+- Framework field helps understand conventions in use
 
 ---
 
