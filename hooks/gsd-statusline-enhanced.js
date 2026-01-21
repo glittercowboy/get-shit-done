@@ -32,8 +32,8 @@ function buildStatusline(data) {
   const config = gsdInfo.config || {};
   const statusConfig = config.statusline || {};
 
-  // Determine level
-  const level = statusConfig.level || 'standard';
+  // Determine level (default to 'detailed' for GSD projects)
+  const level = statusConfig.level || 'detailed';
 
   // Build parts based on level
   const parts = [];

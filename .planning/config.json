@@ -1,0 +1,23 @@
+{
+  "model_profile": "adaptive",
+  "adaptive_settings": {
+    "enable_auto_selection": true,
+    "prefer_cost_optimization": true,
+    "fallback_on_rate_limit": true,
+    "min_model": "haiku",
+    "max_model": "opus",
+    "log_selections": true
+  },
+  "statusline": {
+    "level": "detailed",
+    "show_costs": true,
+    "show_model_usage": true,
+    "show_adaptive_info": true,
+    "show_rate_limits": true,
+    "show_git_state": true,
+    "show_tests": true,
+    "show_time": true
+  },
+  "claude_plan_type": "unknown",
+  "team_plan_checked_at": "2026-01-21T09:57:58.669Z"
+}

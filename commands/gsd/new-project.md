@@ -339,13 +339,23 @@ Create `.planning/config.json` with all settings:
 {
   "mode": "yolo|interactive",
   "depth": "quick|standard|comprehensive",
-  "model_profile": "balanced",
+  "model_profile": "adaptive",
   "parallelization": true|false,
   "commit_docs": true|false,
   "workflow": {
     "research": true|false,
     "plan_check": true|false,
     "verifier": true|false
+  },
+  "statusline": {
+    "level": "detailed",
+    "show_costs": true,
+    "show_model_usage": true,
+    "show_adaptive_info": true,
+    "show_rate_limits": true,
+    "show_git_state": false,
+    "show_tests": false,
+    "show_time": true
   },
   "claude_plan_type": "unknown",
   "team_plan_warning_shown": false,
@@ -359,11 +369,11 @@ Create `.planning/config.json` with all settings:
 - `team_plan_checked_at` — Timestamp of last plan detection
 
 **Model profile field:**
-- `model_profile` defaults to "balanced". Users can change it via `/gsd:settings` or `/gsd:set-profile` to:
-  - `quality` — Opus everywhere (highest cost)
-  - `balanced` — Opus planning, Sonnet execution (recommended)
-  - `budget` — Minimal Opus usage
-  - `adaptive` — Intelligent selection based on task complexity
+- `model_profile` defaults to "adaptive" (intelligent selection based on task complexity). Users can change it via `/gsd:settings` or `/gsd:set-profile` to:
+  - `adaptive` — Intelligent selection based on task complexity (default, recommended)
+  - `quality` — Opus everywhere (highest cost, highest quality)
+  - `balanced` — Opus planning, Sonnet execution
+  - `budget` — Minimal Opus usage (lowest cost)
 
 **If user selected adaptive** (via advanced settings or later via `/gsd:settings`), also include:
 

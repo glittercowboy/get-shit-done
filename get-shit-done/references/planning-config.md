@@ -10,7 +10,7 @@ Configuration options for `.planning/` directory behavior.
 {
   "mode": "interactive|yolo",
   "depth": "quick|standard|comprehensive",
-  "model_profile": "quality|balanced|budget|adaptive",
+  "model_profile": "adaptive",
   "parallelization": true,
   "planning": {
     "commit_docs": true,
@@ -33,14 +33,14 @@ Configuration options for `.planning/` directory behavior.
   "team_plan_warning_shown": false,
   "team_plan_checked_at": null,
   "statusline": {
-    "level": "standard",
+    "level": "detailed",
     "show_costs": true,
-    "show_model_usage": false,
-    "show_adaptive_info": false,
+    "show_model_usage": true,
+    "show_adaptive_info": true,
     "show_rate_limits": true,
     "show_git_state": false,
     "show_tests": false,
-    "show_time": false
+    "show_time": true
   }
 }
 ```
@@ -51,7 +51,7 @@ Configuration options for `.planning/` directory behavior.
 |--------|---------|-------------|
 | `mode` | `interactive` | Workflow mode: `yolo` (auto-approve) or `interactive` (confirm steps) |
 | `depth` | `standard` | Planning thoroughness: `quick`, `standard`, or `comprehensive` |
-| `model_profile` | `balanced` | Model selection strategy: `quality`, `balanced`, `budget`, or `adaptive` |
+| `model_profile` | `adaptive` | Model selection strategy: `adaptive`, `quality`, `balanced`, or `budget` |
 | `parallelization` | `true` | Whether to run independent plans in parallel waves |
 
 **Planning options:**
@@ -92,14 +92,14 @@ Configuration options for `.planning/` directory behavior.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `statusline.level` | `"standard"` | Display level: `"minimal"`, `"standard"`, or `"detailed"` |
+| `statusline.level` | `"detailed"` | Display level: `"minimal"`, `"standard"`, or `"detailed"` |
 | `statusline.show_costs` | `true` | Display session/project cost tracking |
-| `statusline.show_model_usage` | `false` | Display H/S/O model distribution (adaptive profile only) |
-| `statusline.show_adaptive_info` | `false` | Display last model selection + complexity score (adaptive only) |
+| `statusline.show_model_usage` | `true` | Display H/S/O model distribution (adaptive profile only) |
+| `statusline.show_adaptive_info` | `true` | Display last model selection + complexity score (adaptive only) |
 | `statusline.show_rate_limits` | `true` | Display rate limit warnings when triggered |
 | `statusline.show_git_state` | `false` | Display git status (uncommitted, ahead/behind) |
 | `statusline.show_tests` | `false` | Display test runner status (future enhancement) |
-| `statusline.show_time` | `false` | Display session duration |
+| `statusline.show_time` | `true` | Display session duration |
 
 **Configure with:** `/gsd:statusline-settings`
 
