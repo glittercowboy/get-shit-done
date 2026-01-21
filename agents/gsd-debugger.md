@@ -517,6 +517,8 @@ async function testWithRandomTiming() {
 
 **Strategy:** Write a failing test that reproduces the bug, then fix until the test passes.
 
+**Note:** When `workflow.tdd=true` in config.json (default), this approach is **mandatory** in fix_and_verify. When disabled, it's recommended but optional.
+
 **Benefits:**
 - Proves you can reproduce the bug
 - Provides automatic verification
@@ -954,9 +956,20 @@ If inconclusive:
 </step>
 
 <step name="fix_and_verify">
-**Apply fix using TDD: write test first, then fix.**
+**Apply fix, with TDD if enabled.**
 
 Update status to "fixing".
+
+**Check TDD setting:**
+```bash
+TDD_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -oE '"tdd"\s*:\s*(true|false)' | grep -oE 'true|false' || echo "true")
+```
+
+**If `TDD_ENABLED=false`:** Skip RED phase, go directly to "Apply minimal fix" section. Test is optional.
+
+**If `TDD_ENABLED=true`:** Follow full RED-GREEN cycle below. Test is MANDATORY.
+
+---
 
 **1. RED - Write failing test that reproduces the bug**
 - Create test file if doesn't exist (use project's test framework)
@@ -991,7 +1004,9 @@ esac
 - If verification FAILS: status -> "investigating", return to investigation_loop
 - If verification PASSES: Update Resolution.verification, proceed to archive_session
 
-**TDD is MANDATORY.** A fix without a regression test is not accepted.
+**Acceptance criteria:**
+- `TDD_ENABLED=true`: Fix MUST include regression test. Reject if test missing.
+- `TDD_ENABLED=false`: Test recommended but not required.
 </step>
 
 <step name="archive_session">

@@ -81,17 +81,21 @@ Store in shell variables for duration calculation at completion.
 </step>
 
 <step name="determine_execution_pattern">
-Check plan type and checkpoints:
+Check plan type, TDD setting, and checkpoints:
 
 ```bash
+# Check if TDD workflow is enabled in config (handles "tdd":true and "tdd": true)
+TDD_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -oE '"tdd"\s*:\s*(true|false)' | grep -oE 'true|false' || echo "true")
+
 # Check plan type from frontmatter
 grep -E "^type:" [plan-path] | head -1
 # Check for checkpoints
 grep -n "type=\"checkpoint" [plan-path]
 ```
 
-**Pattern T: TDD plan (`type: tdd` in frontmatter)**
+**Pattern T: TDD plan (`type: tdd` in frontmatter AND `workflow.tdd: true` in config)**
 
+- **If `TDD_ENABLED=false`:** Treat as Pattern A (standard execution, skip TDD)
 - Plan contains `<feature>` element instead of `<tasks>`
 - Execute using RED-GREEN-REFACTOR cycle (see tdd_plan_execution)
 - Produces 2-3 commits per feature (test/feat/refactor)
@@ -121,7 +125,8 @@ grep -n "type=\"checkpoint" [plan-path]
 <step name="execute_tasks">
 Execute the plan based on its type.
 
-**If Pattern T (TDD plan):** Skip to `<tdd_plan_execution>` section.
+**If Pattern T (TDD plan) AND `TDD_ENABLED=true`:** Skip to `<tdd_plan_execution>` section.
+**If Pattern T (TDD plan) AND `TDD_ENABLED=false`:** Treat as standard plan, execute `<implementation>` directly without tests.
 
 **For standard plans, execute each task:**
 
@@ -548,6 +553,8 @@ TDD plans contain `<feature>` element (not `<tasks>`):
 
 **1. Setup test infrastructure (if needed):**
 
+Run this function before writing tests:
+
 ```bash
 # Detect project type and ensure test framework exists
 detect_and_setup_tests() {
@@ -630,6 +637,16 @@ For EACH test category:
 **Security test selection:**
 
 Read `security_compliance` from `.planning/config.json`:
+
+```bash
+SECURITY_LEVEL=$(cat .planning/config.json 2>/dev/null | grep -oE '"security_compliance"\s*:\s*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' || echo "none")
+
+# Validate against allowed values
+case "$SECURITY_LEVEL" in
+  none|soc2|hipaa|pci-dss|iso27001) ;;
+  *) echo "Warning: Invalid security_compliance '$SECURITY_LEVEL', using 'none'" >&2; SECURITY_LEVEL="none" ;;
+esac
+```
 
 | Level | Include Tests For |
 |-------|-------------------|
