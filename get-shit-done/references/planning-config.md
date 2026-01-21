@@ -3,17 +3,55 @@
 Configuration options for `.planning/` directory behavior.
 
 <config_schema>
+
+## Full Schema
+
 ```json
-"planning": {
-  "commit_docs": true,
-  "search_gitignored": false
+{
+  "planning": {
+    "commit_docs": true,
+    "search_gitignored": false
+  },
+  "statusline": {
+    "level": "standard",
+    "show_costs": true,
+    "show_model_usage": false,
+    "show_adaptive_info": false,
+    "show_rate_limits": true,
+    "show_git_state": false,
+    "show_tests": false,
+    "show_time": false
+  }
 }
 ```
+
+## Planning Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `commit_docs` | `true` | Whether to commit planning artifacts to git |
 | `search_gitignored` | `false` | Add `--no-ignore` to broad rg searches |
+
+## Statusline Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `level` | `"standard"` | Display level: `"minimal"`, `"standard"`, or `"detailed"` |
+| `show_costs` | `true` | Display session/project cost tracking |
+| `show_model_usage` | `false` | Display H/S/O model distribution (adaptive profile only) |
+| `show_adaptive_info` | `false` | Display last model selection + complexity score (adaptive only) |
+| `show_rate_limits` | `true` | Display rate limit warnings when triggered |
+| `show_git_state` | `false` | Display git status (uncommitted, ahead/behind) |
+| `show_tests` | `false` | Display test runner status (future enhancement) |
+| `show_time` | `false` | Display session duration |
+
+**Configure with:** `/gsd:statusline-settings`
+
+**Display Levels:**
+- `minimal`: Model + directory + context only
+- `standard`: Adds phase progress and costs
+- `detailed`: All enabled options displayed
+
 </config_schema>
 
 <commit_docs_behavior>
