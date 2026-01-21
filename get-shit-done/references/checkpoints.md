@@ -549,6 +549,28 @@ Task 3 complete. Continuing to task 4...
 | Express | `npm start` | "listening on port" | http://localhost:3000 |
 | Django | `python manage.py runserver` | "Starting development server" | http://localhost:8000 |
 
+### Server Lifecycle Protocol
+
+**Starting servers:**
+```bash
+# Run in background, capture PID for cleanup
+npm run dev &
+DEV_SERVER_PID=$!
+
+# Wait for ready signal (max 30s)
+timeout 30 bash -c 'until curl -s localhost:3000 > /dev/null 2>&1; do sleep 1; done'
+```
+
+**Port conflicts:**
+If default port is in use, check what's running and either:
+1. Kill the existing process if it's stale: `lsof -ti:3000 | xargs kill`
+2. Use alternate port: `npm run dev -- --port 3001`
+
+**Server stays running** for the duration of the checkpoint. After user approves, server continues running for subsequent tasks. Only kill explicitly if:
+- Plan is complete and no more verification needed
+- Switching to production deployment
+- Port needed for different service
+
 **Pattern:**
 ```xml
 <!-- Claude starts server before checkpoint -->
@@ -567,6 +589,73 @@ Task 3 complete. Continuing to task 4...
     1. [Visual check 1]
     2. [Visual check 2]
   </how-to-verify>
+</task>
+```
+
+## CLI Installation Handling
+
+**When a required CLI is not installed:**
+
+| CLI | Auto-install? | Command |
+|-----|---------------|---------|
+| npm/pnpm/yarn | No - ask user | User chooses package manager |
+| vercel | Yes | `npm i -g vercel` |
+| gh (GitHub) | Yes | `brew install gh` (macOS) or `apt install gh` (Linux) |
+| stripe | Yes | `npm i -g stripe` |
+| supabase | Yes | `npm i -g supabase` |
+| convex | No - use npx | `npx convex` (no install needed) |
+| fly | Yes | `brew install flyctl` or curl installer |
+| railway | Yes | `npm i -g @railway/cli` |
+
+**Protocol:**
+1. Try the command
+2. If "command not found", check if auto-installable
+3. If yes: install silently, retry command
+4. If no: create checkpoint asking user to install
+
+```xml
+<!-- Example: vercel not found -->
+<task type="auto">
+  <name>Install Vercel CLI</name>
+  <action>Run `npm i -g vercel`</action>
+  <verify>`vercel --version` succeeds</verify>
+  <done>Vercel CLI installed</done>
+</task>
+```
+
+## Pre-Checkpoint Automation Failures
+
+**When setup fails before checkpoint:**
+
+| Failure | Response |
+|---------|----------|
+| Server won't start | Check error output, fix issue, retry (don't proceed to checkpoint) |
+| Port in use | Kill stale process or use alternate port |
+| Missing dependency | Run `npm install`, retry |
+| Build error | Fix the error first (this is a bug, not a checkpoint issue) |
+| Auth error | Create auth gate checkpoint |
+| Network timeout | Retry with backoff, then checkpoint if persistent |
+
+**Key principle:** Never present a checkpoint with broken verification environment. If `curl localhost:3000` fails, don't ask user to "visit localhost:3000".
+
+```xml
+<!-- WRONG: Checkpoint with broken environment -->
+<task type="checkpoint:human-verify">
+  <what-built>Dashboard (server failed to start)</what-built>
+  <how-to-verify>Visit http://localhost:3000...</how-to-verify>
+</task>
+
+<!-- RIGHT: Fix first, then checkpoint -->
+<task type="auto">
+  <name>Fix server startup issue</name>
+  <action>Investigate error, fix root cause, restart server</action>
+  <verify>curl http://localhost:3000 returns 200</verify>
+  <done>Server running correctly</done>
+</task>
+
+<task type="checkpoint:human-verify">
+  <what-built>Dashboard - server running at http://localhost:3000</what-built>
+  <how-to-verify>Visit http://localhost:3000/dashboard...</how-to-verify>
 </task>
 ```
 

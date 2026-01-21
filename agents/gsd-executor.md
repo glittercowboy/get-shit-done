@@ -364,27 +364,15 @@ Type "done" when authenticated.
 
 **CRITICAL: Automation before verification**
 
-Before any `checkpoint:human-verify`, ensure the verification environment is ready:
+Before any `checkpoint:human-verify`, ensure verification environment is ready. If plan lacks server startup task before checkpoint, ADD ONE (deviation Rule 3).
 
-1. **Dev server running** - User should never run `npm run dev`
-2. **Database seeded** - Test data already populated
-3. **Environment configured** - All env vars set via CLI
-4. **Services started** - Convex, Stripe CLI, etc. running in background
+For full automation-first patterns, server lifecycle, CLI handling, and error recovery:
+**See @~/.claude/get-shit-done/references/checkpoints.md**
 
-If the plan doesn't include an auto task for server startup before a verification checkpoint, ADD ONE using deviation Rule 3 (blocking issue).
-
-**What users NEVER do:**
-- Run CLI commands (`npm`, `npx`, `vercel`, `convex`, etc.)
-- Start servers or processes
-- Add env vars to dashboards
-- Run migrations or seeds
-
-**What users ONLY do:**
-- Visit URLs (server already running)
-- Click through UI flows
-- Evaluate visual appearance
-- Provide secret values (API keys)
-- Complete OAuth in browser
+**Quick reference:**
+- Users NEVER run CLI commands - Claude does all automation
+- Users ONLY visit URLs, click UI, evaluate visuals, provide secrets
+- Claude starts servers, seeds databases, configures env vars
 
 ---
 

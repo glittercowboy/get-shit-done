@@ -75,41 +75,23 @@ Output: [What artifacts will be created]
   <done>[Acceptance criteria]</done>
 </task>
 
+<!-- For checkpoint task examples and patterns, see @~/.claude/get-shit-done/references/checkpoints.md -->
+<!-- Key rule: Claude starts dev server BEFORE human-verify checkpoints. User only visits URLs. -->
+
 <task type="checkpoint:decision" gate="blocking">
   <decision>[What needs deciding]</decision>
   <context>[Why this decision matters]</context>
   <options>
-    <option id="option-a">
-      <name>[Option name]</name>
-      <pros>[Benefits and advantages]</pros>
-      <cons>[Tradeoffs and limitations]</cons>
-    </option>
-    <option id="option-b">
-      <name>[Option name]</name>
-      <pros>[Benefits and advantages]</pros>
-      <cons>[Tradeoffs and limitations]</cons>
-    </option>
+    <option id="option-a"><name>[Name]</name><pros>[Benefits]</pros><cons>[Tradeoffs]</cons></option>
+    <option id="option-b"><name>[Name]</name><pros>[Benefits]</pros><cons>[Tradeoffs]</cons></option>
   </options>
-  <resume-signal>[How to indicate choice - "Select: option-a or option-b"]</resume-signal>
-</task>
-
-<!-- NOTE: Add auto task to start dev server BEFORE any human-verify checkpoint -->
-<task type="auto">
-  <name>Start dev server for verification</name>
-  <action>Run dev server in background, wait for ready signal</action>
-  <verify>curl returns 200</verify>
-  <done>Server running at [URL]</done>
+  <resume-signal>Select: option-a or option-b</resume-signal>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
-  <what-built>[What Claude built] - dev server running at [URL]</what-built>
-  <how-to-verify>
-    Visit [URL] and verify:
-    1. [Visual/functional check - NO CLI COMMANDS]
-    2. [Test: Specific interactions]
-    3. [Confirm: Expected behaviors]
-  </how-to-verify>
-  <resume-signal>Type "approved" to continue, or describe issues to fix</resume-signal>
+  <what-built>[What Claude built] - server running at [URL]</what-built>
+  <how-to-verify>Visit [URL] and verify: [visual checks only, NO CLI commands]</how-to-verify>
+  <resume-signal>Type "approved" or describe issues</resume-signal>
 </task>
 
 </tasks>
@@ -411,21 +393,16 @@ Output: Working dashboard component.
   <done>Dashboard renders without errors</done>
 </task>
 
+<!-- Checkpoint pattern: Claude starts server, user visits URL. See checkpoints.md for full patterns. -->
 <task type="auto">
-  <name>Start dev server for verification</name>
-  <action>Run `npm run dev` in background, wait for "ready" message</action>
-  <verify>curl http://localhost:3000 returns 200</verify>
-  <done>Dev server running at http://localhost:3000</done>
+  <name>Start dev server</name>
+  <action>Run `npm run dev` in background, wait for ready</action>
+  <verify>curl localhost:3000 returns 200</verify>
 </task>
 
 <task type="checkpoint:human-verify" gate="blocking">
-  <what-built>Responsive dashboard - dev server running at http://localhost:3000</what-built>
-  <how-to-verify>
-    Visit http://localhost:3000/dashboard and verify:
-    1. Desktop: Two-column grid layout
-    2. Mobile: Stacked layout
-    3. No layout shift or scroll issues
-  </how-to-verify>
+  <what-built>Dashboard - server at http://localhost:3000</what-built>
+  <how-to-verify>Visit localhost:3000/dashboard. Check: desktop grid, mobile stack, no scroll issues.</how-to-verify>
   <resume-signal>Type "approved" or describe issues</resume-signal>
 </task>
 </tasks>
