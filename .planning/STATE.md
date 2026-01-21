@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-19)
 ## Current Position
 
 Phase: 6 of 6 (Multi-Stack Analyzer)
-Plan: 2 of 6
+Plan: 1 of 6
 Status: In progress
-Last activity: 2026-01-20 — Completed 06-02-PLAN.md (Stack Profiles Configuration)
+Last activity: 2026-01-21 — Completed 06-01-PLAN.md (Stack Detection Module)
 
-Progress: [██████████░] 93%
+Progress: [██████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
 - Total plans completed: 14
 - Average duration: 2.4 min
-- Total execution time: 33 min
+- Total execution time: 36 min
 
 **By Phase:**
 
@@ -32,7 +32,7 @@ Progress: [██████████░] 93%
 | 3. Brownfield & Integration | 3/3 | 6 min | 2.0 min |
 | 4. Semantic Intelligence | 5/5 | 13 min | 2.6 min |
 | 5. Subagent Codebase Analysis | 1/2 | 1 min | 1.0 min |
-| 6. Multi-Stack Analyzer | 2/6 | 2 min | 1.0 min |
+| 6. Multi-Stack Analyzer | 1/6 | 3 min | 3.0 min |
 
 *Updated after each plan completion*
 
@@ -72,6 +72,10 @@ Progress: [██████████░] 93%
 | Intel read in Step 7 with others | 04-05 | Keep all context file reads in one place |
 | 2>/dev/null for missing intel | 04-05 | Graceful degradation when summary.md doesn't exist |
 | Skip existing entities by default | 05-01 | Prevents overwriting manual edits to entities |
+| Confidence scoring: markers 40%, files 40%, frameworks 20% | 06-01 | Balanced weighting for accurate stack detection |
+| 40% minimum confidence threshold | 06-01 | Filters incidental files, focuses on meaningful stacks |
+| Simple YAML parser fallback | 06-01 | Works without js-yaml dependency, graceful degradation |
+| Primary stack by highest confidence | 06-01 | More intelligent than file count alone |
 | Reference implementation used for stack profiles | 06-02 | Ensures consistency with design research |
 | 24+ language profiles in YAML | 06-02 | Comprehensive multi-stack support |
 | Framework detection nested under languages | 06-02 | Organizes framework-specific patterns with parent stack |
@@ -91,8 +95,8 @@ Progress: [██████████░] 93%
 
 ## Session Continuity
 
-Last session: 2026-01-20
-Stopped at: Completed 06-02-PLAN.md (Stack Profiles Configuration)
+Last session: 2026-01-21
+Stopped at: Completed 06-01-PLAN.md (Stack Detection Module)
 Resume file: None
 
 ## Phase Progress
