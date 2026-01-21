@@ -93,13 +93,21 @@ Output: [What artifacts will be created]
   <resume-signal>[How to indicate choice - "Select: option-a or option-b"]</resume-signal>
 </task>
 
+<!-- NOTE: Add auto task to start dev server BEFORE any human-verify checkpoint -->
+<task type="auto">
+  <name>Start dev server for verification</name>
+  <action>Run dev server in background, wait for ready signal</action>
+  <verify>curl returns 200</verify>
+  <done>Server running at [URL]</done>
+</task>
+
 <task type="checkpoint:human-verify" gate="blocking">
-  <what-built>[What Claude just built that needs verification]</what-built>
+  <what-built>[What Claude built] - dev server running at [URL]</what-built>
   <how-to-verify>
-    1. Run: [command to start dev server/app]
-    2. Visit: [URL to check]
-    3. Test: [Specific interactions]
-    4. Confirm: [Expected behaviors]
+    Visit [URL] and verify:
+    1. [Visual/functional check - NO CLI COMMANDS]
+    2. [Test: Specific interactions]
+    3. [Confirm: Expected behaviors]
   </how-to-verify>
   <resume-signal>Type "approved" to continue, or describe issues to fix</resume-signal>
 </task>
@@ -403,14 +411,20 @@ Output: Working dashboard component.
   <done>Dashboard renders without errors</done>
 </task>
 
+<task type="auto">
+  <name>Start dev server for verification</name>
+  <action>Run `npm run dev` in background, wait for "ready" message</action>
+  <verify>curl http://localhost:3000 returns 200</verify>
+  <done>Dev server running at http://localhost:3000</done>
+</task>
+
 <task type="checkpoint:human-verify" gate="blocking">
-  <what-built>Responsive dashboard with user and product sections</what-built>
+  <what-built>Responsive dashboard - dev server running at http://localhost:3000</what-built>
   <how-to-verify>
-    1. Run: npm run dev
-    2. Visit: http://localhost:3000/dashboard
-    3. Desktop: Verify two-column grid
-    4. Mobile: Verify stacked layout
-    5. Check: No layout shift, no scroll issues
+    Visit http://localhost:3000/dashboard and verify:
+    1. Desktop: Two-column grid layout
+    2. Mobile: Stacked layout
+    3. No layout shift or scroll issues
   </how-to-verify>
   <resume-signal>Type "approved" or describe issues</resume-signal>
 </task>

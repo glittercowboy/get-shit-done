@@ -593,3 +593,97 @@ Some things can't be verified programmatically. Flag these for human testing:
 ```
 
 </human_verification_triggers>
+
+<automated_verification_setup>
+
+## Pre-Checkpoint Automation
+
+**Critical principle:** Claude sets up the verification environment BEFORE presenting checkpoints. Users should never run CLI commands.
+
+### What Claude Automates Before Checkpoint
+
+| Setup Task | Claude Command | Not User Task |
+|------------|----------------|---------------|
+| Start dev server | `npm run dev` (background) | User visits URL |
+| Start backend | `npx convex dev` (background) | User tests features |
+| Run database migrations | `npx prisma migrate deploy` | User confirms data |
+| Seed test data | `npm run seed` or API calls | User views seeded content |
+| Set environment variables | `npx convex env set`, `vercel env add` | User provides secrets only |
+| Build application | `npm run build` | User visits production URL |
+| Deploy application | `vercel --yes`, `fly deploy` | User tests deployment |
+
+### Pattern: Server Startup Before Verification
+
+```xml
+<!-- Claude starts everything -->
+<task type="auto">
+  <name>Prepare verification environment</name>
+  <action>
+    1. Run `npm run dev` in background
+    2. Wait for "ready" message
+    3. Verify curl localhost:3000 returns 200
+    4. Run `npx convex dev` if using Convex
+    5. Seed test data if needed
+  </action>
+  <verify>All services responding</verify>
+  <done>Environment ready for testing</done>
+</task>
+
+<!-- User only interacts visually -->
+<task type="checkpoint:human-verify">
+  <what-built>Feature X - all services running</what-built>
+  <how-to-verify>
+    Visit http://localhost:3000/feature and verify:
+    1. [Visual verification only]
+    2. [No CLI commands]
+  </how-to-verify>
+</task>
+```
+
+### Secret Collection Pattern
+
+When secrets are needed, Claude asks for values then uses CLI to configure:
+
+```xml
+<!-- Ask for secret value -->
+<task type="checkpoint:human-action">
+  <action>Provide your Stripe secret key</action>
+  <instructions>
+    Get your secret key from: https://dashboard.stripe.com/apikeys
+    Paste the key (starts with sk_)
+  </instructions>
+  <resume-signal>Paste your key</resume-signal>
+</task>
+
+<!-- Claude configures via CLI -->
+<task type="auto">
+  <name>Configure Stripe key</name>
+  <action>
+    1. Write STRIPE_SECRET_KEY to .env.local
+    2. Run `vercel env add STRIPE_SECRET_KEY` for production
+    3. Verify configuration
+  </action>
+</task>
+```
+
+### Never Ask Users To
+
+- Run `npm run dev` or any dev server command
+- Run `npm install` or any package manager command
+- Run database migrations (`prisma migrate`, `drizzle-kit push`)
+- Add environment variables via dashboard UI
+- Copy/paste values between terminal and browser
+- Run build commands (`npm run build`, `next build`)
+- Execute any CLI tool (git, vercel, convex, stripe, etc.)
+
+### Users Only Do
+
+- Visit URLs (after Claude starts servers)
+- Click through UI flows
+- Evaluate visual appearance
+- Test interactive features
+- Provide secret values (API keys, passwords)
+- Complete OAuth flows in browser (after Claude initiates)
+- Click email verification links
+
+</automated_verification_setup>

@@ -361,6 +361,33 @@ Type "done" when authenticated.
 </authentication_gates>
 
 <checkpoint_protocol>
+
+**CRITICAL: Automation before verification**
+
+Before any `checkpoint:human-verify`, ensure the verification environment is ready:
+
+1. **Dev server running** - User should never run `npm run dev`
+2. **Database seeded** - Test data already populated
+3. **Environment configured** - All env vars set via CLI
+4. **Services started** - Convex, Stripe CLI, etc. running in background
+
+If the plan doesn't include an auto task for server startup before a verification checkpoint, ADD ONE using deviation Rule 3 (blocking issue).
+
+**What users NEVER do:**
+- Run CLI commands (`npm`, `npx`, `vercel`, `convex`, etc.)
+- Start servers or processes
+- Add env vars to dashboards
+- Run migrations or seeds
+
+**What users ONLY do:**
+- Visit URLs (server already running)
+- Click through UI flows
+- Evaluate visual appearance
+- Provide secret values (API keys)
+- Complete OAuth in browser
+
+---
+
 When encountering `type="checkpoint:*"`:
 
 **STOP immediately.** Do not continue to next task.
