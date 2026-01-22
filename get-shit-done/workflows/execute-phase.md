@@ -294,7 +294,7 @@ Plans with `autonomous: false` require user interaction.
 
 1. **Spawn agent for checkpoint plan:**
    ```
-   Task(prompt="{subagent-task-prompt}", subagent_type="gsd-executor", model="{executor_model}")
+   Task(prompt="{subagent-task-prompt}", subagent_type="gsd-pipeline:gsd-executor", model="{executor_model}")
    ```
 
 2. **Agent runs until checkpoint:**
@@ -333,7 +333,7 @@ Plans with `autonomous: false` require user interaction.
    ```
    Task(
      prompt=filled_continuation_template,
-     subagent_type="gsd-executor",
+     subagent_type="gsd-pipeline:gsd-executor",
      model="{executor_model}"
    )
    ```
@@ -410,7 +410,7 @@ Phase goal: {goal from ROADMAP.md}
 
 Check must_haves against actual codebase. Create VERIFICATION.md.
 Verify what actually exists in the code.",
-  subagent_type="gsd-verifier",
+  subagent_type="gsd-pipeline:gsd-verifier",
   model="{verifier_model}"
 )
 ```

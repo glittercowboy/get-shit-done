@@ -165,7 +165,7 @@ Write plan to: ${QUICK_DIR}/${next_num}-PLAN.md
 Return: ## PLANNING COMPLETE with plan path
 </output>
 ",
-  subagent_type="gsd-planner",
+  subagent_type="gsd-pipeline:gsd-planner",
   model="{planner_model}",
   description="Quick plan: ${DESCRIPTION}"
 )
@@ -199,7 +199,7 @@ Project state: @.planning/STATE.md
 - Do NOT update ROADMAP.md (quick tasks are separate from planned phases)
 </constraints>
 ",
-  subagent_type="gsd-executor",
+  subagent_type="gsd-pipeline:gsd-executor",
   model="{executor_model}",
   description="Execute: ${DESCRIPTION}"
 )

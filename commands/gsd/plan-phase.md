@@ -388,7 +388,7 @@ Return one of:
 ```
 Task(
   prompt=checker_prompt,
-  subagent_type="gsd-plan-checker",
+  subagent_type="gsd-pipeline:gsd-plan-checker",
   model="{checker_model}",
   description="Verify Phase {phase} plans"
 )

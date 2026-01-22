@@ -99,7 +99,7 @@ Create: .planning/debug/{slug}.md
 ```
 Task(
   prompt=filled_prompt,
-  subagent_type="gsd-debugger",
+  subagent_type="gsd-pipeline:gsd-debugger",
   model="{debugger_model}",
   description="Debug {slug}"
 )
@@ -152,7 +152,7 @@ goal: find_and_fix
 ```
 Task(
   prompt=continuation_prompt,
-  subagent_type="gsd-debugger",
+  subagent_type="gsd-pipeline:gsd-debugger",
   model="{debugger_model}",
   description="Continue debug {slug}"
 )
