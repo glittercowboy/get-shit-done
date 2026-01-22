@@ -75,7 +75,11 @@ People who want to describe what they want and have it built correctly — witho
 npx get-shit-done-cc
 ```
 
-That's it. Verify with `/gsd:help` inside your Claude Code interface.
+The installer prompts you to choose:
+1. **Runtime** — Claude Code, OpenCode, or both
+2. **Location** — Global (all projects) or local (current project only)
+
+Verify with `/gsd:help` inside your Claude Code or OpenCode interface.
 
 ### Staying Updated
 
@@ -95,11 +99,19 @@ npx get-shit-done-cc@latest
 <summary><strong>Non-interactive Install (Docker, CI, Scripts)</strong></summary>
 
 ```bash
-npx get-shit-done-cc --global   # Install to ~/.claude/
-npx get-shit-done-cc --local    # Install to ./.claude/
+# Claude Code
+npx get-shit-done-cc --claude --global   # Install to ~/.claude/
+npx get-shit-done-cc --claude --local    # Install to ./.claude/
+
+# OpenCode (open source, free models)
+npx get-shit-done-cc --opencode --global # Install to ~/.opencode/
+
+# Both runtimes
+npx get-shit-done-cc --both --global     # Install to both directories
 ```
 
-Use `--global` (`-g`) or `--local` (`-l`) to skip the interactive prompt.
+Use `--global` (`-g`) or `--local` (`-l`) to skip the location prompt.
+Use `--claude`, `--opencode`, or `--both` to skip the runtime prompt.
 
 </details>
 
@@ -111,7 +123,7 @@ Clone the repository and run the installer locally:
 ```bash
 git clone https://github.com/glittercowboy/get-shit-done.git
 cd get-shit-done
-node bin/install.js --local
+node bin/install.js --claude --local
 ```
 
 Installs to `./.claude/` for testing modifications before contributing.
