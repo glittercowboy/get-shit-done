@@ -2,7 +2,7 @@
 
 # GET SHIT DONE
 
-**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.**
+**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code, Cursor, and OpenCode by TÂCHES.**
 
 **Solves context rot — the quality degradation that happens as Claude fills its context window.**
 
@@ -76,10 +76,10 @@ npx get-shit-done-cc
 ```
 
 The installer prompts you to choose:
-1. **Runtime** — Claude Code, OpenCode, or both
+1. **Runtime** — Claude Code, Cursor, OpenCode, or all
 2. **Location** — Global (all projects) or local (current project only)
 
-Verify with `/gsd:help` inside your Claude Code or OpenCode interface.
+Verify with `/gsd:help` inside your Claude Code, Cursor, or OpenCode interface.
 
 ### Staying Updated
 
@@ -103,15 +103,20 @@ npx get-shit-done-cc@latest
 npx get-shit-done-cc --claude --global   # Install to ~/.claude/
 npx get-shit-done-cc --claude --local    # Install to ./.claude/
 
-# OpenCode (open source, free models)
-npx get-shit-done-cc --opencode --global # Install to ~/.opencode/
+# Cursor
+npx get-shit-done-cc --cursor --global   # Install to ~/.cursor/
+npx get-shit-done-cc --cursor --local    # Install to ./.cursor/
 
-# Both runtimes
-npx get-shit-done-cc --both --global     # Install to both directories
+# OpenCode (open source, free models)
+npx get-shit-done-cc --opencode --global # Install to ~/.config/opencode/
+
+# Multiple runtimes
+npx get-shit-done-cc --both --global     # Claude Code + OpenCode
+npx get-shit-done-cc --all --global      # All three runtimes
 ```
 
 Use `--global` (`-g`) or `--local` (`-l`) to skip the location prompt.
-Use `--claude`, `--opencode`, or `--both` to skip the runtime prompt.
+Use `--claude`, `--cursor`, `--opencode`, `--both`, or `--all` to skip the runtime prompt.
 
 </details>
 
@@ -533,8 +538,11 @@ Use `/gsd:settings` to toggle these, or override per-invocation:
 ## Troubleshooting
 
 **Commands not found after install?**
-- Restart Claude Code to reload slash commands
-- Verify files exist in `~/.claude/commands/gsd/` (global) or `./.claude/commands/gsd/` (local)
+- Restart your IDE (Claude Code, Cursor, or OpenCode) to reload slash commands
+- Verify files exist in the appropriate location:
+  - Claude Code: `~/.claude/commands/gsd/` (global) or `./.claude/commands/gsd/` (local)
+  - Cursor: `~/.cursor/commands/gsd/` (global) or `./.cursor/commands/gsd/` (local)
+  - OpenCode: `~/.config/opencode/command/` (global) or `./.opencode/command/` (local)
 
 **Commands not working as expected?**
 - Run `/gsd:help` to verify installation
@@ -547,9 +555,13 @@ npx get-shit-done-cc@latest
 
 **Using Docker or containerized environments?**
 
-If file reads fail with tilde paths (`~/.claude/...`), set `CLAUDE_CONFIG_DIR` before installing:
+If file reads fail with tilde paths, set the appropriate config directory env var before installing:
 ```bash
-CLAUDE_CONFIG_DIR=/home/youruser/.claude npx get-shit-done-cc --global
+# Claude Code
+CLAUDE_CONFIG_DIR=/home/youruser/.claude npx get-shit-done-cc --claude --global
+
+# Cursor
+CURSOR_CONFIG_DIR=/home/youruser/.cursor npx get-shit-done-cc --cursor --global
 ```
 This ensures absolute paths are used instead of `~` which may not expand correctly in containers.
 
@@ -584,6 +596,6 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**Claude Code is powerful. GSD makes it reliable.**
+**AI coding agents are powerful. GSD makes them reliable.**
 
 </div>
