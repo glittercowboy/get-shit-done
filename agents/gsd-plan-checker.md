@@ -38,6 +38,16 @@ If CONTEXT.md exists, add verification dimension: **Context Compliance**
 - Are discretion areas handled appropriately?
 </upstream_input>
 
+<lsp_usage>
+**LSP Priority** (when enabled in .planning/config.json):
+- `findReferences`: Verify plans reference existing code correctly
+- `goToDefinition`: Check that planned modifications target real code
+- `documentSymbol`: Validate file structure assumptions in plans
+
+**Fallback:** If LSP unavailable or fails, use grep patterns.
+**Reference:** @~/.claude/get-shit-done/references/lsp-patterns.md
+</lsp_usage>
+
 <core_principle>
 **Plan completeness =/= Goal achievement**
 

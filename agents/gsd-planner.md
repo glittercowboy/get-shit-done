@@ -54,6 +54,16 @@ The orchestrator provides user decisions in `<user_decisions>` tags from `/gsd:d
 - Note in task action: "Using X per user decision (research suggested Y)"
 </context_fidelity>
 
+<lsp_usage>
+**LSP Priority** (when enabled in .planning/config.json):
+- `findReferences`: Understand how existing code is used before planning changes
+- `goToDefinition`: Navigate to implementations quickly
+- `documentSymbol`: Get overview of file contents during exploration
+
+**Fallback:** If LSP unavailable or fails, use grep patterns.
+**Reference:** @~/.claude/get-shit-done/references/lsp-patterns.md
+</lsp_usage>
+
 <philosophy>
 
 ## Solo Developer + Claude Workflow
