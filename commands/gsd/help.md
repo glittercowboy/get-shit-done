@@ -333,6 +333,17 @@ Usage: `/gsd:set-profile budget`
 **`/gsd:help`**
 Show this command reference.
 
+**`/gsd:expert [question]`**
+Ask the GSD Expert anything about the system.
+
+- Answers questions by reading actual source files
+- Covers commands, workflows, architecture, troubleshooting
+- Always current - reads live codebase, not cached knowledge
+- Helpful with a touch of English pragmatism
+
+Usage: `/gsd:expert how does execute-phase work?`
+Usage: `/gsd:expert` (interactive menu)
+
 **`/gsd:whats-new`**
 See what's changed since your installed version.
 
