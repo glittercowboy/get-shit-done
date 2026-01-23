@@ -6,6 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.9.11] - 2026-01-23
+
+### Changed
+- Switched to manual npm publish workflow (removed GitHub Actions CI/CD)
+
+### Fixed
+- Discord badge now uses static format for reliable rendering
+
 ## [1.9.10] - 2026-01-23
 
 ### Added
@@ -1039,7 +1047,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - YOLO mode for autonomous execution
 - Interactive mode with checkpoints
 
-[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.9.10...HEAD
+[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.9.11...HEAD
+[1.9.11]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.11
 [1.9.10]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.10
 [1.9.9]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.9
 [1.9.8]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.8

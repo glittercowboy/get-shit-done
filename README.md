@@ -2,7 +2,7 @@
 
 # GET SHIT DONE
 
-**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.**
+**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code and OpenCode.**
 
 **Solves context rot — the quality degradation that happens as Claude fills its context window.**
 
