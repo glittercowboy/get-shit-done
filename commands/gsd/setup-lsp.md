@@ -260,21 +260,137 @@ All platforms: Download from https://download.eclipse.org/jdtls/
 Or via VS Code Java extension (includes JDTLS)
 ```
 
-Show combined:
+First, check which binaries are already installed:
+
+```bash
+which typescript-language-server 2>/dev/null && echo "✅ TypeScript LSP installed" || echo "⬜ TypeScript LSP not found"
+which pyright 2>/dev/null && echo "✅ Pyright installed" || echo "⬜ Pyright not found"
+which rust-analyzer 2>/dev/null && echo "✅ rust-analyzer installed" || echo "⬜ rust-analyzer not found"
+which gopls 2>/dev/null && echo "✅ gopls installed" || echo "⬜ gopls not found"
+which clangd 2>/dev/null && echo "✅ clangd installed" || echo "⬜ clangd not found"
+```
+
+Show status and ask:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► INSTALL LANGUAGE SERVERS
+ GSD ► LANGUAGE SERVER BINARIES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-{binary install commands for each selected language}
+Already installed:
+  ✅ typescript-language-server
+  ✅ pyright
 
-Note: You may already have these installed. Check with:
-  which tsserver
-  which pyright
-  which rust-analyzer
-  which gopls
-  which clangd
+Need to install:
+  ⬜ rust-analyzer
+  ⬜ gopls
+```
+
+**If all needed binaries already installed:**
+
+```
+✅ All required language server binaries are already installed!
+```
+
+Skip to Step 7.
+
+**If binaries need to be installed:**
+
+```
+AskUserQuestion([
+  {
+    question: "Install the missing language server binaries now?",
+    header: "Binaries",
+    multiSelect: false,
+    options: [
+      { label: "Yes - Install for me (Recommended)", description: "Run install commands automatically" },
+      { label: "No - Show me the commands", description: "I'll install them myself" }
+    ]
+  }
+])
+```
+
+**If "Yes - Install for me":**
+
+Run the appropriate install commands for each missing binary. Show progress:
+
+```
+Installing TypeScript language server...
+```
+```bash
+npm install -g typescript-language-server typescript
+```
+```
+✅ typescript-language-server installed
+```
+
+```
+Installing Pyright...
+```
+```bash
+# Prefer uv if available
+which uv && uv pip install pyright || pip install pyright
+```
+```
+✅ pyright installed
+```
+
+```
+Installing rust-analyzer...
+```
+```bash
+rustup component add rust-analyzer
+```
+```
+✅ rust-analyzer installed
+```
+
+```
+Installing gopls...
+```
+```bash
+go install golang.org/x/tools/gopls@latest
+```
+```
+✅ gopls installed
+```
+
+For C/C++ (clangd), detect platform:
+```bash
+# macOS
+brew install llvm
+
+# Linux (Ubuntu/Debian)
+sudo apt install clangd
+
+# Linux (Fedora)
+sudo dnf install clang-tools-extra
+```
+
+For Java: Show manual instructions (no simple one-liner):
+```
+Java JDTLS requires manual installation:
+  Download from: https://download.eclipse.org/jdtls/
+  Or install VS Code Java extension (includes JDTLS)
+```
+
+**Handle failures gracefully:** If a command fails, show the error and manual command, then continue with other languages:
+```
+⚠️ Failed to install rust-analyzer automatically.
+   Manual command: rustup component add rust-analyzer
+   Error: rustup not found - install from https://rustup.rs
+```
+
+**If "No - Show me the commands":**
+
+Show all commands for manual installation:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► MANUAL BINARY INSTALLATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{commands for each missing binary based on selected languages}
 ```
 
 ## 7. Check Environment Variable
@@ -323,7 +439,91 @@ echo 'set -gx ENABLE_LSP_TOOL 1' >> ~/.config/fish/config.fish
 
 **Note:** Tell user to run `source ~/.zshrc` (or equivalent) or restart terminal.
 
-## 8. Verify Readiness
+## 8. Add CLAUDE.md Instructions
+
+LSP tools work best when Claude knows to prioritize them. Offer to add instructions to the user's CLAUDE.md.
+
+```
+AskUserQuestion([
+  {
+    question: "Add LSP priority instructions to your CLAUDE.md?",
+    header: "CLAUDE.md",
+    multiSelect: false,
+    options: [
+      { label: "Yes - Add to project CLAUDE.md (Recommended)", description: "Add to ./CLAUDE.md in this project" },
+      { label: "Yes - Add to global CLAUDE.md", description: "Add to ~/.claude/CLAUDE.md for all projects" },
+      { label: "No - Show me the snippet", description: "I'll add it manually" }
+    ]
+  }
+])
+```
+
+**The snippet to add:**
+
+```
+## LSP Priority
+
+Prefer LSP tools over grep for semantic code navigation:
+- findReferences > grep for "find usages"
+- goToDefinition > grep for "where defined"
+- documentSymbol > grep for "list symbols"
+- incomingCalls/outgoingCalls for call chains
+- hover for type info/docs
+- FALLBACK to Glob/Grep if LSP errors or for pattern/text search
+```
+
+**If "Yes - Add to project CLAUDE.md":**
+
+Check if ./CLAUDE.md exists:
+- If exists: Append the snippet with a blank line separator
+- If not exists: Create it with the snippet
+
+Confirm:
+```
+✅ Added LSP priority instructions to ./CLAUDE.md
+```
+
+**If "Yes - Add to global CLAUDE.md":**
+
+Check if ~/.claude/CLAUDE.md exists:
+- If exists: Check if it already contains "LSP Priority" section
+  - If already has it: Tell user "LSP instructions already present in ~/.claude/CLAUDE.md"
+  - If not: Append the snippet with a blank line separator
+- If not exists: Create it with the snippet
+
+Confirm:
+```
+✅ Added LSP priority instructions to ~/.claude/CLAUDE.md
+   This will apply to all your projects.
+```
+
+**If "No - Show me the snippet":**
+
+Display clearly formatted for terminal copy-paste:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► CLAUDE.MD SNIPPET (copy everything below the line)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## LSP Priority
+
+Prefer LSP tools over grep for semantic code navigation:
+- findReferences > grep for "find usages"
+- goToDefinition > grep for "where defined"
+- documentSymbol > grep for "list symbols"
+- incomingCalls/outgoingCalls for call chains
+- hover for type info/docs
+- FALLBACK to Glob/Grep if LSP errors or for pattern/text search
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Add this to:
+  • ./CLAUDE.md (project-specific)
+  • ~/.claude/CLAUDE.md (all projects)
+```
+
+## 9. Verify Readiness
 
 Show status summary:
 
@@ -337,13 +537,13 @@ Show status summary:
 | Config Updated     | ✅ .planning/config.json |
 | Languages          | {list} |
 | ENABLE_LSP_TOOL    | {✅ Set / ⚠️ Not set} |
+| CLAUDE.md          | {✅ Added / ℹ️ Snippet shown / ⏭️ Skipped} |
 
 ## Next Steps
 
 1. Install language server binaries (commands above)
-2. Enable plugins in Claude Code settings
-3. Restart terminal (if env var was added)
-4. Run /gsd:progress to continue your work
+2. Restart terminal (if env var was added)
+3. Run /gsd:progress to continue your work
 
 LSP will enhance:
 - findReferences: Check if symbols are used/imported
@@ -362,6 +562,7 @@ Agents will automatically fall back to grep if LSP is unavailable.
 - [ ] Missing plugins installed (settings.json edit, /plugin command, or manual shown)
 - [ ] Binary install instructions displayed for each language
 - [ ] ENABLE_LSP_TOOL checked (and optionally added to profile)
+- [ ] CLAUDE.md instructions offered (added automatically or snippet shown)
 - [ ] Status summary shown with next steps
 </success_criteria>
 

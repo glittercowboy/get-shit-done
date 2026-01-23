@@ -1557,9 +1557,12 @@ function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallS
   ${cyan}Join the community:${reset} https://discord.gg/5JJgD5svVS
 `);
 
-  if (detectedLangs.length > 0) {
-    console.log(`  ${yellow}LSP Support${reset}: Detected ${detectedLangs.join(', ')}.`);
-    console.log(`  Run ${cyan}/gsd:setup-lsp${reset} to enable enhanced code navigation.\n`);
+  // Always show LSP tip for Claude Code users
+  if (!isOpencode) {
+    if (detectedLangs.length > 0) {
+      console.log(`  ${yellow}LSP Support${reset}: Detected ${detectedLangs.join(', ')}.`);
+    }
+    console.log(`  Run ${cyan}/gsd:setup-lsp${reset} in Claude Code to enable enhanced code navigation.\n`);
   }
 }
 
