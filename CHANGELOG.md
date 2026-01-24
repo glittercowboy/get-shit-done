@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-01-24
+
+### Added
+- **Integration Check in Milestone Completion**: `complete-milestone.md` workflow now includes automatic integration verification
+  - Spawns `gsd-integration-checker` for milestones with >3 phases
+  - Catches cross-phase wiring issues (orphaned exports, unused APIs, incomplete E2E flows)
+  - User can continue with known issues or fix first
+  - Added to success_criteria checklist
+
+### Documentation
+- Documented `extends:` mechanism limitation in CONCERNS.md
+  - Claude Code does not automatically load base files referenced by `extends:` field
+  - Research agent base + focus architecture deferred until orchestrator refactor
+
 ## [2.1.1] - 2026-01-24
 
 ### Fixed
