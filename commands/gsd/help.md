@@ -123,6 +123,19 @@ Execute all plans in a phase.
 
 Usage: `/gsd:execute-phase 5`
 
+**`/gsd:execute-milestone [--from <phase>] [--auto]`**
+Execute all phases in the current milestone sequentially.
+
+- Executes each phase one by one automatically
+- Pauses between phases for user confirmation (unless --auto)
+- Handles phases that need planning first
+- Manages gap closure if verification fails
+- Resume from any phase with --from flag
+
+Usage: `/gsd:execute-milestone` (start from first incomplete phase)
+Usage: `/gsd:execute-milestone --from 3` (start from phase 3)
+Usage: `/gsd:execute-milestone --auto` (no pauses, fully autonomous)
+
 ### Quick Mode
 
 **`/gsd:quick`**
