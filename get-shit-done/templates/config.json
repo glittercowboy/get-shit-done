@@ -1,6 +1,10 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "smart_execution": {
+    "enabled": false,
+    "auto_detect_dependencies": true
+  },
   "workflow": {
     "research": true,
     "plan_check": true,

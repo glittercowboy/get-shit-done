@@ -67,17 +67,46 @@ Phase: $ARGUMENTS
    - If `--gaps-only`: filter to only plans with `gap_closure: true`
    - Build list of incomplete plans
 
-3. **Group by wave**
+3. **Group by wave OR analyze dependencies**
+   
+   Check smart execution config:
+   ```bash
+   SMART_EXEC=$(cat .planning/config.json 2>/dev/null | grep -o '"smart_execution"[^}]*"enabled"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   ```
+   
+   **If `smart_exec` is `false`:**
    - Read `wave` from each plan's frontmatter
    - Group plans by wave number
    - Report wave structure to user
+   - Proceed to traditional wave execution (step 4)
+   
+   **If `smart_exec` is `true`:**
+   - Analyze dependencies across all plans (see `<dependency_analysis>`)
+   - Build dependency graph
+   - Create optimized execution groups
+   - Report optimized structure to user
+   - Proceed to smart execution (step 4a)
 
-4. **Execute waves**
+4. **Execute waves (traditional)**
    For each wave in order:
    - Spawn `gsd-executor` for each plan in wave (parallel Task calls)
    - Wait for completion (Task blocks)
    - Verify SUMMARYs created
    - Proceed to next wave
+
+4a. **Execute with dependency awareness (smart)**
+   Execute plans based on dependency graph:
+   - Group 1: All plans with no dependencies (execute in parallel)
+   - Wait for Group 1 completion
+   - Group 2: Plans that only depend on Group 1 (execute in parallel)
+   - Wait for Group 2 completion
+   - Continue until all plans executed
+   
+   **Behavior:**
+   - Plans execute as soon as their dependencies are met
+   - Maximizes parallelization across traditional wave boundaries
+   - Frontend can run while backend is still building (if independent)
+   - Database migrations run first, then dependent API code
 
 5. **Aggregate results**
    - Collect summaries from all plans
@@ -326,6 +355,104 @@ After all plans in phase complete (step 7):
 
 **Always stage files individually.**
 </commit_rules>
+
+<dependency_analysis>
+## Dependency Analysis for Smart Execution
+
+When `smart_execution.enabled` is `true`, analyze dependencies before execution:
+
+### 1. Extract File Dependencies
+
+For each plan, read frontmatter and tasks:
+
+```bash
+# From plan frontmatter
+files_modified: src/db/schema.ts, src/db/migrations/001.sql
+
+# From task <files> elements
+<files>src/api/auth.ts, src/types/user.ts</files>
+```
+
+Build file list for each plan.
+
+### 2. Detect Dependencies
+
+**Plan B depends on Plan A if:**
+
+- Plan B reads files that Plan A modifies
+- Plan B imports modules from files Plan A creates
+- Plan B's tasks reference Plan A's deliverables in `<action>` text
+
+**Auto-detection heuristics:**
+
+| Pattern | Dependency |
+|---------|------------|
+| Plan A creates `src/db/schema.ts`, Plan B imports from it | B depends on A |
+| Plan A modifies `package.json`, Plan B uses new dependency | B depends on A |
+| Plan A creates API endpoint, Plan B calls that endpoint | B depends on A |
+| Plan A creates database table, Plan B queries that table | B depends on A |
+
+**Independence indicators:**
+
+| Pattern | Independent |
+|---------|-------------|
+| Plan A modifies backend, Plan B modifies frontend (no shared files) | Independent |
+| Plan A creates component A, Plan B creates component B (different files) | Independent |
+| Plan A writes tests, Plan B writes docs | Independent |
+
+### 3. Build Dependency Graph
+
+Create adjacency list:
+
+```
+Plan 01: [] (no dependencies)
+Plan 02: [01] (depends on 01)
+Plan 03: [] (no dependencies)
+Plan 04: [01, 02] (depends on 01 and 02)
+Plan 05: [03] (depends on 03)
+```
+
+### 4. Create Execution Groups
+
+Use topological sort to group plans:
+
+```
+Group 1: [01, 03] (no dependencies - run in parallel)
+Group 2: [02, 05] (depend only on Group 1 - run in parallel)
+Group 3: [04] (depends on Group 2)
+```
+
+### 5. Report to User
+
+Display optimized structure:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| GSD ► SMART EXECUTION ENABLED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Analyzed dependencies across 5 plans.
+Optimized from 3 waves → 3 execution groups.
+
+| Group | Plans | Dependencies |
+|-------|-------|--------------|
+| 1     | 01, 03 | None (parallel start) |
+| 2     | 02, 05 | Group 1 complete |
+| 3     | 04     | Groups 1, 2 complete |
+
+Expected speedup: ~40% faster than traditional waves
+
+───────────────────────────────────────────────────────────────
+```
+
+### 6. Fallback
+
+If dependency analysis fails or is ambiguous:
+- Log warning
+- Fall back to traditional wave execution
+- Continue without smart execution
+
+</dependency_analysis>
 
 <success_criteria>
 - [ ] All incomplete plans in phase executed
