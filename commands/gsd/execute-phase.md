@@ -79,6 +79,28 @@ Phase: $ARGUMENTS
    - Verify SUMMARYs created
    - Proceed to next wave
 
+4a. **Spawn predictive planner (if enabled)**
+   After first wave completes, check predictive planning config:
+   
+   ```bash
+   PREDICTIVE_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"predictive_planning"[^}]*"enabled"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   LOOKAHEAD=$(cat .planning/config.json 2>/dev/null | grep -o '"lookahead"[[:space:]]*:[[:space:]]*[0-9]*' | grep -o '[0-9]*' || echo "1")
+   ```
+   
+   **If `predictive_enabled` is `true` AND more phases exist:**
+   - Determine next phase number(s) based on lookahead
+   - Check if next phase(s) already have plans
+   - For each unplanned future phase within lookahead:
+     - Spawn background `gsd-planner` agent (non-blocking)
+     - Agent creates plans in `.planning/phases/{phase}-{name}/` with `.predictive` suffix
+     - Main execution continues without waiting
+   
+   **Behavior:**
+   - Predictive planning happens in parallel with current execution
+   - Plans are marked as predictive (can be reviewed/adjusted later)
+   - If next phase already has plans, skip predictive planning
+   - Errors in predictive planning don't block current execution
+
 5. **Aggregate results**
    - Collect summaries from all plans
    - Report phase completion status
