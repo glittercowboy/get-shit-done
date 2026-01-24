@@ -70,6 +70,16 @@ Map an existing codebase for brownfield projects.
 
 Usage: `/gsd:map-codebase`
 
+**`/gsd:check-project`**
+Analyze CLAUDE.md for GSD compatibility and conflicts.
+
+- Finds conflicts between project rules and GSD methodology
+- Identifies redundant rules (GSD already handles these)
+- Highlights project-specific rules to keep
+- Offers to help clean up CLAUDE.md
+
+Usage: `/gsd:check-project`
+
 ### Phase Planning
 
 **`/gsd:discuss-phase <number>`**
