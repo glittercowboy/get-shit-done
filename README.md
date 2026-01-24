@@ -491,6 +491,7 @@ GSD stores project settings in `.planning/config.json`. Configure during `/gsd:n
 When enabled, GSD automatically progresses through the workflow:
 - After `/gsd:plan-phase` completes → auto-clears context and runs `/gsd:execute-phase`
 - After `/gsd:execute-phase` completes → auto-clears context and runs `/gsd:plan-phase` for next phase
+- When `/gsd:resume-work` is called → auto-detects next action and runs it immediately
 
 This creates a fully automated build loop. Enable via `/gsd:settings` or manually edit `.planning/config.json`:
 
@@ -500,7 +501,7 @@ This creates a fully automated build loop. Enable via `/gsd:settings` or manuall
 }
 ```
 
-Perfect for: Long build sessions where you want continuous progress without manual intervention.
+Perfect for: Long build sessions where you want continuous progress without manual intervention. Just run `/gsd:resume-work` and let it continue where it left off.
 
 ### Model Profiles
 
