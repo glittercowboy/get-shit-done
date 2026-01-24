@@ -3,8 +3,26 @@ Execute all plans in a phase using wave-based parallel execution. Orchestrator s
 </purpose>
 
 <core_principle>
-The orchestrator's job is coordination, not execution. Each subagent loads the full execute-plan context itself. Orchestrator discovers plans, analyzes dependencies, groups into waves, spawns agents, handles checkpoints, collects results.
+The orchestrator's job is coordination, not execution. Each subagent loads the execute-plan context (compact or full based on config). Orchestrator discovers plans, analyzes dependencies, groups into waves, spawns agents, handles checkpoints, collects results.
 </core_principle>
+
+<optimization_flags>
+**v2.0 Optimization Support:**
+
+Read these flags from config.json during `resolve_model_profile` step:
+- `optimization.compact_workflows` — use execute-plan-compact.md (default: false)
+- `optimization.lazy_references` — skip checkpoint ref for autonomous plans (default: false)
+- `optimization.tiered_instructions` — use gsd-executor-core (default: false)
+
+**Token savings when enabled:**
+| Optimization | Per-Executor Savings |
+|--------------|---------------------|
+| compact_workflows | ~12,500 tokens |
+| lazy_references (autonomous) | ~8,700 tokens |
+| tiered_instructions | ~2,200 tokens |
+
+All flags default to `false` for backward compatibility.
+</optimization_flags>
 
 <required_reading>
 Read STATE.md before any operation to load project context.
@@ -27,10 +45,19 @@ Default to "balanced" if not set.
 | Agent | quality | balanced | budget |
 |-------|---------|----------|--------|
 | gsd-executor | opus | sonnet | sonnet |
+| gsd-executor-core | opus | sonnet | sonnet |
 | gsd-verifier | sonnet | sonnet | haiku |
+| gsd-verifier-core | sonnet | sonnet | haiku |
 | general-purpose | — | — | — |
 
 Store resolved models for use in Task calls below.
+
+**Read optimization flags (same step):**
+```bash
+COMPACT_WORKFLOWS=$(cat .planning/config.json 2>/dev/null | grep -o '"compact_workflows"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+LAZY_REFERENCES=$(cat .planning/config.json 2>/dev/null | grep -o '"lazy_references"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+TIERED_INSTRUCTIONS=$(cat .planning/config.json 2>/dev/null | grep -o '"tiered_instructions"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+```
 </step>
 
 <step name="load_project_state">

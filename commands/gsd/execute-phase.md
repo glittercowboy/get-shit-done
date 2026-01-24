@@ -52,9 +52,20 @@ Phase: $ARGUMENTS
    | Agent | quality | balanced | budget |
    |-------|---------|----------|--------|
    | gsd-executor | opus | sonnet | sonnet |
+   | gsd-executor-core | opus | sonnet | sonnet |
    | gsd-verifier | sonnet | sonnet | haiku |
+   | gsd-verifier-core | sonnet | sonnet | haiku |
 
    Store resolved models for use in Task calls below.
+
+   **Read optimization flags:**
+   ```bash
+   COMPACT_WORKFLOWS=$(cat .planning/config.json 2>/dev/null | grep -o '"compact_workflows"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   LAZY_REFERENCES=$(cat .planning/config.json 2>/dev/null | grep -o '"lazy_references"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   TIERED_INSTRUCTIONS=$(cat .planning/config.json 2>/dev/null | grep -o '"tiered_instructions"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   ```
+
+   Default all to "false" for backward compatibility. Store for use in subagent spawning.
 
 1. **Validate phase exists**
    - Find phase directory matching argument
@@ -101,8 +112,17 @@ Phase: $ARGUMENTS
 
    **If `workflow.verifier` is `false`:** Skip to step 8 (treat as passed).
 
+   **Determine verifier type:**
+   ```bash
+   if [ "$TIERED_INSTRUCTIONS" = "true" ]; then
+     VERIFIER_TYPE="gsd-verifier-core"
+   else
+     VERIFIER_TYPE="gsd-verifier"
+   fi
+   ```
+
    **Otherwise:**
-   - Spawn `gsd-verifier` subagent with phase directory and goal
+   - Spawn `{VERIFIER_TYPE}` subagent with phase directory and goal
    - Verifier checks must_haves against actual codebase (not SUMMARY claims)
    - Creates VERIFICATION.md with detailed report
    - Route by status:
@@ -261,19 +281,65 @@ PLAN_01_CONTENT=$(cat "{plan_01_path}")
 PLAN_02_CONTENT=$(cat "{plan_02_path}")
 PLAN_03_CONTENT=$(cat "{plan_03_path}")
 STATE_CONTENT=$(cat .planning/STATE.md)
+
+# Determine executor type based on optimization flags
+if [ "$TIERED_INSTRUCTIONS" = "true" ]; then
+  EXECUTOR_TYPE="gsd-executor-core"
+else
+  EXECUTOR_TYPE="gsd-executor"
+fi
+
+# Determine workflow file based on optimization flags
+if [ "$COMPACT_WORKFLOWS" = "true" ]; then
+  WORKFLOW_FILE="execute-plan-compact.md"
+else
+  WORKFLOW_FILE="execute-plan.md"
+fi
+
+# Check if plan is autonomous (for lazy references)
+PLAN_01_AUTONOMOUS=$(grep "^autonomous:" "{plan_01_path}" | grep -o 'true\|false' || echo "true")
 ```
 
-Spawn all plans in a wave with a single message containing multiple Task calls, with inlined content:
+**Build subagent prompt with conditional references:**
 
 ```
-Task(prompt="Execute plan at {plan_01_path}\n\nPlan:\n{plan_01_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
-Task(prompt="Execute plan at {plan_02_path}\n\nPlan:\n{plan_02_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
-Task(prompt="Execute plan at {plan_03_path}\n\nPlan:\n{plan_03_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
+# Base prompt template
+EXECUTOR_PROMPT="Execute plan at {plan_path}
+
+Execution workflow: @~/.claude/get-shit-done/workflows/${WORKFLOW_FILE}
+
+Plan:
+{plan_content}
+
+Project state:
+{state_content}"
+
+# Add checkpoint reference based on lazy_references flag
+if [ "$LAZY_REFERENCES" = "false" ] || [ "$PLAN_AUTONOMOUS" = "false" ]; then
+  # Include checkpoint reference for non-autonomous plans or when lazy_references disabled
+  EXECUTOR_PROMPT="${EXECUTOR_PROMPT}
+
+Checkpoint reference: @~/.claude/get-shit-done/references/checkpoints-minimal.md"
+fi
+# Note: autonomous plans with lazy_references=true skip checkpoint reference entirely
+```
+
+Spawn all plans in a wave with a single message containing multiple Task calls:
+
+```
+Task(prompt="{executor_prompt_01}", subagent_type="{EXECUTOR_TYPE}", model="{executor_model}")
+Task(prompt="{executor_prompt_02}", subagent_type="{EXECUTOR_TYPE}", model="{executor_model}")
+Task(prompt="{executor_prompt_03}", subagent_type="{EXECUTOR_TYPE}", model="{executor_model}")
 ```
 
 All three run in parallel. Task tool blocks until all complete.
 
 **No polling.** No background agents. No TaskOutput loops.
+
+**Token savings with optimizations enabled:**
+- `compact_workflows: true` → ~12,500 tokens saved per executor (execute-plan-compact.md vs full)
+- `lazy_references: true` + autonomous → ~8,700 tokens saved per executor (no checkpoints.md)
+- `tiered_instructions: true` → ~2,200 tokens saved per executor (gsd-executor-core vs full)
 </wave_execution>
 
 <checkpoint_handling>
