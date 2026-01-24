@@ -110,9 +110,17 @@ Task(
 **If `## ROOT CAUSE FOUND`:**
 - Display root cause and evidence summary
 - Offer options:
-  - "Fix now" - spawn fix subagent
+  - "Fix now" - spawn fix subagent (for obvious fixes)
+  - "Experiment with fixes" - start `/gsd:experiment` (when fix needs exploration)
   - "Plan fix" - suggest /gsd:plan-phase --gaps
   - "Manual fix" - done
+
+**If user chooses "Experiment with fixes":**
+- Pass debug session context to `/gsd:experiment`:
+  - Problem from symptoms
+  - Root cause from resolution
+  - Path to debug file
+- Experiment orchestrator takes over
 
 **If `## CHECKPOINT REACHED`:**
 - Present checkpoint details to user
