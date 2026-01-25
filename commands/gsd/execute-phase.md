@@ -42,7 +42,12 @@ Phase: $ARGUMENTS
 
    Read model profile for agent spawning:
    ```bash
-   MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+   # Try jq first (robust), fallback to grep (compatible)
+   if command -v jq >/dev/null 2>&1; then
+     MODEL_PROFILE=$(jq -r '.model_profile // "balanced"' .planning/config.json 2>/dev/null || echo "balanced")
+   else
+     MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+   fi
    ```
 
    Default to "balanced" if not set.
@@ -60,10 +65,18 @@ Phase: $ARGUMENTS
 
    **Read optimization flags:**
    ```bash
-   COMPACT_WORKFLOWS=$(cat .planning/config.json 2>/dev/null | grep -o '"compact_workflows"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
-   LAZY_REFERENCES=$(cat .planning/config.json 2>/dev/null | grep -o '"lazy_references"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
-   TIERED_INSTRUCTIONS=$(cat .planning/config.json 2>/dev/null | grep -o '"tiered_instructions"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
-   DELTA_CONTEXT=$(cat .planning/config.json 2>/dev/null | grep -o '"delta_context"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   # Try jq first (robust), fallback to grep (compatible)
+   if command -v jq >/dev/null 2>&1; then
+     COMPACT_WORKFLOWS=$(jq -r '.optimization.compact_workflows // false' .planning/config.json 2>/dev/null || echo "false")
+     LAZY_REFERENCES=$(jq -r '.optimization.lazy_references // false' .planning/config.json 2>/dev/null || echo "false")
+     TIERED_INSTRUCTIONS=$(jq -r '.optimization.tiered_instructions // false' .planning/config.json 2>/dev/null || echo "false")
+     DELTA_CONTEXT=$(jq -r '.optimization.delta_context // false' .planning/config.json 2>/dev/null || echo "false")
+   else
+     COMPACT_WORKFLOWS=$(cat .planning/config.json 2>/dev/null | grep -o '"compact_workflows"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+     LAZY_REFERENCES=$(cat .planning/config.json 2>/dev/null | grep -o '"lazy_references"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+     TIERED_INSTRUCTIONS=$(cat .planning/config.json 2>/dev/null | grep -o '"tiered_instructions"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+     DELTA_CONTEXT=$(cat .planning/config.json 2>/dev/null | grep -o '"delta_context"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+   fi
    ```
 
    Default all to "false" for backward compatibility. Store for use in subagent spawning.
@@ -112,7 +125,15 @@ Phase: $ARGUMENTS
    **If clean:** Continue to verification.
 
 7. **Verify phase goal**
-   Check config: `WORKFLOW_VERIFIER=$(cat .planning/config.json 2>/dev/null | grep -o '"verifier"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")`
+   Check config:
+   ```bash
+   # Try jq first (robust), fallback to grep (compatible)
+   if command -v jq >/dev/null 2>&1; then
+     WORKFLOW_VERIFIER=$(jq -r '.workflow.verifier // true' .planning/config.json 2>/dev/null || echo "true")
+   else
+     WORKFLOW_VERIFIER=$(cat .planning/config.json 2>/dev/null | grep -o '"verifier"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+   fi
+   ```
 
    **If `workflow.verifier` is `false`:** Skip to step 8 (treat as passed).
 
@@ -295,6 +316,15 @@ else
   EXECUTOR_TYPE="gsd-executor"
 fi
 
+# TDD tasks require full context (not just delta) to access:
+# - Existing test patterns in the project
+# - Testing conventions and setup
+# - Global decisions that affect TDD approach
+if [ -n "$HAS_TDD_TASKS" ] && [ "$DELTA_CONTEXT" = "true" ]; then
+  echo "ℹ️  TDD tasks detected, using full context mode (overriding delta_context)"
+  DELTA_CONTEXT="false"
+fi
+
 # Determine workflow file based on optimization flags
 if [ "$COMPACT_WORKFLOWS" = "true" ]; then
   WORKFLOW_FILE="execute-plan-compact.md"
@@ -314,10 +344,11 @@ PLAN_01_AUTONOMOUS=$(grep "^autonomous:" "{plan_01_path}" | grep -o 'true\|false
 
 if [ "$DELTA_CONTEXT" = "true" ]; then
   # Extract phase section from ROADMAP (not full file)
-  PHASE_SECTION=$(sed -n "/^## Phase ${PHASE_NUM}:/,/^## Phase [0-9]\|^---/p" .planning/ROADMAP.md | head -n -1)
+  # Use sed -E for cross-platform regex, sed '$d' instead of head -n -1 for macOS compatibility
+  PHASE_SECTION=$(sed -En "/^## Phase ${PHASE_NUM}:/,/^## Phase [0-9]|^---/p" .planning/ROADMAP.md | sed '$d')
 
   # Extract relevant decisions from STATE (global + phase-specific only)
-  CURRENT_POS=$(sed -n '/^## Current Position/,/^## /p' .planning/STATE.md | head -n -1)
+  CURRENT_POS=$(sed -En '/^## Current Position/,/^## /p' .planning/STATE.md | sed '$d')
   GLOBAL_DECISIONS=$(grep -E "^- \[Global\]" .planning/STATE.md 2>/dev/null || true)
   PHASE_DECISIONS=$(grep -E "^- \[Phase ${PHASE_NUM}\]" .planning/STATE.md 2>/dev/null || true)
 
@@ -345,6 +376,17 @@ ${PHASE_DECISIONS}"
 ## Task Requirements
 ${REQ_HEADER}
 ${REQ_ROWS}"
+  fi
+
+  # === VALIDATION: Verify delta extraction succeeded ===
+  # If critical sections are empty, fall back to full context for safety
+  if [ -z "$PHASE_SECTION" ] || [ -z "$CURRENT_POS" ]; then
+    echo "⚠️  Delta context extraction failed (empty PHASE_SECTION or CURRENT_POS)"
+    echo "    Falling back to full context mode for safety"
+    DELTA_CONTEXT="false"
+    STATE_CONTENT=$(cat .planning/STATE.md)
+    CONTEXT_FOR_EXECUTOR="## Project State
+${STATE_CONTENT}"
   fi
 
 else

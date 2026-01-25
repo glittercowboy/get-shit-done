@@ -6,6 +6,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Robust Config Parsing**: All config.json parsing now uses jq with grep fallback for cross-platform reliability
+  - Fixes fragility with different JSON formatting/nesting
+  - Applies to: model_profile, optimization flags, workflow settings in `execute-phase.md` and `complete-milestone.md`
+- **macOS Compatibility**: Fixed sed/head commands for cross-platform compatibility
+  - Changed `sed -n` to `sed -En` for extended regex support
+  - Changed `head -n -1` to `sed '$d'` for reliable last-line removal on BSD/macOS
+  - Applies to: delta-context extraction in `execute-phase.md`
+- **Delta Context Safety**: Added validation and fallback for delta-context extraction
+  - Verifies PHASE_SECTION and CURRENT_POS are not empty after extraction
+  - Falls back to full context mode if extraction fails
+  - Prevents silent failures when STATE.md/ROADMAP.md headers change
+- **TDD + Delta Context Inconsistency**: TDD tasks now force full context mode
+  - When `tdd="true"` detected, overrides `delta_context=true` setting
+  - Ensures TDD executor has access to test patterns, conventions, and global decisions
+  - Fixes case where full executor was used with trimmed context
+
+### Added
+- **Configurable Integration Check**: Integration check threshold now configurable in config.json
+  - New settings: `workflow.integration_check.enabled` (default: true), `workflow.integration_check.min_phases` (default: 4)
+  - Borderline cases (min_phases or min_phases+1) now prompt user with AskUserQuestion
+  - More flexible than hardcoded >3 phases threshold
+- **Workflow Maintenance Documentation**: Created `WORKFLOW_MAINTENANCE.md` guide
+  - Documents relationship between execute-plan.md and execute-plan-compact.md
+  - Maintenance strategy for keeping files logically synchronized
+  - Testing checklist and version history tracking
+- **Workflow Parity Test**: Added automated test script `tests/test-workflow-parity.sh`
+  - Verifies critical sections exist in both workflow files
+  - Helps prevent drift during maintenance
+  - Includes detailed error reporting and fix suggestions
+
+### Changed
+- **Integration Check Threshold**: Changed from hardcoded >3 phases to configurable min_phases
+  - Default increased from 3 to 4 phases in config.json template
+  - Can be customized per-project based on complexity needs
+
 ## [2.1.2] - 2026-01-24
 
 ### Added

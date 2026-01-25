@@ -33,6 +33,8 @@ Parse current values (default to `true` if not present):
 - `workflow.research` — spawn researcher during plan-phase
 - `workflow.plan_check` — spawn plan checker during plan-phase
 - `workflow.verifier` — spawn verifier during execute-phase
+- `workflow.integration_check.enabled` — run integration check during complete-milestone (default: `true`)
+- `workflow.integration_check.min_phases` — minimum phases to trigger integration check (default: `4`)
 - `model_profile` — which model each agent uses (default: `balanced`)
 - `optimization.level` — optimization level (default: `standard`)
 - `optimization.context_budget.enabled` — context budget monitoring (default: `true`)
