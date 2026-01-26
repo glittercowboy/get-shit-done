@@ -142,8 +142,28 @@ Read template from `@~/.claude/get-shit-done/templates/autopilot-script.sh` and 
 
 Write to `.planning/autopilot.sh`:
 ```bash
-mkdir -p .planning/logs
+mkdir -p .planning/logs .planning/checkpoints/pending .planning/checkpoints/approved
 chmod +x .planning/autopilot.sh
+```
+
+**Ensure gitignore entries exist** (autopilot transient files should not be committed):
+```bash
+# Add to .gitignore if not already present
+GITIGNORE_ENTRIES="
+# GSD autopilot (transient files)
+.planning/autopilot.sh
+.planning/autopilot.lock
+.planning/logs/
+.planning/checkpoints/
+"
+
+if [ -f .gitignore ]; then
+  if ! grep -q "GSD autopilot" .gitignore; then
+    echo "$GITIGNORE_ENTRIES" >> .gitignore
+  fi
+else
+  echo "$GITIGNORE_ENTRIES" > .gitignore
+fi
 ```
 
 ## 6. Present Run Instructions

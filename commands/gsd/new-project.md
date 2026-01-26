@@ -371,7 +371,14 @@ Create `.planning/config.json` with all settings:
 - Add `.planning/` to `.gitignore` (create if needed)
 
 **If commit_docs = Yes:**
-- No additional gitignore entries needed
+- Add autopilot transient files to `.gitignore`:
+  ```
+  # GSD autopilot (transient files)
+  .planning/autopilot.sh
+  .planning/autopilot.lock
+  .planning/logs/
+  .planning/checkpoints/
+  ```
 
 **Commit config.json:**
 
