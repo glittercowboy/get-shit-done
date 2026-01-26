@@ -1,0 +1,26 @@
+{
+  "name": "get-shit-done-opencode",
+  "version": "1.6.4",
+  "description": "Get Shit Done installer for OpenCode.",
+  "bin": {
+    "get-shit-done-opencode": "bin/install.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "keywords": [
+    "opencode",
+    "ai",
+    "meta-prompting",
+    "context-engineering",
+    "spec-driven-development"
+  ],
+  "author": "TÂCHES",
+  "license": "MIT",
+  "dependencies": {
+    "get-shit-done-cc": "^1.6.4"
+  },
+  "engines": {
+    "node": ">=16.7.0"
+  }
+}
