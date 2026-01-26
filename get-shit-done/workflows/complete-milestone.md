@@ -579,6 +579,125 @@ Progress: [updated progress bar]
 
 </step>
 
+<step name="handle_branches">
+
+Check if branching was used and offer merge options.
+
+**Check branching strategy:**
+
+```bash
+# Get branching strategy from config
+BRANCHING_STRATEGY=$(cat .planning/config.json 2>/dev/null | grep -o '"branching_strategy"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:.*"\([^"]*\)"/\1/' || echo "none")
+```
+
+**If strategy is "none":** Skip to git_tag step.
+
+**For "phase" strategy — find phase branches:**
+
+```bash
+PHASE_BRANCH_TEMPLATE=$(cat .planning/config.json 2>/dev/null | grep -o '"phase_branch_template"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:.*"\([^"]*\)"/\1/' || echo "gsd/phase-{phase}-{slug}")
+
+# Extract prefix from template (before first variable)
+BRANCH_PREFIX=$(echo "$PHASE_BRANCH_TEMPLATE" | sed 's/{.*//')
+
+# Find all phase branches for this milestone
+PHASE_BRANCHES=$(git branch --list "${BRANCH_PREFIX}*" 2>/dev/null | sed 's/^\*//' | tr -d ' ')
+```
+
+**For "milestone" strategy — find milestone branch:**
+
+```bash
+MILESTONE_BRANCH_TEMPLATE=$(cat .planning/config.json 2>/dev/null | grep -o '"milestone_branch_template"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*:.*"\([^"]*\)"/\1/' || echo "gsd/{milestone}-{slug}")
+
+# Extract prefix from template
+BRANCH_PREFIX=$(echo "$MILESTONE_BRANCH_TEMPLATE" | sed 's/{.*//')
+
+# Find milestone branch
+MILESTONE_BRANCH=$(git branch --list "${BRANCH_PREFIX}*" 2>/dev/null | sed 's/^\*//' | tr -d ' ' | head -1)
+```
+
+**If no branches found:** Skip to git_tag step.
+
+**If branches exist — present merge options:**
+
+```
+## Git Branches Detected
+
+Branching strategy: {phase/milestone}
+
+Branches found:
+{list of branches}
+
+Options:
+1. **Merge to main** — Merge branch(es) to main
+2. **Delete without merging** — Branches already merged or not needed
+3. **Keep branches** — Leave for manual handling
+```
+
+Use AskUserQuestion:
+
+```
+AskUserQuestion([
+  {
+    question: "How should branches be handled?",
+    header: "Branches",
+    multiSelect: false,
+    options: [
+      { label: "Merge to main", description: "Merge all branches to main sequentially" },
+      { label: "Delete without merging", description: "Branches already merged or not needed" },
+      { label: "Keep branches", description: "Leave branches for manual handling later" }
+    ]
+  }
+])
+```
+
+**If "Merge to main":**
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+git checkout main
+
+# For phase strategy - merge each phase branch
+if [ "$BRANCHING_STRATEGY" = "phase" ]; then
+  for branch in $PHASE_BRANCHES; do
+    echo "Merging $branch..."
+    git merge --no-ff "$branch" -m "Merge branch '$branch' for v[X.Y]"
+  done
+fi
+
+# For milestone strategy - merge milestone branch
+if [ "$BRANCHING_STRATEGY" = "milestone" ]; then
+  echo "Merging $MILESTONE_BRANCH..."
+  git merge --no-ff "$MILESTONE_BRANCH" -m "Merge branch '$MILESTONE_BRANCH' for v[X.Y]"
+fi
+
+git checkout "$CURRENT_BRANCH"
+```
+
+Report: "Merged branches to main"
+
+**If "Delete without merging":**
+
+```bash
+if [ "$BRANCHING_STRATEGY" = "phase" ]; then
+  for branch in $PHASE_BRANCHES; do
+    git branch -d "$branch" 2>/dev/null || git branch -D "$branch"
+  done
+fi
+
+if [ "$BRANCHING_STRATEGY" = "milestone" ]; then
+  git branch -d "$MILESTONE_BRANCH" 2>/dev/null || git branch -D "$MILESTONE_BRANCH"
+fi
+```
+
+Report: "Deleted branches"
+
+**If "Keep branches":**
+
+Report: "Branches preserved for manual handling"
+
+</step>
+
 <step name="git_tag">
 
 Create git tag for milestone:
