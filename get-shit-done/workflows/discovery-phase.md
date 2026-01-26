@@ -53,14 +53,16 @@ For: Single known library, confirming syntax/version still correct.
 
    ```
    mcp__context7__resolve-library-id with libraryName: "[library]"
+   (or mcp__plugin_context7_context7__resolve-library-id if using the plugin)
    ```
 
 2. Fetch relevant docs:
 
    ```
-   mcp__context7__get-library-docs with:
-   - context7CompatibleLibraryID: [from step 1]
-   - topic: [specific concern]
+   mcp__context7__query-docs with:
+   - libraryId: [from step 1]
+   - query: [specific concern]
+   (or mcp__plugin_context7_context7__query-docs if using the plugin)
    ```
 
 3. Verify:
@@ -94,7 +96,8 @@ For: Choosing between options, new external integration.
    ```
    For each library/framework:
    - mcp__context7__resolve-library-id
-   - mcp__context7__get-library-docs (mode: "code" for API, "info" for concepts)
+   - mcp__context7__query-docs
+   (or plugin variants: mcp__plugin_context7_context7__resolve-library-id / query-docs)
    ```
 
 3. **Official docs** for anything Context7 lacks.
