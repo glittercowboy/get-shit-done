@@ -1074,12 +1074,21 @@ function install(isGlobal, runtime = 'claude') {
       ? `bash "${targetDir.replace(/\\/g, '/')}/hooks/gsd-activity.sh"`
       : `bash ${dirName}/hooks/gsd-activity.sh`;
 
-    // Check if GSD activity hook already exists
-    const hasGsdActivityHook = settings.hooks.PostToolUse.some(entry =>
+    // Check if GSD activity hook already exists (handles both old and new format)
+    let hasGsdActivityHook = settings.hooks.PostToolUse.some(entry =>
       entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-activity'))
     );
 
-    if (!hasGsdActivityHook) {
+    // Remove old-format GSD activity hooks if present
+    const beforeCount = settings.hooks.PostToolUse.length;
+    settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(entry => {
+      // Keep entry if it's not an old-format GSD activity hook
+      const isOldGsdHook = entry.command && entry.command.includes('gsd-activity');
+      return !isOldGsdHook;
+    });
+
+    // If we removed old hooks or didn't find new hooks, add new format
+    if (!hasGsdActivityHook || settings.hooks.PostToolUse.length < beforeCount) {
       settings.hooks.PostToolUse.push({
         matcher: "Task|Write|Edit|Read|Bash|TodoWrite",
         hooks: [
