@@ -484,6 +484,24 @@ GSD stores project settings in `.planning/config.json`. Configure during `/gsd:n
 |---------|---------|---------|------------------|
 | `mode` | `yolo`, `interactive` | `interactive` | Auto-approve vs confirm at each step |
 | `depth` | `quick`, `standard`, `comprehensive` | `standard` | Planning thoroughness (phases × plans) |
+| `auto_chain` | `true`, `false` | `false` | Automatically chain plan → execute → plan next phase |
+
+**Auto-Chain Mode:**
+
+When enabled, GSD automatically progresses through the workflow:
+- After `/gsd:plan-phase` completes → auto-clears context and runs `/gsd:execute-phase`
+- After `/gsd:execute-phase` completes → auto-clears context and runs `/gsd:plan-phase` for next phase
+- When `/gsd:resume-work` is called → auto-detects next action and runs it immediately
+
+This creates a fully automated build loop. Enable via `/gsd:settings` or manually edit `.planning/config.json`:
+
+```json
+{
+  "auto_chain": true
+}
+```
+
+Perfect for: Long build sessions where you want continuous progress without manual intervention. Just run `/gsd:resume-work` and let it continue where it left off.
 
 ### Model Profiles
 
