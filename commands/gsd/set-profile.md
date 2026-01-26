@@ -1,9 +1,9 @@
 ---
 name: set-profile
-description: Switch model profile for GSD agents (quality/balanced/budget)
+description: Switch model profile for GSD agents (quality/balanced/budget/adaptive)
 arguments:
   - name: profile
-    description: "Profile name: quality, balanced, or budget"
+    description: "Profile name: quality, balanced, budget, or adaptive"
     required: true
 ---
 
@@ -14,8 +14,9 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 <profiles>
 | Profile | Description |
 |---------|-------------|
+| **adaptive** | Intelligent selection based on task complexity (default, recommended) |
 | **quality** | Opus everywhere except read-only verification |
-| **balanced** | Opus for planning, Sonnet for execution/verification (default) |
+| **balanced** | Opus for planning, Sonnet for execution/verification |
 | **budget** | Sonnet for writing, Haiku for research/verification |
 </profiles>
 
@@ -24,9 +25,9 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 ## 1. Validate argument
 
 ```
-if $ARGUMENTS.profile not in ["quality", "balanced", "budget"]:
+if $ARGUMENTS.profile not in ["quality", "balanced", "budget", "adaptive"]:
   Error: Invalid profile "$ARGUMENTS.profile"
-  Valid profiles: quality, balanced, budget
+  Valid profiles: quality, balanced, budget, adaptive
   STOP
 ```
 
@@ -53,6 +54,21 @@ Update `model_profile` field (or add if missing):
 ```json
 {
   "model_profile": "$ARGUMENTS.profile"
+}
+```
+
+**If profile is "adaptive"**, also add default adaptive_settings (if not already present):
+```json
+{
+  "model_profile": "adaptive",
+  "adaptive_settings": {
+    "enable_auto_selection": true,
+    "prefer_cost_optimization": true,
+    "fallback_on_rate_limit": true,
+    "min_model": "haiku",
+    "max_model": "opus",
+    "log_selections": true
+  }
 }
 ```
 
@@ -101,6 +117,24 @@ Agents will now use:
 | gsd-executor | opus |
 | gsd-verifier | sonnet |
 | ... | ... |
+```
+
+**Switch to adaptive mode:**
+```
+/gsd:set-profile adaptive
+
+✓ Model profile set to: adaptive
+
+Agents will now use intelligent model selection:
+| Agent | Model Selection |
+|-------|-----------------|
+| gsd-planner | evaluated (haiku/sonnet/opus based on complexity) |
+| gsd-executor | evaluated (haiku/sonnet/opus based on complexity) |
+| gsd-verifier | evaluated (haiku/sonnet/opus based on complexity) |
+
+Complexity scoring: 0-3pts=haiku/sonnet, 4-7pts=sonnet, 8+pts=opus
+Automatic fallback on rate limits
+Usage logged to .planning/usage.json
 ```
 
 </examples>

@@ -341,6 +341,7 @@ Create `.planning/config.json` with all settings:
 {
   "mode": "yolo|interactive",
   "depth": "quick|standard|comprehensive",
+  "model_profile": "balanced",
   "parallelization": true|false,
   "commit_docs": true|false,
   "model_profile": "quality|balanced|budget",
@@ -348,6 +349,29 @@ Create `.planning/config.json` with all settings:
     "research": true|false,
     "plan_check": true|false,
     "verifier": true|false
+  }
+}
+```
+
+**Note:** `model_profile` defaults to "balanced". Users can change it via `/gsd:settings` or `/gsd:set-profile` to:
+- `quality` — Opus everywhere (highest cost)
+- `balanced` — Opus planning, Sonnet execution (recommended)
+- `budget` — Minimal Opus usage
+- `adaptive` — Intelligent selection based on task complexity
+
+**If user selected adaptive** (via advanced settings or later via `/gsd:settings`), also include:
+
+```json
+{
+  ...
+  "model_profile": "adaptive",
+  "adaptive_settings": {
+    "enable_auto_selection": true,
+    "prefer_cost_optimization": true,
+    "fallback_on_rate_limit": true,
+    "min_model": "haiku",
+    "max_model": "opus",
+    "log_selections": true
   }
 }
 ```
