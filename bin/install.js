@@ -1075,20 +1075,30 @@ function install(isGlobal, runtime = 'claude') {
       : `bash ${dirName}/hooks/gsd-activity.sh`;
 
     // Check if GSD activity hook already exists (handles both old and new format)
-    let hasGsdActivityHook = settings.hooks.PostToolUse.some(entry =>
-      entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-activity'))
-    );
+    let hasGsdActivityHook = false;
 
     // Remove old-format GSD activity hooks if present
     const beforeCount = settings.hooks.PostToolUse.length;
     settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(entry => {
-      // Keep entry if it's not an old-format GSD activity hook
+      // Check if this is a new-format GSD hook (with hooks array)
+      if (entry.hooks && Array.isArray(entry.hooks)) {
+        const isGsdHook = entry.hooks.some(h => h.command && h.command.includes('gsd-activity'));
+        if (isGsdHook) {
+          hasGsdActivityHook = true;
+          return true; // Keep new-format hooks
+        }
+      }
+      // Check if this is an old-format GSD hook (with direct command field)
       const isOldGsdHook = entry.command && entry.command.includes('gsd-activity');
-      return !isOldGsdHook;
+      if (isOldGsdHook) {
+        return false; // Remove old-format hooks
+      }
+      // Keep non-GSD hooks
+      return true;
     });
 
-    // If we removed old hooks or didn't find new hooks, add new format
-    if (!hasGsdActivityHook || settings.hooks.PostToolUse.length < beforeCount) {
+    // Add new-format hook if not found
+    if (!hasGsdActivityHook) {
       settings.hooks.PostToolUse.push({
         matcher: "Task|Write|Edit|Read|Bash|TodoWrite",
         hooks: [
