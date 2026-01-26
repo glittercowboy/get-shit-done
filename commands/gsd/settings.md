@@ -34,6 +34,63 @@ Parse current values (default to `true` if not present):
 - `workflow.plan_check` — spawn plan checker during plan-phase
 - `workflow.verifier` — spawn verifier during execute-phase
 - `model_profile` — which model each agent uses (default: `balanced`)
+- `claude_plan_type` — detected plan type (team/personal/unknown)
+- `team_plan_checked_at` — last plan check timestamp
+
+## 2.5. Display Plan Information
+
+If `claude_plan_type` is detected, show plan context:
+
+**For Team Plans:**
+
+```
+─────────────────────────────────────────────────────────
+Claude Code Plan
+
+Type: Team Account
+Status: ⚠️  May hit rate limits with multi-agent workflows
+
+GSD spawns multiple parallel agents which can exhaust
+team plan rate limits faster than typical usage.
+
+Recommendations:
+• Disable optional workflow agents below to reduce usage
+• Run /gsd:check-plan for detailed guidance
+• Consider personal plan for frequent GSD usage
+
+Estimated reduction by disabling all optional agents: ~60%
+─────────────────────────────────────────────────────────
+```
+
+**For Personal Plans:**
+
+```
+─────────────────────────────────────────────────────────
+Claude Code Plan
+
+Type: Personal Account
+Status: ✓ Well-suited for GSD workflows
+
+Your personal plan has higher rate limits suitable for
+GSD's multi-agent orchestration.
+
+Configure workflow agents below based on your preferences.
+─────────────────────────────────────────────────────────
+```
+
+**For Unknown:**
+
+```
+─────────────────────────────────────────────────────────
+Claude Code Plan
+
+Type: Unknown
+Status: Run /gsd:check-plan to detect your plan type
+
+If you're on a Team account, consider disabling optional
+workflow agents below to reduce rate limit usage.
+─────────────────────────────────────────────────────────
+```
 
 ## 3. Present Settings
 
@@ -110,6 +167,8 @@ Display:
  GSD ► SETTINGS UPDATED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+Claude Plan: {Team Account/Personal Account/Unknown}
+
 | Setting              | Value |
 |----------------------|-------|
 | Model Profile        | {quality/balanced/budget} |
@@ -120,6 +179,7 @@ Display:
 These settings apply to future /gsd:plan-phase and /gsd:execute-phase runs.
 
 Quick commands:
+- /gsd:check-plan — check plan type and rate limit guidance
 - /gsd:set-profile <profile> — switch model profile
 - /gsd:plan-phase --research — force research
 - /gsd:plan-phase --skip-research — skip research
