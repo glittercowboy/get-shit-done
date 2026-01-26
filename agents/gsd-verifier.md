@@ -120,6 +120,70 @@ If no must_haves in frontmatter, derive using goal-backward process:
 
 5. **Document derived must-haves** before proceeding to verification.
 
+## Step 2.5: Verify Provides/Consumes (If Present)
+
+If PLAN.md frontmatter contains `provides` or `consumes` fields, verify these relationships hold.
+
+### Verify Provides
+
+For each `provides` entry, check that the file actually exports what it claims:
+
+```bash
+verify_provides() {
+  local file="$1"
+  local export_name="$2"
+
+  if [ ! -f "$file" ]; then
+    echo "MISSING: $file does not exist"
+    return 1
+  fi
+
+  # Check for named export (various patterns)
+  if grep -qE "export.*(const|function|class|type|interface)\s+$export_name|export\s+\{[^}]*$export_name|export\s+default.*$export_name" "$file" 2>/dev/null; then
+    echo "VERIFIED: $file exports $export_name"
+    return 0
+  else
+    echo "NOT_EXPORTED: $file exists but does not export $export_name"
+    return 1
+  fi
+}
+```
+
+### Verify Consumes
+
+For each `consumes` entry, check that the consuming code actually imports the artifact:
+
+```bash
+verify_consumes() {
+  local consumer_dir="$1"  # Directory of consuming plan's files
+  local artifact_name="$2"
+  local import_path="$3"
+
+  # Search for import statement in consuming files
+  local found=$(grep -rE "import.*$artifact_name.*from ['\"].*$import_path|import.*\{[^}]*$artifact_name[^}]*\}.*from ['\"].*$import_path" "$consumer_dir" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null)
+
+  if [ -n "$found" ]; then
+    echo "VERIFIED: $artifact_name imported from $import_path"
+    echo "  Found in: $(echo "$found" | head -1 | cut -d: -f1)"
+    return 0
+  else
+    echo "NOT_IMPORTED: $artifact_name declared as consumed but no import found"
+    echo "  Searched: $consumer_dir for imports from $import_path"
+    return 1
+  fi
+}
+```
+
+### Relationship Verification Workflow
+
+1. Extract `provides` from PLAN.md frontmatter
+2. For each provides entry, run `verify_provides(file, export_name)`
+3. Extract `consumes` from PLAN.md frontmatter
+4. For each consumes entry, run `verify_consumes(consumer_dir, artifact, source_path)`
+5. Record results for relationship summary in VERIFICATION.md
+
+**Note:** If no `provides`/`consumes` fields exist, skip this step. These fields are optional.
+
 ## Step 3: Verify Observable Truths
 
 For each truth, determine if codebase enables it.
@@ -261,6 +325,56 @@ check_used() {
 ## Step 5: Verify Key Links (Wiring)
 
 Key links are critical connections. If broken, the goal fails even with all artifacts present.
+
+### Pattern-Based Verification (Enhanced)
+
+If key_links include a `pattern` field, use it for precise verification:
+
+```bash
+verify_key_link_pattern() {
+  local from_file="$1"
+  local pattern="$2"
+  local description="$3"
+  local to_target="$4"
+
+  if [ ! -f "$from_file" ]; then
+    echo "MISSING: $from_file does not exist"
+    return 1
+  fi
+
+  local match=$(grep -nE "$pattern" "$from_file" 2>/dev/null | head -1)
+
+  if [ -n "$match" ]; then
+    local line_num=$(echo "$match" | cut -d: -f1)
+    local line_content=$(echo "$match" | cut -d: -f2-)
+    echo "WIRED: $description verified in $from_file"
+    echo "  Line $line_num: ${line_content:0:80}..."
+    return 0
+  else
+    echo "NOT_WIRED: $from_file exists but pattern not found"
+    echo "  Expected: $description"
+    echo "  Pattern: $pattern"
+    echo "  Target: $to_target"
+    echo "  Suggestion: Verify wiring exists and matches expected pattern"
+    return 1
+  fi
+}
+```
+
+**Enhanced error messages for NOT_WIRED:**
+
+Instead of:
+```
+NOT_WIRED: LoginForm.tsx → /api/auth
+```
+
+Report with context:
+```
+NOT_WIRED: src/components/LoginForm.tsx exists but doesn't call /api/auth
+  Expected: fetch POST on form submit
+  Pattern: fetch\(['"].*api/auth/login['"].*POST
+  Suggestion: Add fetch call in onSubmit handler
+```
 
 ### Pattern: Component → API
 
@@ -503,6 +617,17 @@ gaps:
     artifacts:
       - path: "src/components/Chat.tsx"
         issue: "No useEffect with fetch call"
+    relationship_failures:
+      - type: "key_link"
+        from: "src/components/Chat.tsx"
+        to: "/api/chat"
+        expected_pattern: "useEffect.*fetch.*api/chat"
+        found: false
+      - type: "consumes"
+        artifact: "ChatMessage"
+        from_plan: "01-01"
+        expected_import: "import { ChatMessage } from '@/types'"
+        found: false
     missing:
       - "API call in useEffect to /api/chat"
       - "State for storing fetched messages"
@@ -513,11 +638,24 @@ gaps:
     artifacts:
       - path: "src/components/Chat.tsx"
         issue: "onSubmit only calls preventDefault()"
+    relationship_failures:
+      - type: "key_link"
+        from: "src/components/Chat.tsx"
+        to: "/api/chat"
+        via: "fetch POST"
+        expected_pattern: "fetch\\(['\"]/api/chat['\"].*POST"
+        found: false
     missing:
       - "POST request to /api/chat"
       - "Add new message to state after success"
 ---
 ```
+
+**Relationship failure types:**
+
+- `key_link`: Critical connection pattern not found in code
+- `provides`: File exists but doesn't export claimed artifact
+- `consumes`: Consuming file doesn't import required artifact
 
 **Gap structure:**
 
@@ -525,6 +663,12 @@ gaps:
 - `status`: failed | partial
 - `reason`: Brief explanation of why it failed
 - `artifacts`: Which files have issues and what's wrong
+- `relationship_failures`: Detailed breakdown of failed provides/consumes/key_links
+  - `type`: "key_link" | "provides" | "consumes"
+  - `from`: Source file or plan
+  - `to`: Target (API endpoint, module, etc.)
+  - `expected_pattern`: Regex pattern that should exist
+  - `found`: false (always false in gaps section)
 - `missing`: Specific things that need to be added/fixed
 
 The planner (`/gsd:plan-phase --gaps`) reads this gap analysis and creates appropriate plans.
@@ -552,6 +696,23 @@ re_verification: # Only include if previous VERIFICATION.md existed
     - "Truth that was fixed"
   gaps_remaining: []
   regressions: []  # Items that passed before but now fail
+provides_verification: # Only include if provides field existed in PLAN
+  - artifact: "UserModel"
+    file: "src/models/user.ts"
+    status: verified | not_exported | missing
+    evidence: "Exported on line 15"
+consumes_verification: # Only include if consumes field existed in PLAN
+  - artifact: "UserModel"
+    from_plan: "01-01"
+    status: verified | not_imported
+    evidence: "Imported in src/features/auth.ts:3"
+key_links_verification: # Enhanced with pattern matching
+  - from: "src/components/LoginForm.tsx"
+    to: "/api/auth/login"
+    via: "fetch POST"
+    pattern: "fetch\\(['\"]/api/auth"
+    status: wired | not_wired | partial
+    evidence: "Line 45: fetch('/api/auth'..."
 gaps: # Only include if status: gaps_found
   - truth: "Observable truth that failed"
     status: failed
@@ -559,6 +720,12 @@ gaps: # Only include if status: gaps_found
     artifacts:
       - path: "src/path/to/file.tsx"
         issue: "What's wrong with this file"
+    relationship_failures:
+      - type: "key_link"
+        from: "src/path/to/file.tsx"
+        to: "/api/endpoint"
+        expected_pattern: "fetch.*api/endpoint"
+        found: false
     missing:
       - "Specific thing to add/fix"
       - "Another specific thing"
@@ -592,10 +759,30 @@ human_verification: # Only include if status: human_needed
 | -------- | ----------- | ------ | ------- |
 | `path`   | description | status | details |
 
+### Provides/Consumes Verification
+
+{If provides/consumes exist in PLAN frontmatter:}
+
+**Provides:**
+
+| Plan | Artifact | File | Status | Evidence |
+| ---- | -------- | ---- | ------ | -------- |
+| XX-name | UserModel | src/models/user.ts | ✓ VERIFIED | Exported on line 15 |
+| XX-name | AuthService | src/services/auth.ts | ✗ NOT_EXPORTED | File exists but no export found |
+
+**Consumes:**
+
+| Plan | Artifact | From Plan | Status | Evidence |
+| ---- | -------- | --------- | ------ | -------- |
+| XX-name | UserModel | 01-01 | ✓ VERIFIED | Imported in src/features/auth.ts:3 |
+| XX-name | DatabaseClient | 01-01 | ✗ NOT_IMPORTED | No import found in consumer files |
+
 ### Key Link Verification
 
-| From | To  | Via | Status | Details |
-| ---- | --- | --- | ------ | ------- |
+| From | To  | Via | Status | Pattern Match |
+| ---- | --- | --- | ------ | ------------- |
+| LoginForm.tsx | /api/auth | fetch POST | ✓ WIRED | Line 45: fetch('/api/auth'... |
+| Chat.tsx | /api/chat | useEffect | ✗ NOT_WIRED | Pattern not found |
 
 ### Requirements Coverage
 
@@ -764,15 +951,17 @@ return <div>No messages</div>  // Always shows "no messages"
 - [ ] Previous VERIFICATION.md checked (Step 0)
 - [ ] If re-verification: must-haves loaded from previous, focus on failed items
 - [ ] If initial: must-haves established (from frontmatter or derived)
+- [ ] Provides/consumes verified if present in PLAN frontmatter (Step 2.5)
 - [ ] All truths verified with status and evidence
 - [ ] All artifacts checked at all three levels (exists, substantive, wired)
-- [ ] All key links verified
+- [ ] All key links verified with pattern-based checking where patterns provided
 - [ ] Requirements coverage assessed (if applicable)
 - [ ] Anti-patterns scanned and categorized
 - [ ] Human verification items identified
 - [ ] Overall status determined
-- [ ] Gaps structured in YAML frontmatter (if gaps_found)
+- [ ] Gaps structured in YAML frontmatter with relationship_failures (if gaps_found)
 - [ ] Re-verification metadata included (if previous existed)
+- [ ] Provides/Consumes section included in VERIFICATION.md (if fields existed)
 - [ ] VERIFICATION.md created with complete report
 - [ ] Results returned to orchestrator (NOT committed)
 </success_criteria>
