@@ -230,7 +230,50 @@ Task(
 ls "${PHASE_DIR}"/*-PLAN.md 2>/dev/null
 ```
 
-**If exists:** Offer: 1) Continue planning (add more plans), 2) View existing, 3) Replan from scratch. Wait for response.
+**Check for predictive plans:**
+
+```bash
+ls "${PHASE_DIR}"/*-PLAN.predictive.md 2>/dev/null
+```
+
+**If predictive plans exist:**
+
+Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| GSD ► PREDICTIVE PLANS FOUND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Phase {X} was pre-planned during previous phase execution.
+
+Found {N} predictive plan(s):
+- {phase}-01-PLAN.predictive.md
+- {phase}-02-PLAN.predictive.md
+
+───────────────────────────────────────────────────────────────
+```
+
+Offer: 
+1) Use predictive plans (rename to regular plans)
+2) Review predictive plans first
+3) Discard and plan from scratch
+
+**If user chooses "Use predictive plans":**
+- Rename `.predictive.md` files to regular `.md` files
+- Skip to step 10 (verification)
+
+**If user chooses "Review":**
+- Display each plan
+- Ask: Keep, Modify, or Discard for each
+- Continue to verification with kept plans
+
+**If user chooses "Discard":**
+- Delete predictive plans
+- Continue to step 7 (plan from scratch)
+
+**If regular plans exist (not predictive):**
+
+Offer: 1) Continue planning (add more plans), 2) View existing, 3) Replan from scratch. Wait for response.
 
 ## 7. Read Context Files
 

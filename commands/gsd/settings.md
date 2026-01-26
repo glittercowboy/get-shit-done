@@ -30,6 +30,8 @@ cat .planning/config.json
 ```
 
 Parse current values (default to `true` if not present):
+- `predictive_planning.enabled` — pre-plan next phase during execution (default: `false`)
+- `predictive_planning.lookahead` — how many phases to pre-plan (default: `1`)
 - `workflow.research` — spawn researcher during plan-phase
 - `workflow.plan_check` — spawn plan checker during plan-phase
 - `workflow.verifier` — spawn verifier during execute-phase
@@ -41,6 +43,25 @@ Use AskUserQuestion with current values shown:
 
 ```
 AskUserQuestion([
+  {
+    question: "Predictive planning? (pre-plan next phase during execution)",
+    header: "Predictive Planning",
+    multiSelect: false,
+    options: [
+      { label: "Yes", description: "Plan next phase in background while current phase executes (near-instant transitions)" },
+      { label: "No (Default)", description: "Plan each phase only when ready to plan it" }
+    ]
+  },
+  {
+    question: "How many phases to pre-plan? (if predictive enabled)",
+    header: "Lookahead",
+    multiSelect: false,
+    options: [
+      { label: "1 phase (Recommended)", description: "Plan next phase only" },
+      { label: "2 phases", description: "Plan next 2 phases ahead" },
+      { label: "3 phases", description: "Plan next 3 phases ahead (uses more resources)" }
+    ]
+  },
   {
     question: "Which model profile for agents?",
     header: "Model",
@@ -90,6 +111,10 @@ Merge new settings into existing config.json:
 ```json
 {
   ...existing_config,
+  "predictive_planning": {
+    "enabled": true/false,
+    "lookahead": 1 | 2 | 3
+  },
   "model_profile": "quality" | "balanced" | "budget",
   "workflow": {
     "research": true/false,
@@ -112,6 +137,8 @@ Display:
 
 | Setting              | Value |
 |----------------------|-------|
+| Predictive Planning  | {On/Off} |
+| Lookahead            | {1/2/3 phases} |
 | Model Profile        | {quality/balanced/budget} |
 | Plan Researcher      | {On/Off} |
 | Plan Checker         | {On/Off} |
@@ -130,7 +157,7 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 4 settings (profile + 3 toggles)
-- [ ] Config updated with model_profile and workflow section
+- [ ] User presented with 6 settings (predictive + lookahead + profile + 3 toggles)
+- [ ] Config updated with predictive_planning, model_profile and workflow section
 - [ ] Changes confirmed to user
 </success_criteria>

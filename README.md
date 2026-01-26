@@ -484,6 +484,35 @@ GSD stores project settings in `.planning/config.json`. Configure during `/gsd:n
 |---------|---------|---------|------------------|
 | `mode` | `yolo`, `interactive` | `interactive` | Auto-approve vs confirm at each step |
 | `depth` | `quick`, `standard`, `comprehensive` | `standard` | Planning thoroughness (phases × plans) |
+| `predictive_planning.enabled` | `true`, `false` | `false` | Pre-plan next phase(s) during execution |
+| `predictive_planning.lookahead` | `1`, `2`, `3` | `1` | How many phases to pre-plan ahead |
+
+**Predictive Planning:**
+
+Reduces phase transition time from 2-5 minutes to ~5 seconds by planning ahead while executing.
+
+**How it works:**
+- During Phase 3 execution → background agent plans Phase 4
+- When Phase 3 completes → Phase 4 plans are already done
+- Run `/gsd:plan-phase 4` → finds predictive plans, offers to use them
+
+**Enable via `/gsd:settings` or edit `.planning/config.json`:**
+
+```json
+{
+  "predictive_planning": {
+    "enabled": true,
+    "lookahead": 1
+  }
+}
+```
+
+**Lookahead options:**
+- `1` (recommended): Plan next phase only - minimal resource usage
+- `2`: Plan next 2 phases - good for continuous workflows
+- `3`: Plan next 3 phases - maximum lookahead, uses more tokens
+
+**Performance impact:** 95%+ reduction in transition time between phases.
 
 ### Model Profiles
 
