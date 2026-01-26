@@ -31,7 +31,7 @@ Extract only the current phase block from ROADMAP.md.
 
 **Output:** Only the phase block:
 ```
-## Phase 03: Authentication
+### Phase 03: Authentication
 Goal: Implement user authentication with JWT
 Requirements: AUTH-01, AUTH-02, AUTH-03
 Must-haves:
@@ -52,9 +52,10 @@ extract_phase_section() {
   # Also match zero-padded version
   local PADDED_PHASE=$(printf "%02d" "$PHASE_PATTERN" 2>/dev/null || echo "$PHASE_NUM")
 
-  # Extract from "## Phase XX" to next "## Phase" or "---" or end of phases section
+  # Extract from "### Phase XX" to next phase (supports both ## and ### for flexibility)
   # Use sed '$d' instead of head -n -1 for macOS compatibility
-  sed -n "/^## Phase ${PADDED_PHASE}:\|^## Phase ${PHASE_PATTERN}:/,/^## Phase [0-9]\|^---\|^# /p" "$ROADMAP_FILE" | sed '$d'
+  # Pattern #{2,3} matches exactly 2 or 3 # (supports ## Phase or ### Phase)
+  sed -En "/^#{2,3} Phase ${PADDED_PHASE}:|^#{2,3} Phase ${PHASE_PATTERN}:/,/^#{2,3} Phase [0-9]|^---/p" "$ROADMAP_FILE" | sed '$d'
 }
 ```
 
@@ -118,7 +119,7 @@ Extract only the phase goal and must-haves for verifier context.
 
 **Output:** Minimal verification context:
 ```
-## Phase 03: Authentication
+### Phase 03: Authentication
 Goal: Implement user authentication with JWT
 
 Must-haves:
@@ -138,7 +139,8 @@ extract_phase_goal() {
 
   # Extract phase header, goal line, and must-haves section only
   # Use sed '$d' for macOS compatibility
-  local PHASE_SECTION=$(sed -n "/^## Phase ${PADDED_PHASE}:\|^## Phase ${PHASE_PATTERN}:/,/^## Phase [0-9]\|^---\|^# /p" "$ROADMAP_FILE" | sed '$d')
+  # Pattern #{2,3} matches exactly 2 or 3 # (supports both ## Phase and ### Phase)
+  local PHASE_SECTION=$(sed -En "/^#{2,3} Phase ${PADDED_PHASE}:|^#{2,3} Phase ${PHASE_PATTERN}:/,/^#{2,3} Phase [0-9]|^---/p" "$ROADMAP_FILE" | sed '$d')
 
   # Print header and goal
   echo "$PHASE_SECTION" | head -2
