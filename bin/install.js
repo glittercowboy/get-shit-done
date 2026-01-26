@@ -221,6 +221,34 @@ function writeSettings(settingsPath, settings) {
 }
 
 /**
+ * Get commit attribution: null = remove, undefined = keep default, string = custom
+ */
+function getCommitAttribution(runtime) {
+  if (runtime === 'opencode') {
+    const config = readSettings(path.join(getGlobalDir('opencode', null), 'opencode.json'));
+    return config.disable_ai_attribution === true ? null : undefined;
+  }
+
+  const settings = readSettings(path.join(getGlobalDir('claude', explicitConfigDir), 'settings.json'));
+  if (!settings.attribution || settings.attribution.commit === undefined) return undefined;
+  if (settings.attribution.commit === '') return null;
+  return settings.attribution.commit;
+}
+
+/**
+ * Process Co-Authored-By lines based on attribution setting
+ */
+function processAttribution(content, attribution) {
+  if (attribution === null) {
+    return content.replace(/(\r?\n){2}Co-Authored-By:.*$/gim, '');
+  }
+  if (attribution === undefined) {
+    return content;
+  }
+  return content.replace(/Co-Authored-By:.*$/gim, `Co-Authored-By: ${attribution}`);
+}
+
+/**
  * Convert Claude Code frontmatter to opencode format
  * - Converts 'allowed-tools:' array to 'permission:' object
  * @param {string} content - Markdown file content with YAML frontmatter
@@ -281,6 +309,11 @@ function convertClaudeToOpencodeFrontmatter(content) {
   convertedContent = convertedContent.replace(/\/gsd:/g, '/gsd-');
   // Replace ~/.claude with ~/.config/opencode (OpenCode's correct config location)
   convertedContent = convertedContent.replace(/~\/\.claude\b/g, '~/.config/opencode');
+  // Replace Claude attribution with OpenCode attribution (case-insensitive)
+  convertedContent = convertedContent.replace(
+    /Co-Authored-By:\s*Claude[^\n]*/gi,
+    'Co-Authored-By: opencode <noreply@opencode.ai>'
+  );
 
   // Check if content has frontmatter
   if (!convertedContent.startsWith('---')) {
@@ -420,9 +453,11 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime) {
       const opencodeDirRegex = /~\/\.opencode\//g;
       content = content.replace(claudeDirRegex, pathPrefix);
       content = content.replace(opencodeDirRegex, pathPrefix);
+      // Process attribution based on user settings for this runtime
+      content = processAttribution(content, getCommitAttribution(runtime));
       // Convert frontmatter for opencode compatibility
       content = convertClaudeToOpencodeFrontmatter(content);
-      
+
       fs.writeFileSync(destPath, content);
     }
   }
@@ -459,6 +494,8 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
       let content = fs.readFileSync(srcPath, 'utf8');
       const claudeDirRegex = new RegExp(`~/${dirName.replace('.', '\\.')}/`, 'g');
       content = content.replace(claudeDirRegex, pathPrefix);
+      // Process attribution based on user settings for this runtime
+      content = processAttribution(content, getCommitAttribution(runtime));
       // Convert frontmatter for opencode compatibility
       if (isOpencode) {
         content = convertClaudeToOpencodeFrontmatter(content);
@@ -925,6 +962,8 @@ function install(isGlobal, runtime = 'claude') {
         let content = fs.readFileSync(path.join(agentsSrc, entry.name), 'utf8');
         const dirRegex = new RegExp(`~/${dirName.replace('.', '\\.')}/`, 'g');
         content = content.replace(dirRegex, pathPrefix);
+        // Process attribution based on user settings for this runtime
+        content = processAttribution(content, getCommitAttribution(runtime));
         // Convert frontmatter for opencode compatibility
         if (isOpencode) {
           content = convertClaudeToOpencodeFrontmatter(content);
