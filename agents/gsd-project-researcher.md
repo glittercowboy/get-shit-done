@@ -687,6 +687,35 @@ What's needed to achieve this:
 
 <execution_flow>
 
+## Step 0: Check Research Cache
+
+Before starting research, query the global cache for applicable prior findings:
+
+```bash
+CACHE_RESULT=$(node ~/.claude/hooks/gsd-research-cache.js query \
+  --topic "${PROJECT_DOMAIN}" \
+  --technologies "${KNOWN_TECHNOLOGIES}" 2>/dev/null || echo '{"hits":[]}')
+```
+
+Parse the result and use cached findings based on confidence:
+
+| Cache Hit | How to Use |
+|-----------|------------|
+| HIGH confidence, not stale | Use as starting point, verify key claims only |
+| MEDIUM/LOW or near expiry | Note as hypothesis, verify during research |
+| No hit | Proceed with full research |
+
+**If HIGH confidence cache hit found:**
+- Include cached findings in research output under "Prior Research (Cached)"
+- Focus verification on currency (has anything changed since caching?)
+- Still run Context7/official docs checks for critical claims
+- Skip redundant WebSearch for established patterns
+
+**Even with cache hits, always verify:**
+- Version numbers (may have changed)
+- Deprecated features
+- New alternatives emerged
+
 ## Step 1: Receive Research Scope
 
 Orchestrator provides:
@@ -754,7 +783,30 @@ Create files in `.planning/research/`:
 6. **COMPARISON.md** - If comparison mode
 7. **FEASIBILITY.md** - If feasibility mode
 
-## Step 6: Return Structured Result
+## Step 6: Save to Research Cache
+
+After writing research files, save findings to the global cache for reuse in future projects:
+
+```bash
+# Extract primary technologies from STACK.md
+TECHNOLOGIES=$(grep -A20 "## Recommended Stack" .planning/research/STACK.md 2>/dev/null | \
+  grep -oE '\| [a-zA-Z0-9@/-]+' | head -5 | tr '\n' ',' | sed 's/| //g')
+
+# Determine overall confidence from SUMMARY.md
+CONFIDENCE=$(grep "^\*\*Overall confidence:\*\*" .planning/research/SUMMARY.md 2>/dev/null | \
+  grep -oE 'HIGH|MEDIUM|LOW' | head -1 || echo "MEDIUM")
+
+# Save to cache (SUMMARY.md is the main output for project research)
+node ~/.claude/hooks/gsd-research-cache.js save \
+  --topic "${PROJECT_NAME}" \
+  --technologies "${TECHNOLOGIES}" \
+  --confidence "${CONFIDENCE}" \
+  --source-file ".planning/research/SUMMARY.md" 2>/dev/null || true
+```
+
+**Note:** Cache save is best-effort. Research continues successfully even if caching fails.
+
+## Step 7: Return Structured Result
 
 **DO NOT commit.** You are always spawned in parallel with other researchers. The orchestrator or synthesizer agent commits all research files together after all researchers complete.
 

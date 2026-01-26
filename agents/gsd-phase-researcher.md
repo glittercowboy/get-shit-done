@@ -432,6 +432,35 @@ Things that couldn't be fully resolved:
 
 <execution_flow>
 
+## Step 0: Check Research Cache
+
+Before starting research, query the global cache for applicable prior findings:
+
+```bash
+CACHE_RESULT=$(node ~/.claude/hooks/gsd-research-cache.js query \
+  --topic "${PHASE_NAME}" \
+  --technologies "${KNOWN_TECHNOLOGIES}" 2>/dev/null || echo '{"hits":[]}')
+```
+
+Parse the result and use cached findings based on confidence:
+
+| Cache Hit | How to Use |
+|-----------|------------|
+| HIGH confidence, not stale | Use as starting point, verify key claims only |
+| MEDIUM/LOW or near expiry | Note as hypothesis, verify during research |
+| No hit | Proceed with full research |
+
+**If HIGH confidence cache hit found:**
+- Include cached findings in RESEARCH.md under "Prior Research (Cached)"
+- Focus verification on currency (has anything changed since caching?)
+- Still run Context7/official docs checks for critical claims
+- Skip redundant WebSearch for established patterns
+
+**Even with cache hits, always verify:**
+- Version numbers (may have changed)
+- Deprecated features
+- New alternatives emerged
+
 ## Step 1: Receive Research Scope and Load Context
 
 Orchestrator provides:
@@ -545,7 +574,30 @@ Phase ${PHASE}: ${PHASE_NAME}
 - Pitfalls catalogued"
 ```
 
-## Step 7: Return Structured Result
+## Step 7: Save to Research Cache
+
+After writing RESEARCH.md, save findings to the global cache for reuse in future projects:
+
+```bash
+# Extract technologies from research (comma-separated)
+TECHNOLOGIES=$(grep -A20 "## Standard Stack" "${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md" | \
+  grep -oE '\| [a-zA-Z0-9@/-]+' | head -5 | tr '\n' ',' | sed 's/| //g')
+
+# Determine overall confidence from research
+CONFIDENCE=$(grep "^\*\*Confidence:\*\*" "${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md" | \
+  grep -oE 'HIGH|MEDIUM|LOW' | head -1 || echo "MEDIUM")
+
+# Save to cache
+node ~/.claude/hooks/gsd-research-cache.js save \
+  --topic "${PHASE_NAME}" \
+  --technologies "${TECHNOLOGIES}" \
+  --confidence "${CONFIDENCE}" \
+  --source-file "${PHASE_DIR}/${PADDED_PHASE}-RESEARCH.md" 2>/dev/null || true
+```
+
+**Note:** Cache save is best-effort. Research continues successfully even if caching fails.
+
+## Step 8: Return Structured Result
 
 Return to orchestrator with structured result.
 
