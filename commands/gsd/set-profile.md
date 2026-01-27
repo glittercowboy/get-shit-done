@@ -136,12 +136,34 @@ Read current config:
 cat .planning/config.json
 ```
 
-Update `model_profile` field (or add if missing):
+Update config based on profile type:
+
+**If profile is "custom":**
+
+Update both `model_profile` AND `custom_profile_models`:
+```json
+{
+  "model_profile": "custom",
+  "custom_profile_models": {
+    "gsd-planner": "{selection from step 1.5}",
+    "gsd-plan-checker": "{selection from step 1.5}",
+    "gsd-executor": "{selection from step 1.5}",
+    "gsd-verifier": "{selection from step 1.5}",
+    "gsd-codebase-mapper": "{selection from step 1.5}"
+  }
+}
+```
+
+**Otherwise (quality/balanced/budget):**
+
+Update only `model_profile` field:
 ```json
 {
   "model_profile": "$ARGUMENTS.profile"
 }
 ```
+
+Preserve any existing `custom_profile_models` field when switching to non-custom profiles (don't delete it).
 
 Write updated config back to `.planning/config.json`.
 
