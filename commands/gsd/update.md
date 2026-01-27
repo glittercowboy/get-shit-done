@@ -108,10 +108,10 @@ STOP here if ahead.
 
 ⚠️  **Note:** The installer performs a clean install of GSD folders.
 
-The following directories will be wiped and replaced:
-- commands/gsd/ (or command/gsd-*.md for OpenCode)
-- get-shit-done/
-- agents/gsd-* files
+The following will be wiped and replaced:
+- `__GSD_COMMANDS_PATH__`
+- `__GSD_CONFIG_DIR__/get-shit-done/`
+- `__GSD_CONFIG_DIR__/agents/gsd-*`
 
 Your custom files in other locations are preserved:
 - Custom commands not in gsd/ ✓

@@ -462,12 +462,24 @@ function replaceGsdPlaceholders(content, pathPrefix, runtime) {
     ? `${pathPrefix}cache`
     : `${dirName}/cache`;
 
+  // Base config directory (no trailing slash)
+  const configDir = isGlobal
+    ? pathPrefix.replace(/\/$/, '')
+    : dirName;
+
+  // Commands path (different structure for OpenCode)
+  const commandsPath = runtime === 'opencode'
+    ? `${configDir}/command/gsd-*.md`
+    : `${configDir}/commands/gsd/`;
+
   return content
     .replace(/__GSD_VERSION_PATH__/g, versionPath)
     .replace(/__GSD_INSTALL_FLAGS__/g, installFlags)
     .replace(/__GSD_LOCATION_LABEL__/g, locationLabel)
     .replace(/__GSD_CACHE_PATH__/g, cachePath)
-    .replace(/__GSD_RUNTIME_NAME__/g, runtimeName);
+    .replace(/__GSD_RUNTIME_NAME__/g, runtimeName)
+    .replace(/__GSD_CONFIG_DIR__/g, configDir)
+    .replace(/__GSD_COMMANDS_PATH__/g, commandsPath);
 }
 
 /**
