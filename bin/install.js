@@ -420,12 +420,54 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime) {
       const opencodeDirRegex = /~\/\.opencode\//g;
       content = content.replace(claudeDirRegex, pathPrefix);
       content = content.replace(opencodeDirRegex, pathPrefix);
+      // Replace GSD-specific placeholders (for update.md, etc.)
+      content = replaceGsdPlaceholders(content, pathPrefix, runtime);
       // Convert frontmatter for opencode compatibility
       content = convertClaudeToOpencodeFrontmatter(content);
-      
+
       fs.writeFileSync(destPath, content);
     }
   }
+}
+
+/**
+ * Replace GSD-specific placeholders in content
+ * These placeholders allow commands like update.md to work correctly
+ * regardless of install location (local/global) and runtime (claude/opencode)
+ * @param {string} content - File content
+ * @param {string} pathPrefix - Path prefix (e.g., '~/.claude/' or './.claude/')
+ * @param {string} runtime - 'claude' or 'opencode'
+ * @returns {string} - Content with placeholders replaced
+ */
+function replaceGsdPlaceholders(content, pathPrefix, runtime) {
+  // Determine if global based on pathPrefix
+  // Global paths start with ~, / (Unix absolute), or drive letter (Windows)
+  const isGlobal = pathPrefix.startsWith('~') ||
+                   pathPrefix.startsWith('/') ||
+                   /^[A-Z]:/i.test(pathPrefix);
+  const dirName = runtime === 'opencode' ? '.opencode' : '.claude';
+  const runtimeName = runtime === 'opencode' ? 'OpenCode' : 'Claude Code';
+
+  const versionPath = isGlobal
+    ? `${pathPrefix}get-shit-done/VERSION`
+    : `${dirName}/get-shit-done/VERSION`;
+
+  const installFlags = `--${runtime} ${isGlobal ? '--global' : '--local'}`;
+
+  const locationLabel = isGlobal
+    ? `global (${pathPrefix.replace(/\/$/, '')})`
+    : `local (${dirName}/)`;
+
+  const cachePath = isGlobal
+    ? `${pathPrefix}cache`
+    : `${dirName}/cache`;
+
+  return content
+    .replace(/__GSD_VERSION_PATH__/g, versionPath)
+    .replace(/__GSD_INSTALL_FLAGS__/g, installFlags)
+    .replace(/__GSD_LOCATION_LABEL__/g, locationLabel)
+    .replace(/__GSD_CACHE_PATH__/g, cachePath)
+    .replace(/__GSD_RUNTIME_NAME__/g, runtimeName);
 }
 
 /**
@@ -459,6 +501,8 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
       let content = fs.readFileSync(srcPath, 'utf8');
       const claudeDirRegex = new RegExp(`~/${dirName.replace('.', '\\.')}/`, 'g');
       content = content.replace(claudeDirRegex, pathPrefix);
+      // Replace GSD-specific placeholders (for update.md, etc.)
+      content = replaceGsdPlaceholders(content, pathPrefix, runtime);
       // Convert frontmatter for opencode compatibility
       if (isOpencode) {
         content = convertClaudeToOpencodeFrontmatter(content);
