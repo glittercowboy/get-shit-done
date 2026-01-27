@@ -322,10 +322,25 @@ Plans with `autonomous: false` require user interaction.
    [Awaiting section from agent return]
    ```
 
+   **For checkpoint:discussion specifically:**
+   Present as a design conversation, not a blocker:
+   ```
+   ## Design Discussion
+
+   **Plan:** 03-03 Dashboard Layout
+   **Context:** [What the agent was working on]
+
+   [Discussion section with significance assessment and options table]
+
+   ---
+   Which approach works for you? (A/B/C/other)
+   ```
+
 5. **User responds:**
    - "approved" / "done" → spawn continuation agent
    - Description of issues → spawn continuation agent with feedback
-   - Decision selection → spawn continuation agent with choice
+   - Decision selection (A/B/C) → spawn continuation agent with choice
+   - Discussion response → spawn continuation agent with selected approach
 
 6. **Spawn continuation agent (NOT resume):**
 

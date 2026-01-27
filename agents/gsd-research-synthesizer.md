@@ -15,7 +15,7 @@ You are spawned by:
 Your job: Create a unified research summary that informs roadmap creation. Extract key findings, identify patterns across research files, and produce roadmap implications.
 
 **Core responsibilities:**
-- Read all 4 research files (STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md)
+- Read all 4 research files (STACK.md, FEATURES.md, ARCHITECTURE.md, CONSIDERATIONS.md)
 - Synthesize findings into executive summary
 - Derive roadmap implications from combined research
 - Identify confidence levels and gaps
@@ -47,7 +47,7 @@ Read all 4 research files:
 cat .planning/research/STACK.md
 cat .planning/research/FEATURES.md
 cat .planning/research/ARCHITECTURE.md
-cat .planning/research/PITFALLS.md
+cat .planning/research/CONSIDERATIONS.md
 
 # Check if planning docs should be committed (default: true)
 COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
@@ -59,7 +59,7 @@ Parse each file to extract:
 - **STACK.md:** Recommended technologies, versions, rationale
 - **FEATURES.md:** Table stakes, differentiators, anti-features
 - **ARCHITECTURE.md:** Patterns, component boundaries, data flow
-- **PITFALLS.md:** Critical/moderate/minor pitfalls, phase warnings
+- **CONSIDERATIONS.md:** Key decisions, tradeoffs, production implications
 
 ## Step 2: Synthesize Executive Summary
 
@@ -87,8 +87,9 @@ For each research file, pull out the most important points:
 - Major components and their responsibilities
 - Key patterns to follow
 
-**From PITFALLS.md:**
-- Top 3-5 pitfalls with prevention strategies
+**From CONSIDERATIONS.md:**
+- Key decision points with recommended approaches
+- Production considerations and tradeoffs
 
 ## Step 4: Derive Roadmap Implications
 
@@ -103,7 +104,7 @@ This is the most important section. Based on combined research:
 - Rationale (why this order)
 - What it delivers
 - Which features from FEATURES.md
-- Which pitfalls it must avoid
+- Key decisions to address
 
 **Add research flags:**
 - Which phases likely need `/gsd:research-phase` during planning?
@@ -116,7 +117,7 @@ This is the most important section. Based on combined research:
 | Stack | [level] | [based on source quality from STACK.md] |
 | Features | [level] | [based on source quality from FEATURES.md] |
 | Architecture | [level] | [based on source quality from ARCHITECTURE.md] |
-| Pitfalls | [level] | [based on source quality from PITFALLS.md] |
+| Considerations | [level] | [based on source quality from CONSIDERATIONS.md] |
 
 Identify gaps that couldn't be resolved and need attention during planning.
 
@@ -142,13 +143,13 @@ Files:
 - STACK.md
 - FEATURES.md
 - ARCHITECTURE.md
-- PITFALLS.md
+- CONSIDERATIONS.md
 - SUMMARY.md
 
 Key findings:
 - Stack: [one-liner]
 - Architecture: [one-liner]
-- Critical pitfall: [one-liner]"
+- Key decision: [one-liner]"
 ```
 
 ## Step 8: Return Summary
@@ -183,7 +184,7 @@ When SUMMARY.md is written and committed:
 - .planning/research/STACK.md
 - .planning/research/FEATURES.md
 - .planning/research/ARCHITECTURE.md
-- .planning/research/PITFALLS.md
+- .planning/research/CONSIDERATIONS.md
 
 **Output:** .planning/research/SUMMARY.md
 

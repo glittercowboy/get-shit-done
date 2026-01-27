@@ -26,17 +26,38 @@ Template for `.planning/codebase/ARCHITECTURE.md` - captures conceptual code org
 
 [Describe the conceptual layers and their responsibilities]
 
-**[Layer Name]:**
-- Purpose: [What this layer does]
-- Contains: [Types of code: e.g., "route handlers", "business logic"]
-- Depends on: [What it uses: e.g., "data layer only"]
-- Used by: [What uses it: e.g., "API routes"]
+### [Layer Name] (e.g., "Presentation", "API", "Service", "Data")
 
-**[Layer Name]:**
-- Purpose: [What this layer does]
-- Contains: [Types of code]
-- Depends on: [What it uses]
-- Used by: [What uses it]
+| Attribute | Value |
+|-----------|-------|
+| **Purpose** | [What this layer does] |
+| **Location** | `[file path pattern]` |
+| **Contains** | [Types of code: e.g., "route handlers", "business logic"] |
+| **Allowed Dependencies** | [What this layer CAN import: e.g., "Service layer, shared types"] |
+| **Forbidden Dependencies** | [What this layer must NOT import: e.g., "Data layer directly, other API routes"] |
+| **Naming Convention** | [e.g., "*Controller.ts", "*Service.ts"] |
+| **Example** | `[path to representative file]` |
+
+### [Layer Name]
+
+| Attribute | Value |
+|-----------|-------|
+| **Purpose** | [What this layer does] |
+| **Location** | `[file path pattern]` |
+| **Contains** | [Types of code] |
+| **Allowed Dependencies** | [What it can use] |
+| **Forbidden Dependencies** | [What it must not use] |
+| **Naming Convention** | [Pattern] |
+| **Example** | `[path]` |
+
+## Dependency Rules
+
+**Allowed direction:** [e.g., "Presentation → Service → Data"]
+
+**Never allowed:**
+- [Rule 1: e.g., "Data layer must not import from Service layer"]
+- [Rule 2: e.g., "Controllers must not import from other controllers"]
+- [Rule 3: e.g., "Shared types must not import from any layer"]
 
 ## Data Flow
 
@@ -59,12 +80,12 @@ Template for `.planning/codebase/ARCHITECTURE.md` - captures conceptual code org
 
 **[Abstraction Name]:**
 - Purpose: [What it represents]
-- Examples: [e.g., "UserService, ProjectService"]
+- Examples: `[file paths]`
 - Pattern: [e.g., "Singleton", "Factory", "Repository"]
 
 **[Abstraction Name]:**
 - Purpose: [What it represents]
-- Examples: [Concrete examples]
+- Examples: `[file paths]`
 - Pattern: [Pattern used]
 
 ## Entry Points
@@ -72,9 +93,19 @@ Template for `.planning/codebase/ARCHITECTURE.md` - captures conceptual code org
 [Where execution begins]
 
 **[Entry Point]:**
-- Location: [Brief: e.g., "src/index.ts", "API Gateway triggers"]
+- Location: `[path]`
 - Triggers: [What invokes it: e.g., "CLI invocation", "HTTP request"]
 - Responsibilities: [What it does: e.g., "Parse args, route to command"]
+
+## Anti-Patterns to Avoid
+
+Patterns that violate the architecture:
+
+| Anti-Pattern | Why It's Bad | Instead Do | Detection |
+|--------------|--------------|------------|-----------|
+| [Direct DB access from controller] | [Bypasses business logic, harder to test] | [Use service layer] | [grep for "db." in controllers] |
+| [Circular imports between modules] | [Build failures, unclear dependencies] | [Extract shared code] | [Build error or import cycle warning] |
+| [Business logic in route handlers] | [Can't reuse, hard to test] | [Move to service] | [Handler > 20 lines] |
 
 ## Error Handling
 
@@ -96,6 +127,16 @@ Template for `.planning/codebase/ARCHITECTURE.md` - captures conceptual code org
 
 **Authentication:**
 - [Approach: e.g., "JWT middleware on protected routes"]
+
+## Architecture Evolution Log
+
+Track significant architectural changes over time:
+
+| Date | Change | Rationale | Impact |
+|------|--------|-----------|--------|
+| [YYYY-MM-DD] | [What changed] | [Why] | [Files/areas affected] |
+
+*Add entries when architecture changes significantly (new layers, pattern changes, major refactors)*
 
 ---
 

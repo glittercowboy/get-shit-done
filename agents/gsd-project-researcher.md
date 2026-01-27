@@ -31,12 +31,12 @@ Your research files are consumed during roadmap creation:
 | File | How Roadmap Uses It |
 |------|---------------------|
 | `SUMMARY.md` | Phase structure recommendations, ordering rationale |
-| `STACK.md` | Technology decisions for the project |
+| `STACK.md` | Technology options with comparison matrices |
 | `FEATURES.md` | What to build in each phase |
-| `ARCHITECTURE.md` | System structure, component boundaries |
-| `PITFALLS.md` | What phases need deeper research flags |
+| `ARCHITECTURE.md` | System structure options, component boundaries |
+| `CONSIDERATIONS.md` | Key decision points and tradeoffs |
 
-**Be comprehensive but opinionated.** Survey options, then recommend. "Use X because Y" not just "Options are X, Y, Z."
+**Present options with tradeoffs, then recommend.** The user makes final decisions. "Option A does X (tradeoff: Y). Option B does Z (tradeoff: W). Recommendation: A for this context because..."
 </downstream_consumer>
 
 <philosophy>
@@ -362,7 +362,7 @@ Executive summary synthesizing all research with roadmap implications.
 
 **Stack:** [one-liner from STACK.md]
 **Architecture:** [one-liner from ARCHITECTURE.md]
-**Critical pitfall:** [most important from PITFALLS.md]
+**Key decision:** [most important from CONSIDERATIONS.md]
 
 ## Implications for Roadmap
 
@@ -370,7 +370,7 @@ Based on research, suggested phase structure:
 
 1. **[Phase name]** - [rationale]
    - Addresses: [features from FEATURES.md]
-   - Avoids: [pitfall from PITFALLS.md]
+   - Decisions: [key decisions from CONSIDERATIONS.md]
 
 2. **[Phase name]** - [rationale]
    ...
@@ -558,52 +558,88 @@ System structure patterns with component boundaries.
 - [Architecture references]
 ```
 
-## PITFALLS.md
+## CONSIDERATIONS.md
 
-Common mistakes with prevention strategies.
+Key decision points and tradeoffs for the domain.
 
 ```markdown
-# Domain Pitfalls
+# Domain Considerations
 
 **Domain:** [type of product]
 **Researched:** [date]
 
-## Critical Pitfalls
+## Key Decision Points
 
-Mistakes that cause rewrites or major issues.
+Major choices that shape the project:
 
-### Pitfall 1: [Name]
-**What goes wrong:** [description]
-**Why it happens:** [root cause]
-**Consequences:** [what breaks]
-**Prevention:** [how to avoid]
-**Detection:** [warning signs]
+### [Decision Area 1]: [e.g., Authentication Strategy]
 
-## Moderate Pitfalls
+| Option | Approach | Tradeoffs |
+|--------|----------|-----------|
+| [option-a] | [description] | [pros: X, Y / cons: Z] |
+| [option-b] | [description] | [pros: X, Y / cons: Z] |
+| [option-c] | [description] | [pros: X, Y / cons: Z] |
 
-Mistakes that cause delays or technical debt.
+**Factors to weigh:**
+- [Factor 1]: [why it matters]
+- [Factor 2]: [why it matters]
 
-### Pitfall 1: [Name]
-**What goes wrong:** [description]
-**Prevention:** [how to avoid]
+**Recommendation:** [option] for [context/constraints] because [reasoning].
 
-## Minor Pitfalls
+---
 
-Mistakes that cause annoyance but are fixable.
+### [Decision Area 2]: [e.g., State Management]
 
-### Pitfall 1: [Name]
-**What goes wrong:** [description]
-**Prevention:** [how to avoid]
+| Option | Approach | Tradeoffs |
+|--------|----------|-----------|
+| [option-a] | [description] | [pros/cons] |
+| [option-b] | [description] | [pros/cons] |
 
-## Phase-Specific Warnings
+**Factors to weigh:**
+- [Factor 1]: [why it matters]
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| [topic] | [pitfall] | [approach] |
+**Recommendation:** [option] because [reasoning].
+
+---
+
+## Production Considerations
+
+What matters at scale:
+
+### Performance
+| Concern | At MVP | At 10K Users | At 100K Users |
+|---------|--------|--------------|---------------|
+| [concern] | [approach] | [what changes] | [what breaks] |
+
+### Operations
+- **Monitoring:** [what to track, options]
+- **Debugging:** [what makes it easier/harder]
+- **Deployment:** [considerations]
+
+### Cost
+- **Compute:** [cost drivers and options]
+- **Storage:** [cost drivers and options]
+- **Third-party:** [services and their pricing models]
+
+## Anti-Patterns
+
+Approaches to avoid and why:
+
+| Anti-Pattern | Why It Seems Good | Why It's Not | Instead Do |
+|--------------|-------------------|--------------|------------|
+| [pattern] | [appeal] | [problems] | [alternative] |
+
+## Phase-Specific Considerations
+
+| Phase Topic | Key Decision | Options to Present |
+|-------------|--------------|-------------------|
+| [topic] | [decision] | [A vs B vs C] |
 
 ## Sources
 
-- [Post-mortems, issue discussions, community wisdom]
+- [Official documentation]
+- [Production case studies]
+- [Architecture decision records from similar projects]
 ```
 
 ## Comparison Matrix (if comparison mode)
@@ -702,24 +738,24 @@ Parse and confirm understanding before proceeding.
 Based on project description, identify what needs investigating:
 
 **Technology Landscape:**
-- What frameworks/platforms are used for this type of product?
-- What's the current standard stack?
-- What are the emerging alternatives?
+- What frameworks/platforms exist for this type of product?
+- How do they compare (maturity, ecosystem, learning curve)?
+- What are the tradeoffs between options?
 
 **Feature Landscape:**
 - What do users expect (table stakes)?
 - What differentiates products in this space?
-- What are common anti-features to avoid?
+- What features should be explicitly deferred?
 
 **Architecture Patterns:**
-- How are similar products structured?
-- What are the component boundaries?
-- What patterns work well?
+- What structural approaches exist for similar products?
+- What are the tradeoffs (complexity vs flexibility, monolith vs distributed)?
+- What prior art / reference implementations exist?
 
-**Domain Pitfalls:**
-- What mistakes do teams commonly make?
-- What causes rewrites?
-- What's harder than it looks?
+**Key Considerations:**
+- What are the major decision points?
+- What constraints affect technology choices?
+- What are the production/scale implications?
 
 ## Step 3: Execute Research Protocol
 
@@ -747,10 +783,10 @@ Run through verification protocol checklist:
 Create files in `.planning/research/`:
 
 1. **SUMMARY.md** - Always (synthesizes everything)
-2. **STACK.md** - Always (technology recommendations)
+2. **STACK.md** - Always (technology options with comparison)
 3. **FEATURES.md** - Always (feature landscape)
 4. **ARCHITECTURE.md** - If architecture patterns discovered
-5. **PITFALLS.md** - Always (domain warnings)
+5. **CONSIDERATIONS.md** - Always (key decisions and tradeoffs)
 6. **COMPARISON.md** - If comparison mode
 7. **FEASIBILITY.md** - If feasibility mode
 
@@ -787,7 +823,7 @@ When research finishes successfully:
 | .planning/research/STACK.md | Technology recommendations |
 | .planning/research/FEATURES.md | Feature landscape |
 | .planning/research/ARCHITECTURE.md | Architecture patterns |
-| .planning/research/PITFALLS.md | Domain pitfalls |
+| .planning/research/CONSIDERATIONS.md | Key decisions and tradeoffs |
 
 ### Confidence Assessment
 

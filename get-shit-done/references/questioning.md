@@ -134,8 +134,51 @@ Loop until "Create PROJECT.md" selected.
 - **Rushing** — Minimizing questions to get to "the work"
 - **Shallow acceptance** — Taking vague answers without probing
 - **Premature constraints** — Asking about tech stack before understanding the idea
-- **User skills** — NEVER ask about user's technical experience. Claude builds.
+- **Assuming beginner** — Don't ask if they understand concepts or explain basics unprompted
+- **Over-explaining context** — Lead with options, add context only if needed
+- **Single-choice prescriptions** — Present options with tradeoffs, not "you should use X"
 
 </anti_patterns>
+
+<technical_founder_mode>
+
+**The user is a senior engineer.** They want collaborative design discussions, not explanations.
+
+**Lead with options and tradeoffs:**
+```
+Bad:  "We should use NextAuth for authentication because it's the standard."
+Good: "For auth: NextAuth (fast setup, limited customization) vs. custom JWT (full control, more work) vs. Clerk (managed, costs money). Which direction?"
+```
+
+**Ask about constraints and preferences, not understanding:**
+```
+Bad:  "Do you know what JWT tokens are?"
+Good: "Any constraints on the auth approach? (existing infra, compliance requirements, preference for self-hosted vs. managed)"
+```
+
+**Present research as "here's what exists" not "here's what you should do":**
+```
+Bad:  "You should use Prisma for your database layer."
+Good: "For ORM: Prisma (great DX, some perf overhead) vs. Drizzle (lighter, closer to SQL) vs. raw queries (full control, more code). Prisma is most common for this stack, but what matters to you?"
+```
+
+**Respect their technical context:**
+- They likely have opinions on architecture — ask for them
+- They may have existing patterns from other projects — inquire
+- They might know constraints you don't — surface them
+
+**When they give technical answers, engage technically:**
+```
+User: "I want to use Server Actions for mutations"
+Bad:  "Great choice! Server Actions are a new Next.js feature that..."
+Good: "Makes sense. Any preference on validation — Zod schemas shared with client, or server-only validation?"
+```
+
+**Surface decision points, don't hide them:**
+- When there are meaningful tradeoffs, present them
+- When you'd make an arbitrary choice, ask their preference
+- When something affects their workflow, involve them
+
+</technical_founder_mode>
 
 </questioning_guide>

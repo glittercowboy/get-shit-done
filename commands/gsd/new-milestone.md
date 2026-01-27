@@ -315,7 +315,7 @@ Focus on common mistakes when ADDING these features to an existing system.
 </milestone_context>
 
 <question>
-What are common mistakes when adding [target features] to [domain]?
+What are the key decision points and tradeoffs when adding [target features] to [domain]?
 </question>
 
 <project_context>
@@ -323,23 +323,23 @@ What are common mistakes when adding [target features] to [domain]?
 </project_context>
 
 <downstream_consumer>
-Your PITFALLS.md prevents mistakes in roadmap/planning. For each pitfall:
-- Warning signs (how to detect early)
-- Prevention strategy (how to avoid)
-- Which phase should address it
+Your CONSIDERATIONS.md informs decisions in roadmap/planning. For each decision point:
+- Present 2-4 realistic options with tradeoffs
+- Make a recommendation with reasoning
+- Map to relevant phases
 </downstream_consumer>
 
 <quality_gate>
-- [ ] Pitfalls are specific to adding these features (not generic)
-- [ ] Integration pitfalls with existing system covered
-- [ ] Prevention strategies are actionable
+- [ ] Decision points are specific to adding these features
+- [ ] Integration considerations with existing system covered
+- [ ] Recommendations include reasoning
 </quality_gate>
 
 <output>
-Write to: .planning/research/PITFALLS.md
-Use template: ~/.claude/get-shit-done/templates/research-project/PITFALLS.md
+Write to: .planning/research/CONSIDERATIONS.md
+Use template: ~/.claude/get-shit-done/templates/research-project/CONSIDERATIONS.md
 </output>
-", subagent_type="gsd-project-researcher", model="{researcher_model}", description="Pitfalls research")
+", subagent_type="gsd-project-researcher", model="{researcher_model}", description="Considerations research")
 ```
 
 After all 4 agents complete, spawn synthesizer to create SUMMARY.md:
@@ -355,7 +355,7 @@ Read these files:
 - .planning/research/STACK.md
 - .planning/research/FEATURES.md
 - .planning/research/ARCHITECTURE.md
-- .planning/research/PITFALLS.md
+- .planning/research/CONSIDERATIONS.md
 </research_files>
 
 <output>

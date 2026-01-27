@@ -124,10 +124,28 @@ Template for `.planning/codebase/CONVENTIONS.md` - captures coding style and pat
 - [e.g., "use index.ts to re-export public API"]
 - [e.g., "avoid circular dependencies"]
 
+## Emerging Patterns
+
+Patterns observed during recent execution that may become conventions:
+
+| Pattern | First Seen | Occurrences | Promote to Convention? |
+|---------|------------|-------------|----------------------|
+| [pattern description] | [phase] | [count] | [yes/no/pending] |
+
+*Patterns with 3+ occurrences across files should be reviewed for promotion.*
+
+## Convention Evolution Log
+
+Track when conventions are added or changed:
+
+| Date | Change | Rationale | Proposed By |
+|------|--------|-----------|-------------|
+| [YYYY-MM-DD] | [What changed] | [Why] | [Phase or discussion] |
+
 ---
 
 *Convention analysis: [date]*
-*Update when patterns change*
+*Living document — update when patterns emerge or conventions change*
 ```
 
 <good_examples>

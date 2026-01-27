@@ -40,13 +40,13 @@ Your RESEARCH.md is consumed by `gsd-planner` which uses specific sections:
 
 | Section | How Planner Uses It |
 |---------|---------------------|
-| `## Standard Stack` | Plans use these libraries, not alternatives |
+| `## Stack Options` | Plans reference selected approach from options |
 | `## Architecture Patterns` | Task structure follows these patterns |
-| `## Don't Hand-Roll` | Tasks NEVER build custom solutions for listed problems |
-| `## Common Pitfalls` | Verification steps check for these |
+| `## Prior Art` | Reference implementations inform design |
+| `## Considerations` | Tradeoffs inform verification and decisions |
 | `## Code Examples` | Task actions reference these patterns |
 
-**Be prescriptive, not exploratory.** "Use X" not "Consider X or Y." Your research becomes instructions.
+**Present options with tradeoffs, then recommend.** The user makes final decisions. "Option A does X (tradeoff: Y). Option B does Z (tradeoff: W). Recommendation: A for this context because..."
 </downstream_consumer>
 
 <philosophy>
@@ -308,74 +308,92 @@ Before submitting research:
 
 [2-3 paragraph executive summary]
 - What was researched
-- What the standard approach is
-- Key recommendations
+- Key options identified
+- Recommendation with rationale
 
-**Primary recommendation:** [one-liner actionable guidance]
+**Recommendation:** [one-liner with reasoning]
 
-## Standard Stack
+## Stack Options
 
-The established libraries/tools for this domain:
+### Option Comparison
 
-### Core
-| Library | Version | Purpose | Why Standard |
-|---------|---------|---------|--------------|
-| [name] | [ver] | [what it does] | [why experts use it] |
+| Library | Bundle Size | TS Support | Maintenance | Community | Best For |
+|---------|-------------|------------|-------------|-----------|----------|
+| [lib-a] | [size] | [native/types/none] | [active/stable/declining] | [large/medium/small] | [use case] |
+| [lib-b] | [size] | [native/types/none] | [active/stable/declining] | [large/medium/small] | [use case] |
 
-### Supporting
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| [name] | [ver] | [what it does] | [use case] |
+### Detailed Analysis
 
-### Alternatives Considered
-| Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
-| [standard] | [alternative] | [when alternative makes sense] |
+**[Option A]:**
+- Strengths: [what it does well]
+- Limitations: [where it falls short]
+- When to choose: [conditions that favor this]
+
+**[Option B]:**
+- Strengths: [what it does well]
+- Limitations: [where it falls short]
+- When to choose: [conditions that favor this]
+
+### Recommendation
+
+[Option X] because [specific reasons tied to project context].
 
 **Installation:**
 \`\`\`bash
 npm install [packages]
 \`\`\`
 
-## Architecture Patterns
+## Prior Art
 
-### Recommended Project Structure
-\`\`\`
-src/
-├── [folder]/        # [purpose]
-├── [folder]/        # [purpose]
-└── [folder]/        # [purpose]
-\`\`\`
+How similar projects solved this:
 
-### Pattern 1: [Pattern Name]
-**What:** [description]
-**When to use:** [conditions]
-**Example:**
-\`\`\`typescript
-// Source: [Context7/official docs URL]
-[code]
-\`\`\`
+### [OSS Project / Reference Implementation]
+- **Approach:** [how they did it]
+- **Why it worked:** [context that made it appropriate]
+- **What we can learn:** [applicable patterns]
+- **Source:** [GitHub URL or documentation]
 
-### Anti-Patterns to Avoid
-- **[Anti-pattern]:** [why it's bad, what to do instead]
+### Production Patterns
+| Pattern | Used By | Scale | Tradeoffs |
+|---------|---------|-------|-----------|
+| [pattern] | [companies/projects] | [user scale] | [pros/cons] |
 
-## Don't Hand-Roll
+## Architecture Variants
 
-Problems that look simple but have existing solutions:
+### Variant 1: [Name]
+**Approach:** [description]
+**Complexity:** [Low/Medium/High]
+**Flexibility:** [Low/Medium/High]
+**Best for:** [project characteristics]
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| [problem] | [what you'd build] | [library] | [edge cases, complexity] |
+### Variant 2: [Name]
+**Approach:** [description]
+**Complexity:** [Low/Medium/High]
+**Flexibility:** [Low/Medium/High]
+**Best for:** [project characteristics]
 
-**Key insight:** [why custom solutions are worse in this domain]
+### Recommendation
+[Variant X] for this project because [reasons tied to scope/constraints].
 
-## Common Pitfalls
+## Considerations
 
-### Pitfall 1: [Name]
-**What goes wrong:** [description]
-**Why it happens:** [root cause]
-**How to avoid:** [prevention strategy]
-**Warning signs:** [how to detect early]
+Key decision points and tradeoffs:
+
+### [Decision Area 1]
+| Approach | Tradeoff |
+|----------|----------|
+| [approach-a] | [what you gain / what you give up] |
+| [approach-b] | [what you gain / what you give up] |
+
+**Factors to weigh:** [what matters for this decision]
+
+### [Decision Area 2]
+...
+
+### Production/Scale Implications
+- **At current scale:** [what works fine]
+- **At 10x scale:** [what needs attention]
+- **At 100x scale:** [what breaks, what to plan for]
 
 ## Code Examples
 
@@ -420,9 +438,9 @@ Things that couldn't be fully resolved:
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: [level] - [reason]
+- Stack options: [level] - [reason]
 - Architecture: [level] - [reason]
-- Pitfalls: [level] - [reason]
+- Considerations: [level] - [reason]
 
 **Research date:** [date]
 **Valid until:** [estimate - 30 days for stable, 7 for fast-moving]
@@ -479,26 +497,27 @@ Based on phase description, identify what needs investigating:
 **Core Technology:**
 - What's the primary technology/framework?
 - What version is current?
-- What's the standard setup?
+- What are the setup options?
 
-**Ecosystem/Stack:**
-- What libraries pair with this?
-- What's the "blessed" stack?
-- What helper libraries exist?
+**Stack Options:**
+- What libraries exist for this problem?
+- How do they compare (bundle size, TS support, maintenance, community)?
+- What are the tradeoffs between options?
 
-**Patterns:**
-- How do experts structure this?
-- What design patterns apply?
-- What's recommended organization?
+**Prior Art:**
+- How have similar OSS projects solved this?
+- What patterns do production systems use?
+- What reference implementations exist?
 
-**Pitfalls:**
-- What do beginners get wrong?
-- What are the gotchas?
-- What mistakes lead to rewrites?
+**Architecture Variants:**
+- What structural approaches exist?
+- What are the tradeoffs (complexity, flexibility, performance)?
+- What scales well vs. what's simpler for small scope?
 
-**Don't Hand-Roll:**
-- What existing solutions should be used?
-- What problems look simple but aren't?
+**Considerations:**
+- What are the key decision points?
+- What constraints affect the choice?
+- What are the production/scale implications?
 
 ## Step 3: Execute Research Protocol
 

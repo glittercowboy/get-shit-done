@@ -433,7 +433,7 @@ Display spawning indicator:
   → Stack research
   → Features research
   → Architecture research
-  → Pitfalls research
+  → Considerations research
 ```
 
 Spawn 4 parallel gsd-project-researcher agents with rich context:
@@ -562,18 +562,18 @@ Use template: ~/.claude/get-shit-done/templates/research-project/ARCHITECTURE.md
 Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
 
 <research_type>
-Project Research — Pitfalls dimension for [domain].
+Project Research — Considerations dimension for [domain].
 </research_type>
 
 <milestone_context>
 [greenfield OR subsequent]
 
-Greenfield: What do [domain] projects commonly get wrong? Critical mistakes?
-Subsequent: What are common mistakes when adding [target features] to [domain]?
+Greenfield: What are the key decision points and tradeoffs for [domain] projects?
+Subsequent: What decisions and tradeoffs apply when adding [target features] to [domain]?
 </milestone_context>
 
 <question>
-What do [domain] projects commonly get wrong? Critical mistakes?
+What are the major decision points? What tradeoffs should be considered?
 </question>
 
 <project_context>
@@ -581,23 +581,24 @@ What do [domain] projects commonly get wrong? Critical mistakes?
 </project_context>
 
 <downstream_consumer>
-Your PITFALLS.md prevents mistakes in roadmap/planning. For each pitfall:
-- Warning signs (how to detect early)
-- Prevention strategy (how to avoid)
-- Which phase should address it
+Your CONSIDERATIONS.md informs decisions in roadmap/planning. For each decision point:
+- Present 2-4 realistic options with tradeoffs
+- Make a recommendation with reasoning
+- Map to relevant phases
 </downstream_consumer>
 
 <quality_gate>
-- [ ] Pitfalls are specific to this domain (not generic advice)
-- [ ] Prevention strategies are actionable
+- [ ] Decision points are specific to this domain
+- [ ] Options include concrete tradeoffs (not vague pros/cons)
+- [ ] Recommendations include reasoning
 - [ ] Phase mapping included where relevant
 </quality_gate>
 
 <output>
-Write to: .planning/research/PITFALLS.md
-Use template: ~/.claude/get-shit-done/templates/research-project/PITFALLS.md
+Write to: .planning/research/CONSIDERATIONS.md
+Use template: ~/.claude/get-shit-done/templates/research-project/CONSIDERATIONS.md
 </output>
-", subagent_type="general-purpose", model="{researcher_model}", description="Pitfalls research")
+", subagent_type="general-purpose", model="{researcher_model}", description="Considerations research")
 ```
 
 After all 4 agents complete, spawn synthesizer to create SUMMARY.md:
@@ -613,7 +614,7 @@ Read these files:
 - .planning/research/STACK.md
 - .planning/research/FEATURES.md
 - .planning/research/ARCHITECTURE.md
-- .planning/research/PITFALLS.md
+- .planning/research/CONSIDERATIONS.md
 </research_files>
 
 <output>
@@ -975,7 +976,7 @@ Present completion with next steps:
   - `STACK.md`
   - `FEATURES.md`
   - `ARCHITECTURE.md`
-  - `PITFALLS.md`
+  - `CONSIDERATIONS.md`
   - `SUMMARY.md`
 - `.planning/REQUIREMENTS.md`
 - `.planning/ROADMAP.md`

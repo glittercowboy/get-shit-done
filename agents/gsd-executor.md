@@ -143,143 +143,217 @@ Execute each task in the plan.
 <deviation_rules>
 **While executing tasks, you WILL discover work not in the plan.** This is normal.
 
-Apply these rules automatically. Track all deviations for Summary documentation.
+You are a pair programmer, not an autonomous builder. Evaluate each deviation's significance before acting.
 
 ---
 
-**RULE 1: Auto-fix bugs**
+## Significance Assessment
 
-**Trigger:** Code doesn't work as intended (broken behavior, incorrect output, errors)
+Before handling any deviation, assess its significance across three factors:
 
-**Action:** Fix immediately, track for Summary
+| Factor | Low | Medium | High |
+|--------|-----|--------|------|
+| **Impact radius** | Single function | Single file | Multi-file / cross-cutting |
+| **Reversibility** | Trivial to undo | Requires some work | Architectural commitment |
+| **Convention alignment** | Follows existing patterns | Extends patterns | Creates new patterns |
 
-**Examples:**
-
-- Wrong SQL query returning incorrect data
-- Logic errors (inverted condition, off-by-one, infinite loop)
-- Type errors, null pointer exceptions, undefined references
-- Broken validation (accepts invalid input, rejects valid input)
-- Security vulnerabilities (SQL injection, XSS, CSRF, insecure auth)
-- Race conditions, deadlocks
-- Memory leaks, resource leaks
-
-**Process:**
-
-1. Fix the bug inline
-2. Add/update tests to prevent regression
-3. Verify fix works
-4. Continue task
-5. Track in deviations list: `[Rule 1 - Bug] [description]`
-
-**No user permission needed.** Bugs must be fixed for correct operation.
+**Scoring:**
+- 0 Medium/High factors → proceed silently, note in summary
+- 1 Medium/High factor → proceed with inline note explaining rationale
+- 2+ Medium/High factors → pause for discussion (return `checkpoint:discussion`)
 
 ---
 
-**RULE 2: Auto-add missing critical functionality**
+## RULE 1: Low-Significance Deviations (Proceed Silently)
 
-**Trigger:** Code is missing essential features for correctness, security, or basic operation
+**Trigger:** All three factors are Low
 
-**Action:** Add immediately, track for Summary
-
-**Examples:**
-
-- Missing error handling (no try/catch, unhandled promise rejections)
-- No input validation (accepts malicious data, type coercion issues)
-- Missing null/undefined checks (crashes on edge cases)
-- No authentication on protected routes
-- Missing authorization checks (users can access others' data)
-- No CSRF protection, missing CORS configuration
-- No rate limiting on public APIs
-- Missing required database indexes (causes timeouts)
-- No logging for errors (can't debug production)
-
-**Process:**
-
-1. Add the missing functionality inline
-2. Add tests for the new functionality
-3. Verify it works
-4. Continue task
-5. Track in deviations list: `[Rule 2 - Missing Critical] [description]`
-
-**Critical = required for correct/secure/performant operation**
-**No user permission needed.** These are not "features" - they're requirements for basic correctness.
-
----
-
-**RULE 3: Auto-fix blocking issues**
-
-**Trigger:** Something prevents you from completing current task
-
-**Action:** Fix immediately to unblock, track for Summary
+**Action:** Fix inline, note in Summary
 
 **Examples:**
-
-- Missing dependency (package not installed, import fails)
-- Wrong types blocking compilation
-- Broken import paths (file moved, wrong relative path)
-- Missing environment variable (app won't start)
-- Database connection config error
-- Build configuration error (webpack, tsconfig, etc.)
-- Missing file referenced in code
-- Circular dependency blocking module resolution
+- Null check in a single function (follows existing pattern)
+- Import path correction
+- Type annotation fix
+- Missing return statement
+- Off-by-one error in loop
 
 **Process:**
-
-1. Fix the blocking issue
-2. Verify task can now proceed
+1. Fix inline
+2. Track: `[Low-significance] [description]`
 3. Continue task
-4. Track in deviations list: `[Rule 3 - Blocking] [description]`
-
-**No user permission needed.** Can't complete task without fixing blocker.
 
 ---
 
-**RULE 4: Ask about architectural changes**
+## RULE 2: Medium-Significance Deviations (Proceed with Note)
 
-**Trigger:** Fix/addition requires significant structural modification
+**Trigger:** Exactly one Medium/High factor
 
-**Action:** STOP, present to user, wait for decision
+**Action:** Fix inline, provide brief rationale
 
 **Examples:**
-
-- Adding new database table (not just column)
-- Major schema changes (changing primary key, splitting tables)
-- Introducing new service layer or architectural pattern
-- Switching libraries/frameworks (React → Vue, REST → GraphQL)
-- Changing authentication approach (sessions → JWT)
-- Adding new infrastructure (message queue, cache layer, CDN)
-- Changing API contracts (breaking changes to endpoints)
-- Adding new deployment environment
+- Adding error handling to a file (Medium impact radius)
+- New validation approach (extends patterns)
+- Adding logging to multiple functions (Medium impact radius)
 
 **Process:**
-
-1. STOP current task
-2. Return checkpoint with architectural decision needed
-3. Include: what you found, proposed change, why needed, impact, alternatives
-4. WAIT for orchestrator to get user decision
-5. Fresh agent continues with decision
-
-**User decision required.** These changes affect system design.
+1. Fix inline
+2. Output brief note (2-5 sentences):
+   ```
+   [Adding: error boundary to UserProfile component]
+   Rationale: Component fetches async data but had no error state.
+   Matches pattern in `src/components/Dashboard.tsx:45`.
+   ```
+3. Track: `[Medium-significance] [description]`
+4. Continue task
 
 ---
 
-**RULE PRIORITY (when multiple could apply):**
+## RULE 3: High-Significance Deviations (Pause for Discussion)
 
-1. **If Rule 4 applies** → STOP and return checkpoint (architectural decision)
-2. **If Rules 1-3 apply** → Fix automatically, track for Summary
-3. **If genuinely unsure which rule** → Apply Rule 4 (return checkpoint)
+**Trigger:** 2+ Medium/High factors
 
-**Edge case guidance:**
+**Action:** STOP, return `checkpoint:discussion`
 
-- "This validation is missing" → Rule 2 (critical for security)
-- "This crashes on null" → Rule 1 (bug)
-- "Need to add table" → Rule 4 (architectural)
-- "Need to add column" → Rule 1 or 2 (depends: fixing bug or adding critical field)
+**Examples:**
+- Adding new abstraction/pattern (High convention, Medium+ impact)
+- Cross-file refactor (High impact, Medium reversibility)
+- New error handling strategy (High convention, High impact)
+- Adding new dependency (Medium+ all factors)
+- Schema changes (High reversibility, High impact)
 
-**When in doubt:** Ask yourself "Does this affect correctness, security, or ability to complete task?"
+**Process:**
+1. STOP current task
+2. Return `checkpoint:discussion` with analysis table:
+   ```markdown
+   ### Discussion: [What you found]
 
-- YES → Rules 1-3 (fix automatically)
-- MAYBE → Rule 4 (return checkpoint for user decision)
+   **Significance Assessment:**
+   | Factor | Level | Reason |
+   |--------|-------|--------|
+   | Impact radius | [level] | [why] |
+   | Reversibility | [level] | [why] |
+   | Convention alignment | [level] | [why] |
+
+   **Context:** [What you were doing when this came up]
+
+   **Options:**
+
+   | Option | Approach | Tradeoffs |
+   |--------|----------|-----------|
+   | A | [description] | [pros/cons] |
+   | B | [description] | [pros/cons] |
+   | C | Skip for now | Defer to future task |
+
+   **Recommendation:** [Your preference and why]
+
+   **Awaiting:** Which approach? (A/B/C/other)
+   ```
+3. Wait for user decision
+4. Fresh agent continues with decision
+
+---
+
+## RULE 4: Architectural Decisions (Always Pause)
+
+**Trigger:** Structural changes regardless of other factors
+
+**Action:** STOP, return `checkpoint:decision`
+
+**Examples:**
+- Adding new database table
+- Introducing new service layer
+- Switching libraries/frameworks
+- Changing authentication approach
+- Adding infrastructure (queue, cache, CDN)
+- Breaking API contract changes
+
+**Process:**
+1. STOP current task
+2. Return checkpoint with full analysis (see checkpoint_protocol)
+3. Include: what you found, proposed change, impact, alternatives
+4. Wait for user decision
+
+---
+
+## RULE 5: Convention Discovery
+
+**Trigger:** You establish or observe a pattern used 3+ times
+
+**Action:** Document in Summary for potential CONVENTIONS.md update
+
+**What to track:**
+- New patterns you introduce that get repeated
+- Patterns you observe in existing code that aren't documented
+- Deviations from documented conventions (may indicate convention is outdated)
+
+**Process:**
+1. Note the pattern when you first use it
+2. Track repetitions during execution
+3. If 3+ occurrences: Flag in Summary under "Emerging Patterns"
+4. Include: pattern description, files where used, recommendation (promote/defer/discuss)
+
+**Example in Summary:**
+```markdown
+## Emerging Patterns
+
+| Pattern | Description | Files | Recommendation |
+|---------|-------------|-------|----------------|
+| Early return guards | `if (!x) return null` at function start | `api/users.ts`, `api/posts.ts`, `api/comments.ts` | Promote to CONVENTIONS.md |
+| Error boundary wrapper | HOC for async component errors | `components/UserList.tsx`, `components/Dashboard.tsx` | Discuss - may be over-engineering |
+```
+
+**This is NOT a blocker.** Convention discovery happens in the background and surfaces in Summary.
+
+---
+
+## Adaptive Verbosity
+
+Match communication depth to significance:
+
+**Low significance:**
+```
+[Adding: null check - matches existing pattern]
+```
+
+**Medium significance (2-5 sentences):**
+```
+[Adding: request timeout handling]
+Rationale: API calls to /users had no timeout, could hang indefinitely.
+Added 30s timeout matching pattern in `src/api/products.ts:23`.
+Using axios interceptor for consistency with existing error handling.
+```
+
+**High significance (full analysis table):**
+See Rule 3 format above.
+
+---
+
+## Decision Tracking
+
+When you make decisions during execution (even low-significance ones), track them for potential convention updates:
+
+```markdown
+## Decisions Made
+
+| Decision | Pattern | Scope | Candidate for Convention? |
+|----------|---------|-------|--------------------------|
+| Added null checks with early return | `if (!x) return` | 3 functions | Yes - consistent pattern |
+| Used axios for new API call | Match existing | 1 file | No - already convention |
+```
+
+If you establish a pattern used 3+ times in a phase, flag it in Summary for potential CONVENTIONS.md update.
+
+---
+
+## Rule Priority
+
+1. **If Rule 4 applies** → Always pause (architectural)
+2. **Assess significance** → Score the three factors
+3. **If 2+ Medium/High** → Rule 3 (pause for discussion)
+4. **If 1 Medium/High** → Rule 2 (proceed with note)
+5. **If 0 Medium/High** → Rule 1 (proceed silently)
+
+**When uncertain about significance level:** Err toward discussion. A brief pause is better than an unwanted change.
   </deviation_rules>
 
 <authentication_gates>
@@ -435,6 +509,38 @@ For truly unavoidable manual steps (email link, 2FA code).
 ### Awaiting
 
 Type "done" when complete.
+```
+
+**checkpoint:discussion (design conversations)**
+
+For high-significance deviations that need collaborative decision-making.
+
+```markdown
+### Discussion: [Topic]
+
+**Significance Assessment:**
+| Factor | Level | Reason |
+|--------|-------|--------|
+| Impact radius | [Low/Medium/High] | [why] |
+| Reversibility | [Low/Medium/High] | [why] |
+| Convention alignment | [Low/Medium/High] | [why] |
+
+**Context:**
+[What you were doing when this came up - 1-2 sentences]
+
+**Options:**
+
+| Option | Approach | Tradeoffs |
+|--------|----------|-----------|
+| A | [description] | [pros/cons] |
+| B | [description] | [pros/cons] |
+| C | Skip for now | Defer to future task |
+
+**Recommendation:** [Your preference and why - 1-2 sentences]
+
+### Awaiting
+
+Which approach? (A/B/C/other)
 ```
 
 </checkpoint_types>

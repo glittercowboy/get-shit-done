@@ -55,13 +55,13 @@ Template for `.planning/research/SUMMARY.md` — executive summary of project re
 2. [Component] — [responsibility]
 3. [Component] — [responsibility]
 
-### Critical Pitfalls
+### Key Decisions
 
-[Top 3-5 from PITFALLS.md]
+[Top decision points from CONSIDERATIONS.md]
 
-1. **[Pitfall]** — [how to avoid]
-2. **[Pitfall]** — [how to avoid]
-3. **[Pitfall]** — [how to avoid]
+1. **[Decision area]** — [recommended approach and tradeoff]
+2. **[Decision area]** — [recommended approach and tradeoff]
+3. **[Decision area]** — [recommended approach and tradeoff]
 
 ## Implications for Roadmap
 
@@ -71,7 +71,7 @@ Based on research, suggested phase structure:
 **Rationale:** [why this comes first based on research]
 **Delivers:** [what this phase produces]
 **Addresses:** [features from FEATURES.md]
-**Avoids:** [pitfall from PITFALLS.md]
+**Decisions:** [key decisions from CONSIDERATIONS.md addressed here]
 
 ### Phase 2: [Name]
 **Rationale:** [why this order]
@@ -89,7 +89,7 @@ Based on research, suggested phase structure:
 
 - [Why this order based on dependencies discovered]
 - [Why this grouping based on architecture patterns]
-- [How this avoids pitfalls from research]
+- [How this addresses key decisions from research]
 
 ### Research Flags
 
@@ -107,7 +107,7 @@ Phases with standard patterns (skip research-phase):
 | Stack | [HIGH/MEDIUM/LOW] | [reason] |
 | Features | [HIGH/MEDIUM/LOW] | [reason] |
 | Architecture | [HIGH/MEDIUM/LOW] | [reason] |
-| Pitfalls | [HIGH/MEDIUM/LOW] | [reason] |
+| Considerations | [HIGH/MEDIUM/LOW] | [reason] |
 
 **Overall confidence:** [HIGH/MEDIUM/LOW]
 
