@@ -1,9 +1,9 @@
 ---
 name: set-profile
-description: Switch model profile for GSD agents (quality/balanced/budget)
+description: Switch model profile for GSD agents (quality/balanced/budget/custom)
 arguments:
   - name: profile
-    description: "Profile name: quality, balanced, or budget"
+    description: "Profile name: quality, balanced, budget, or custom"
     required: true
 ---
 
@@ -17,6 +17,7 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 | **quality** | Opus everywhere except read-only verification |
 | **balanced** | Opus for planning, Sonnet for execution/verification (default) |
 | **budget** | Sonnet for writing, Haiku for research/verification |
+| **custom** | User-defined model for each agent |
 </profiles>
 
 <process>
@@ -24,9 +25,9 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 ## 1. Validate argument
 
 ```
-if $ARGUMENTS.profile not in ["quality", "balanced", "budget"]:
+if $ARGUMENTS.profile not in ["quality", "balanced", "budget", "custom"]:
   Error: Invalid profile "$ARGUMENTS.profile"
-  Valid profiles: quality, balanced, budget
+  Valid profiles: quality, balanced, budget, custom
   STOP
 ```
 
