@@ -1,5 +1,6 @@
 # TUI node_modules (users install their own)
-get-shit-done/tui/node_modules/
+**/node_modules
+**/node_modules/**
 
 # Development files
 *.backup
