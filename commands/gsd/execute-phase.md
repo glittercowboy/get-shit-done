@@ -47,6 +47,23 @@ Phase: $ARGUMENTS
 
    Default to "balanced" if not set.
 
+   **If MODEL_PROFILE is "custom":**
+
+   Read agent-specific models from custom_profile_models:
+
+   ```bash
+   if [ "$MODEL_PROFILE" = "custom" ]; then
+     EXECUTOR_MODEL=$(cat .planning/config.json | grep -A20 '"custom_profile_models"' | grep -o '"gsd-executor"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+     VERIFIER_MODEL=$(cat .planning/config.json | grep -A20 '"custom_profile_models"' | grep -o '"gsd-verifier"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+
+     # Fallback to balanced if agent not in custom config
+     [ -z "$EXECUTOR_MODEL" ] && EXECUTOR_MODEL="sonnet"
+     [ -z "$VERIFIER_MODEL" ] && VERIFIER_MODEL="sonnet"
+   fi
+   ```
+
+   **Otherwise (quality/balanced/budget):**
+
    **Model lookup table:**
 
    | Agent | quality | balanced | budget |
