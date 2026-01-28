@@ -12,6 +12,7 @@ Instantly restore full project context so "Where were we?" has an immediate, com
 
 <required_reading>
 @~/.claude/get-shit-done/references/continuation-format.md
+@~/.claude/get-shit-done/references/feature-discussion-guard.md
 </required_reading>
 
 <process>
@@ -32,11 +33,12 @@ ls .planning/PROJECT.md 2>/dev/null && echo "Project file exists"
 
 <step name="load_state">
 
-Read and parse STATE.md, then PROJECT.md:
+Read and parse STATE.md, PROJECT.md, and REQUIREMENTS.md:
 
 ```bash
 cat .planning/STATE.md
 cat .planning/PROJECT.md
+cat .planning/REQUIREMENTS.md 2>/dev/null
 ```
 
 **From STATE.md extract:**
@@ -55,6 +57,14 @@ cat .planning/PROJECT.md
 - **Requirements**: Validated, Active, Out of Scope
 - **Key Decisions**: Full decision log with outcomes
 - **Constraints**: Hard limits on implementation
+
+**From REQUIREMENTS.md extract (if exists):**
+
+- **Planned Features**: All features already scoped for future phases
+- **Feature IDs**: Reference codes (e.g., PSY-01, AUTH-03) for tracking
+- **Dependencies**: Which features depend on others
+
+**Why this matters:** Before suggesting new features in conversation, you MUST check REQUIREMENTS.md to avoid proposing features that are already planned. This prevents duplicate work and maintains consistency with the established roadmap.
 
 </step>
 
@@ -197,7 +207,7 @@ What would you like to do?
 **Note:** When offering phase planning, check for CONTEXT.md existence first:
 
 ```bash
-ls .planning/phases/XX-name/*-CONTEXT.md 2>/dev/null
+ls .planning/phases/XX-name/CONTEXT.md 2>/dev/null
 ```
 
 If missing, suggest discuss-phase before plan. If exists, offer plan directly.
