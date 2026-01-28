@@ -286,13 +286,6 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel.
    Commit each task atomically. Create SUMMARY.md. Update STATE.md.
    </objective>
 
-   <execution_context>
-   @~/.claude/get-shit-done/workflows/execute-plan.md
-   @~/.claude/get-shit-done/templates/summary.md
-   @~/.claude/get-shit-done/references/checkpoints.md
-   @~/.claude/get-shit-done/references/tdd.md
-   </execution_context>
-
    <context>
    Plan:
    {plan_content}
