@@ -68,6 +68,172 @@ Default to "balanced" if not set.
 
 Store resolved models for use in Task calls below.
 
+## 1.5 Check Session Continuity (CRITICAL)
+
+**Before any planning, check STATE.md for current context and warnings:**
+
+```bash
+# Parse YAML frontmatter from STATE.md
+NEXT_ACTION=$(grep "^next_action:" .planning/STATE.md 2>/dev/null | sed 's/next_action: //')
+LAST_CHECKPOINT=$(grep "^last_checkpoint:" .planning/STATE.md 2>/dev/null | sed 's/last_checkpoint: //')
+CURRENT_PHASE_DIR=$(grep "^current_phase_dir:" .planning/STATE.md 2>/dev/null | sed 's/current_phase_dir: //')
+
+# Fallback: Parse Session Continuity section if no frontmatter
+if [ -z "$NEXT_ACTION" ]; then
+  NEXT_ACTION=$(grep "^Next step:" .planning/STATE.md 2>/dev/null | sed 's/Next step: //')
+fi
+
+# Check for .continue-here files in any phase
+CONTINUE_FILES=$(ls .planning/phases/*/.continue-here*.md 2>/dev/null)
+```
+
+**If .continue-here file exists:**
+- Read the file to understand current state
+- Extract `<remaining_work>` section for scope context
+- Display warning:
+  ```
+  ⚠️ ACTIVE CHECKPOINT FOUND:
+      [path to .continue-here.md]
+
+  This file contains important context about incomplete work.
+  Reading it now...
+  ```
+- Read and display key sections (`<current_state>`, `<remaining_work>`, `<next_action>`)
+
+**If requested phase differs from NEXT_ACTION:**
+- Display warning:
+  ```
+  ⚠️ STATE.md suggests: [NEXT_ACTION]
+     But you requested: [PHASE]
+
+  This may skip important context from previous session.
+  ```
+- Ask user to confirm: "Proceed anyway? [y/N]"
+
+**If CURRENT_PHASE_DIR exists and differs from requested phase directory:**
+- Check if old directory has incomplete plans (PLAN without SUMMARY)
+- Warn about potential orphaned work
+
+## 1.6 Check for Scope Conflicts (DEFER LOGIC)
+
+**After parsing phase, check if directory exists with different scope:**
+
+```bash
+# Check for existing phase directory (both new and legacy format)
+EXISTING_DIR=$(ls -d .planning/phases/${PHASE}/ 2>/dev/null || ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+
+if [ -n "$EXISTING_DIR" ]; then
+  # Get existing scope from SCOPE.md or directory name
+  if [ -f "${EXISTING_DIR}/SCOPE.md" ]; then
+    EXISTING_SCOPE=$(grep "^**Goal:**" "${EXISTING_DIR}/SCOPE.md" | sed 's/\*\*Goal:\*\* //')
+  else
+    # Legacy: extract from directory name
+    EXISTING_SCOPE=$(basename "$EXISTING_DIR" | sed "s/${PHASE}-//")
+  fi
+
+  # Get requested scope from ROADMAP
+  ROADMAP_GOAL=$(grep -A3 "Phase ${PHASE}:" .planning/ROADMAP.md | grep -E "Goal:|goal:" | head -1 | sed 's/.*[Gg]oal: //')
+
+  # Check for existing plans
+  EXISTING_PLANS=$(ls "${EXISTING_DIR}"/*-PLAN.md 2>/dev/null | wc -l)
+fi
+```
+
+**If scope conflict detected (existing scope ≠ roadmap goal AND plans exist):**
+
+Display conflict resolution options:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  SCOPE CONFLICT: Phase ${PHASE}                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+Existing directory: ${EXISTING_DIR}
+Existing scope: ${EXISTING_SCOPE}
+Existing plans: ${EXISTING_PLANS} plan(s)
+
+Requested scope: ${ROADMAP_GOAL}
+
+┌─────────────────────────────────────────────────────────────┐
+│ [1] Redefine scope (keep directory, update SCOPE.md)        │
+│     → Existing plans will be reviewed/replaced              │
+│                                                             │
+│ [2] Defer existing to Phase ${NEXT_PHASE} (RECOMMENDED)     │
+│     → Moves existing plans to Phase ${NEXT_PHASE}           │
+│     → Creates fresh Phase ${PHASE} for new scope            │
+│                                                             │
+│ [3] Archive existing (move to _deferred/)                   │
+│     → Preserves plans but removes from active phases        │
+│                                                             │
+│ [4] Cancel (review situation first)                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Use AskUserQuestion tool to get user choice.
+
+**If user chooses [2] Defer:**
+
+Execute defer operation:
+
+```bash
+# Calculate next available phase number
+NEXT_PHASE="${PHASE}+1"  # Or find next gap in numbering
+
+# 1. Rename directory
+NEW_DIR=".planning/phases/${NEXT_PHASE}"
+mv "${EXISTING_DIR}" "${NEW_DIR}"
+echo "✓ Moved ${EXISTING_DIR} → ${NEW_DIR}"
+
+# 2. Rename all files within directory
+cd "${NEW_DIR}"
+for f in *${PHASE}*; do
+  NEW_NAME="${f//${PHASE}/${NEXT_PHASE}}"
+  mv "$f" "$NEW_NAME"
+  echo "  Renamed: $f → $NEW_NAME"
+done
+
+# 3. Update frontmatter references in all .md files
+for f in *.md; do
+  sed -i "s/phase: .*${PHASE}/phase: ${NEXT_PHASE}/g" "$f"
+  sed -i "s/${PHASE}-/${NEXT_PHASE}-/g" "$f"
+done
+echo "✓ Updated internal references"
+
+# 4. Update SCOPE.md phase reference
+if [ -f "SCOPE.md" ]; then
+  sed -i "s/Phase ${PHASE}/Phase ${NEXT_PHASE}/g" SCOPE.md
+fi
+
+cd -  # Return to original directory
+```
+
+Update ROADMAP.md:
+- Add new phase entry for deferred phase
+- Keep original phase number for new scope
+
+```
+✓ Defer complete:
+  - Phase ${PHASE} (${EXISTING_SCOPE}) → Phase ${NEXT_PHASE}
+  - Phase ${PHASE} now available for: ${ROADMAP_GOAL}
+
+Continuing with planning for Phase ${PHASE}...
+```
+
+**If user chooses [1] Redefine:**
+- Continue to Step 4 (directory exists, will update SCOPE.md)
+- Warn that existing plans may need review
+
+**If user chooses [3] Archive:**
+```bash
+mkdir -p .planning/phases/_deferred
+mv "${EXISTING_DIR}" ".planning/phases/_deferred/$(basename ${EXISTING_DIR})-$(date +%Y%m%d)"
+echo "✓ Archived to .planning/phases/_deferred/"
+```
+- Continue to Step 4 (create fresh directory)
+
+**If user chooses [4] Cancel:**
+- Exit with message: "Review the situation and run /gsd:plan-phase again when ready"
+
 ## 2. Parse and Normalize Arguments
 
 Extract from $ARGUMENTS:
@@ -106,18 +272,57 @@ grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md 2>/dev/null
 
 **If not found:** Error with available phases. **If found:** Extract phase number, name, description.
 
-## 4. Ensure Phase Directory Exists
+## 4. Ensure Phase Directory Exists (Scope-Stable Naming)
+
+**Phase directories use STABLE IDs, not scope names:**
 
 ```bash
-# PHASE is already normalized (08, 02.1, etc.) from step 2
-PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+# PHASE is already normalized (08, 02.1, track-minus-0.5-phase-6, etc.) from step 2
+PHASE_DIR=$(ls -d .planning/phases/${PHASE}/ 2>/dev/null | head -1)
+
+# Also check for legacy format with scope suffix
 if [ -z "$PHASE_DIR" ]; then
-  # Create phase directory from roadmap name
-  PHASE_NAME=$(grep "Phase ${PHASE}:" .planning/ROADMAP.md | sed 's/.*Phase [0-9]*: //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-  mkdir -p ".planning/phases/${PHASE}-${PHASE_NAME}"
-  PHASE_DIR=".planning/phases/${PHASE}-${PHASE_NAME}"
+  PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+fi
+
+if [ -z "$PHASE_DIR" ]; then
+  # Create phase directory with STABLE ID only (no scope suffix)
+  mkdir -p ".planning/phases/${PHASE}"
+  PHASE_DIR=".planning/phases/${PHASE}"
+
+  # Create SCOPE.md to track scope separately (can change without renaming directory)
+  PHASE_NAME=$(grep "Phase ${PHASE}:" .planning/ROADMAP.md | sed 's/.*Phase [0-9]*: //')
+  PHASE_GOAL=$(grep -A2 "Phase ${PHASE}:" .planning/ROADMAP.md | grep "Goal:" | sed 's/.*Goal: //')
+
+  cat > "${PHASE_DIR}/SCOPE.md" << EOF
+# Phase ${PHASE}: ${PHASE_NAME}
+
+**Goal:** ${PHASE_GOAL:-TBD}
+**Scope Version:** 1
+**Created:** $(date +%Y-%m-%d)
+**Last Modified:** $(date +%Y-%m-%d)
+
+## Current Scope
+
+[Scope details will be added during planning]
+
+## Scope History
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1 | $(date +%Y-%m-%d) | Initial scope |
+EOF
+
+  echo "Created phase directory: ${PHASE_DIR}"
+  echo "Created SCOPE.md for scope tracking"
 fi
 ```
+
+**Why stable naming:**
+- Directory name is `${PHASE}/` not `${PHASE}-${scope-name}/`
+- Scope changes don't require directory renaming
+- SCOPE.md tracks scope evolution with version history
+- Prevents orphaned directories when scope changes
 
 ## 5. Handle Research
 
