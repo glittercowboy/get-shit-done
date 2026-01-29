@@ -7,6 +7,25 @@ Template for `.planning/STATE.md` — the project's living memory.
 ## File Template
 
 ```markdown
+---
+# Machine-readable state (parsed by GSD workflows)
+# DO NOT EDIT MANUALLY — updated by GSD commands
+gsd_version: 2
+current_phase: null
+current_phase_dir: null
+current_plan: null
+phase_status: not_started
+next_action: /gsd:plan-phase 1
+last_checkpoint: null
+plan_summary_exists: false  # CRITICAL: Only true when SUMMARY.md verified
+plans_in_phase: 0
+summaries_in_phase: 0
+next_action: /gsd:plan-phase 1
+last_checkpoint: null
+scope_version: 1
+last_verified: null  # Timestamp of last consistency check
+---
+
 # Project State
 
 ## Project Reference
@@ -70,7 +89,9 @@ None yet.
 
 Last session: [YYYY-MM-DD HH:MM]
 Stopped at: [Description of last completed action]
+Next step: [Suggested next command, e.g., /gsd:plan-phase 3]
 Resume file: [Path to .continue-here*.md if exists, otherwise "None"]
+Context file: [Path to relevant CONTEXT.md if exists]
 ```
 
 <purpose>
@@ -113,6 +134,29 @@ STATE.md is the project's short-term memory spanning all phases and sessions.
 </lifecycle>
 
 <sections>
+
+### YAML Frontmatter (Machine-Readable)
+
+The frontmatter contains machine-readable fields parsed by GSD workflows:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `gsd_version` | int | Schema version for backwards compatibility |
+| `current_phase` | string | Phase ID, e.g., `track-minus-0.5-phase-6` |
+| `current_phase_dir` | string | Full path to phase directory |
+| `current_plan` | string | Current plan ID, e.g., `01` or `null` |
+| `phase_status` | enum | `not_started`, `planning`, `executing`, `verifying`, `complete` |
+| `next_action` | string | Suggested next GSD command |
+| `last_checkpoint` | string | Path to .continue-here.md or `null` |
+| `scope_version` | int | Incremented when phase scope changes |
+| `plan_summary_exists` | bool | **CRITICAL:** Only true when SUMMARY.md verified to exist |
+| `plans_in_phase` | int | Count of PLAN.md files in current phase |
+| `summaries_in_phase` | int | Count of SUMMARY.md files (should match plans when complete) |
+| `last_verified` | string | Timestamp of last STATE/SUMMARY consistency check |
+
+**Consistency Invariant:** `summaries_in_phase` should always match actual SUMMARY.md count. If mismatch detected, use `/gsd:recover-summary` to fix.
+
+**Important:** Workflows should parse these fields instead of regex-matching prose text.
 
 ### Project Reference
 Points to PROJECT.md for full context. Includes:
@@ -159,7 +203,27 @@ Updated after each plan completion.
 Enables instant resumption:
 - When was last session
 - What was last completed
+- Suggested next command (mirrors frontmatter `next_action`)
 - Is there a .continue-here file to resume from
+- Relevant context file for current work
+
+**Next step field:** Should contain the exact command to run next, e.g.:
+- `/gsd:plan-phase track-minus-0.5-phase-6`
+- `/gsd:execute-phase 3`
+- `/gsd:verify-work`
+
+This is the primary source of truth for session handoff.
+
+**⚠️ CRITICAL CONSTRAINT: Only ONE Session Continuity section allowed!**
+
+Multiple Session Continuity sections cause resume-work to read the FIRST (stale) one and ignore the current state. This has caused serious session handoff failures.
+
+**Rules:**
+- Session Continuity MUST be the LAST section in STATE.md
+- When updating, REPLACE the entire section (don't append a new one)
+- pause-work.md handles this by deleting from "## Session Continuity" to EOF before writing
+
+**Validation:** If you find multiple "## Session Continuity" headers, the file is corrupted. Delete all but the last one.
 
 </sections>
 
