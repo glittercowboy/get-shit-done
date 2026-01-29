@@ -1,10 +1,30 @@
 {
+  "gsd_version": "2.0.0",
+
+  "optimization": {
+    "level": "standard",
+    "context_budget": {
+      "enabled": true,
+      "warn_threshold": 40,
+      "suggest_split_threshold": 60,
+      "critical_threshold": 75
+    },
+    "tiered_instructions": true,
+    "delta_context": true,
+    "lazy_references": true,
+    "compact_workflows": true
+  },
+
   "mode": "interactive",
   "depth": "standard",
   "workflow": {
     "research": true,
     "plan_check": true,
-    "verifier": true
+    "verifier": true,
+    "integration_check": {
+      "enabled": true,
+      "min_phases": 4
+    }
   },
   "planning": {
     "commit_docs": true,
