@@ -21,6 +21,52 @@ Enables seamless resumption in fresh session with full context restoration.
 
 <step name="detect">
 Find current phase directory from most recently modified files.
+
+```bash
+# Find current phase from STATE.md YAML or recent activity
+CURRENT_PHASE_DIR=$(grep "^current_phase_dir:" .planning/STATE.md 2>/dev/null | cut -d: -f2- | tr -d ' ')
+if [ -z "$CURRENT_PHASE_DIR" ]; then
+  # Fallback: find most recently modified phase
+  CURRENT_PHASE_DIR=$(ls -td .planning/phases/*/ 2>/dev/null | head -1)
+fi
+```
+</step>
+
+<step name="consistency_check">
+**Check STATE/SUMMARY consistency before pausing:**
+
+```bash
+# Count plans vs summaries in current phase
+PLAN_COUNT=$(ls -1 "$CURRENT_PHASE_DIR"/*-PLAN.md 2>/dev/null | wc -l | tr -d ' ')
+SUMMARY_COUNT=$(ls -1 "$CURRENT_PHASE_DIR"/*-SUMMARY.md 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$SUMMARY_COUNT" -lt "$PLAN_COUNT" ]; then
+  # Find which are missing
+  MISSING=""
+  for plan in "$CURRENT_PHASE_DIR"/*-PLAN.md; do
+    summary="${plan/-PLAN.md/-SUMMARY.md}"
+    [ ! -f "$summary" ] && MISSING="$MISSING $(basename $plan | sed 's/-PLAN.md//')"
+  done
+fi
+```
+
+**If inconsistency found:**
+```
+⚠️ CONSISTENCY WARNING
+
+Before pausing, note that some plans have no SUMMARY:
+Missing: {MISSING}
+
+This may indicate:
+- Plans executed but session interrupted before SUMMARY creation
+- Plans marked complete in STATE.md but SUMMARY missing
+
+Consider:
+- /gsd:recover-summary to generate missing SUMMARYs
+- Or note this in the handoff for next session
+```
+
+Continue with pause regardless (warning only).
 </step>
 
 <step name="gather">
@@ -89,6 +135,73 @@ Start with: [specific first action when resuming]
 Be specific enough for a fresh Claude to understand immediately.
 </step>
 
+<step name="update_state_yaml">
+**Update STATE.md YAML frontmatter with checkpoint info:**
+
+```bash
+CONTINUE_HERE_PATH="$CURRENT_PHASE_DIR/.continue-here.md"
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+HUMAN_TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+
+# Update last_checkpoint to point to the handoff file
+sed -i "s|^last_checkpoint:.*|last_checkpoint: $CONTINUE_HERE_PATH|" .planning/STATE.md
+
+# Update phase_status to indicate paused mid-execution
+sed -i "s|^phase_status:.*|phase_status: paused|" .planning/STATE.md
+
+# Update consistency tracking fields
+PLAN_COUNT=$(ls -1 "$CURRENT_PHASE_DIR"/*-PLAN.md 2>/dev/null | wc -l | tr -d ' ')
+SUMMARY_COUNT=$(ls -1 "$CURRENT_PHASE_DIR"/*-SUMMARY.md 2>/dev/null | wc -l | tr -d ' ')
+
+sed -i "s|^plans_in_phase:.*|plans_in_phase: $PLAN_COUNT|" .planning/STATE.md
+sed -i "s|^summaries_in_phase:.*|summaries_in_phase: $SUMMARY_COUNT|" .planning/STATE.md
+sed -i "s|^last_verified:.*|last_verified: $TIMESTAMP|" .planning/STATE.md
+
+# Set plan_summary_exists based on current plan
+CURRENT_PLAN=$(grep "^current_plan:" .planning/STATE.md | cut -d: -f2 | tr -d ' ')
+if [ -n "$CURRENT_PLAN" ]; then
+  CURRENT_SUMMARY="$CURRENT_PHASE_DIR/*${CURRENT_PLAN}*-SUMMARY.md"
+  if ls $CURRENT_SUMMARY 1>/dev/null 2>&1; then
+    sed -i "s|^plan_summary_exists:.*|plan_summary_exists: true|" .planning/STATE.md
+  else
+    sed -i "s|^plan_summary_exists:.*|plan_summary_exists: false|" .planning/STATE.md
+  fi
+fi
+```
+
+**CRITICAL: REPLACE (not append!) Session Continuity section:**
+
+⚠️ **This step caused session handoff failures when it APPENDED instead of REPLACED!**
+
+The Session Continuity section MUST be the LAST section in STATE.md and there must be ONLY ONE.
+
+```bash
+# CRITICAL: Remove ALL existing Session Continuity sections first!
+# This prevents duplicate sections that confuse resume-work
+
+# Find line number of FIRST "## Session Continuity" and delete from there to EOF
+CONTINUITY_LINE=$(grep -n "^## Session Continuity" .planning/STATE.md | head -1 | cut -d: -f1)
+
+if [ -n "$CONTINUITY_LINE" ]; then
+  # Delete from Session Continuity to end of file
+  sed -i "${CONTINUITY_LINE},\$d" .planning/STATE.md
+fi
+
+# Now append the NEW (and only!) Session Continuity section
+cat >> .planning/STATE.md << SESSION_EOF
+
+## Session Continuity
+
+Last session: $HUMAN_TIMESTAMP
+Stopped at: Paused mid-execution via /gsd:pause-work
+Next step: /gsd:resume-work
+Resume file: $CONTINUE_HERE_PATH
+SESSION_EOF
+```
+
+**Why this matters:** If multiple Session Continuity sections exist, resume-work reads the FIRST (stale) one and ignores the current state!
+</step>
+
 <step name="commit">
 **Check planning config:**
 
@@ -103,7 +216,16 @@ git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
 
 ```bash
 git add .planning/phases/*/.continue-here.md
-git commit -m "wip: [phase-name] paused at task [X]/[Y]"
+git add .planning/STATE.md
+git commit -m "wip: [phase-name] paused at task [X]/[Y]
+
+Checkpoint: .planning/phases/[XX-name]/.continue-here.md
+STATE.md updated with:
+- last_checkpoint: [path]
+- phase_status: paused
+- plans_in_phase: [N]
+- summaries_in_phase: [M]
+"
 ```
 </step>
 
@@ -126,9 +248,16 @@ To resume: /gsd:resume-work
 </process>
 
 <success_criteria>
+- [ ] Consistency check performed (warning if SUMMARYs missing)
 - [ ] .continue-here.md created in correct phase directory
 - [ ] All sections filled with specific content
-- [ ] Committed as WIP
+- [ ] STATE.md YAML frontmatter updated:
+  - [ ] last_checkpoint set to .continue-here.md path
+  - [ ] phase_status set to "paused"
+  - [ ] plans_in_phase and summaries_in_phase updated
+  - [ ] last_verified timestamp set
+- [ ] Session Continuity section updated
+- [ ] Committed as WIP (includes STATE.md)
 - [ ] User knows location and how to resume
 </success_criteria>
 ```

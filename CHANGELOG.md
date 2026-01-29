@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Session Continuity Check** (Step 1.5 in `plan-phase`) — Checks STATE.md and `.continue-here.md` before planning to prevent skipping important context from previous sessions
+- **Scope Conflict Detection** (Step 1.6 in `plan-phase`) — Detects when phase directory exists with different scope and offers resolution options
+- **Defer Logic** — Automatically moves existing phase to next number when scope conflict requires both old and new scope to be preserved
+- **YAML Frontmatter in STATE.md** — Machine-readable fields (`current_phase`, `next_action`, `scope_version`, etc.) for reliable workflow parsing
+- **Scope-stable directory naming** — Phase directories now use stable IDs without scope suffix; scope tracked in separate `SCOPE.md` file
+- **`/gsd:redefine-scope` command** — New command for handling scope changes with version history
+
+### Changed
+- `plan-phase.md` now validates session state before planning (prevents orphaned work)
+- STATE.md template includes YAML frontmatter and expanded Session Continuity section
+
 ## [1.9.12] - 2025-01-23
 
 ### Removed
