@@ -15,7 +15,7 @@ Provides a better update experience than raw `npx get-shit-done-cc` by showing v
 Read installed version:
 
 ```bash
-cat ~/.claude/get-shit-done/VERSION 2>/dev/null
+cat __GSD_VERSION_PATH__ 2>/dev/null
 ```
 
 **If VERSION file missing:**
@@ -43,7 +43,7 @@ npm view get-shit-done-cc version 2>/dev/null
 ```
 Couldn't check for updates (offline or npm unavailable).
 
-To update manually: `npx get-shit-done-cc --global`
+To update manually: `npx get-shit-done-cc __GSD_INSTALL_FLAGS__`
 ```
 
 STOP here if npm unavailable.
@@ -89,6 +89,7 @@ STOP here if ahead.
 
 **Installed:** 1.5.10
 **Latest:** 1.5.15
+**Location:** __GSD_LOCATION_LABEL__
 
 ### What's New
 ────────────────────────────────────────────────────────────
@@ -105,13 +106,15 @@ STOP here if ahead.
 
 ────────────────────────────────────────────────────────────
 
-⚠️  **Note:** The installer performs a clean install of GSD folders:
-- `~/.claude/commands/gsd/` will be wiped and replaced
-- `~/.claude/get-shit-done/` will be wiped and replaced
-- `~/.claude/agents/gsd-*` files will be replaced
+⚠️  **Note:** The installer performs a clean install of GSD folders.
+
+The following will be wiped and replaced:
+- `__GSD_COMMANDS_PATH__`
+- `__GSD_CONFIG_DIR__/get-shit-done/`
+- `__GSD_CONFIG_DIR__/agents/gsd-*`
 
 Your custom files in other locations are preserved:
-- Custom commands in `~/.claude/commands/your-stuff/` ✓
+- Custom commands not in gsd/ ✓
 - Custom agents not prefixed with `gsd-` ✓
 - Custom hooks ✓
 - Your CLAUDE.md files ✓
@@ -132,7 +135,7 @@ Use AskUserQuestion:
 Run the update:
 
 ```bash
-npx get-shit-done-cc --global
+npx get-shit-done-cc __GSD_INSTALL_FLAGS__
 ```
 
 Capture output. If install fails, show error and STOP.
@@ -140,7 +143,7 @@ Capture output. If install fails, show error and STOP.
 Clear the update cache so statusline indicator disappears:
 
 ```bash
-rm -f ~/.claude/cache/gsd-update-check.json
+rm -f __GSD_CACHE_PATH__/gsd-update-check.json
 ```
 </step>
 
@@ -152,7 +155,7 @@ Format completion message (changelog was already shown in confirmation step):
 ║  GSD Updated: v1.5.10 → v1.5.15                           ║
 ╚═══════════════════════════════════════════════════════════╝
 
-⚠️  Restart Claude Code to pick up the new commands.
+⚠️  Restart __GSD_RUNTIME_NAME__ to pick up the new commands.
 
 [View full changelog](https://github.com/glittercowboy/get-shit-done/blob/main/CHANGELOG.md)
 ```
@@ -167,6 +170,6 @@ Format completion message (changelog was already shown in confirmation step):
 - [ ] Changelog fetched and displayed BEFORE update
 - [ ] Clean install warning shown
 - [ ] User confirmation obtained
-- [ ] Update executed successfully
+- [ ] Update executed with correct flags
 - [ ] Restart reminder shown
 </success_criteria>
