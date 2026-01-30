@@ -1,6 +1,10 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "predictive_planning": {
+    "enabled": false,
+    "lookahead": 1
+  },
   "workflow": {
     "research": true,
     "plan_check": true,
