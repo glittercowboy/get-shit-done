@@ -72,6 +72,48 @@ Phase: $ARGUMENTS
    - Group plans by wave number
    - Report wave structure to user
 
+3.5. **Match notes for this phase**
+   ```bash
+   # Get phase metadata for matching
+   PHASE_NAME=$(grep "Phase ${PHASE}:" .planning/ROADMAP.md | sed 's/.*Phase [0-9]*: //')
+   PHASE_GOAL=$(grep -A3 "Phase ${PHASE}:" .planning/ROADMAP.md | grep "Goal:" | sed 's/.*Goal: //')
+
+   # Get target files from all PLAN.md files in this phase
+   PHASE_FILES=$(grep "files_modified:" "${PHASE_DIR}"/*-PLAN.md 2>/dev/null | \
+     sed 's/files_modified: \[//' | sed 's/\]//' | tr ',' '\n' | tr -d ' ' | tr '\n' ' ')
+
+   # Call match-notes with phase context
+   MATCHED_OUTPUT=$(PHASE_NAME="$PHASE_NAME" PHASE_GOAL="$PHASE_GOAL" \
+     PHASE_FILES="$PHASE_FILES" bash commands/gsd/match-notes.md 2>/dev/null)
+
+   # Build notes section if matches exist
+   NOTES_SECTION=""
+   if [ -n "$MATCHED_OUTPUT" ]; then
+     NOTES_SECTION="<matched_notes>
+
+Notes relevant to this phase:
+
+"
+     in_content=false
+     while IFS= read -r line; do
+       if [ "$line" = "CONTENT_START" ]; then
+         in_content=true
+       elif [ "$line" = "CONTENT_END" ]; then
+         in_content=false
+         NOTES_SECTION="$NOTES_SECTION
+---
+"
+       elif [ "$in_content" = "true" ]; then
+         NOTES_SECTION="$NOTES_SECTION$line
+"
+       fi
+     done <<< "$MATCHED_OUTPUT"
+
+     NOTES_SECTION="$NOTES_SECTION
+</matched_notes>"
+   fi
+   ```
+
 4. **Execute waves**
    For each wave in order:
    - Spawn `gsd-executor` for each plan in wave (parallel Task calls)
@@ -102,7 +144,8 @@ Phase: $ARGUMENTS
    **If `workflow.verifier` is `false`:** Skip to step 8 (treat as passed).
 
    **Otherwise:**
-   - Spawn `gsd-verifier` subagent with phase directory and goal
+   - Spawn `gsd-verifier` subagent with phase directory, goal, and matched notes
+   - Include `${NOTES_SECTION}` in verifier prompt (same notes as executors received)
    - Verifier checks must_haves against actual codebase (not SUMMARY claims)
    - Creates VERIFICATION.md with detailed report
    - Route by status:
@@ -266,9 +309,9 @@ STATE_CONTENT=$(cat .planning/STATE.md)
 Spawn all plans in a wave with a single message containing multiple Task calls, with inlined content:
 
 ```
-Task(prompt="Execute plan at {plan_01_path}\n\nPlan:\n{plan_01_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
-Task(prompt="Execute plan at {plan_02_path}\n\nPlan:\n{plan_02_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
-Task(prompt="Execute plan at {plan_03_path}\n\nPlan:\n{plan_03_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
+Task(prompt="Execute plan at {plan_01_path}\n\nPlan:\n{plan_01_content}\n\nProject state:\n{state_content}\n\n${NOTES_SECTION}", subagent_type="gsd-executor", model="{executor_model}")
+Task(prompt="Execute plan at {plan_02_path}\n\nPlan:\n{plan_02_content}\n\nProject state:\n{state_content}\n\n${NOTES_SECTION}", subagent_type="gsd-executor", model="{executor_model}")
+Task(prompt="Execute plan at {plan_03_path}\n\nPlan:\n{plan_03_content}\n\nProject state:\n{state_content}\n\n${NOTES_SECTION}", subagent_type="gsd-executor", model="{executor_model}")
 ```
 
 All three run in parallel. Task tool blocks until all complete.
