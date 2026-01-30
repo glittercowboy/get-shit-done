@@ -30,6 +30,7 @@ cat .planning/config.json
 ```
 
 Parse current values (default to `true` if not present):
+- `smart_execution.enabled` — analyze dependencies for optimal parallelization (default: `false`)
 - `workflow.research` — spawn researcher during plan-phase
 - `workflow.plan_check` — spawn plan checker during plan-phase
 - `workflow.verifier` — spawn verifier during execute-phase
@@ -41,6 +42,15 @@ Use AskUserQuestion with current values shown:
 
 ```
 AskUserQuestion([
+  {
+    question: "Smart execution? (analyze dependencies for optimal parallelization)",
+    header: "Smart Execution",
+    multiSelect: false,
+    options: [
+      { label: "Yes", description: "Auto-detect dependencies and maximize parallelization (40-60% faster)" },
+      { label: "No (Default)", description: "Use traditional wave-based execution" }
+    ]
+  },
   {
     question: "Which model profile for agents?",
     header: "Model",
@@ -90,6 +100,10 @@ Merge new settings into existing config.json:
 ```json
 {
   ...existing_config,
+  "smart_execution": {
+    "enabled": true/false,
+    "auto_detect_dependencies": true
+  },
   "model_profile": "quality" | "balanced" | "budget",
   "workflow": {
     "research": true/false,
@@ -112,6 +126,7 @@ Display:
 
 | Setting              | Value |
 |----------------------|-------|
+| Smart Execution      | {On/Off} |
 | Model Profile        | {quality/balanced/budget} |
 | Plan Researcher      | {On/Off} |
 | Plan Checker         | {On/Off} |
@@ -130,7 +145,7 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 4 settings (profile + 3 toggles)
-- [ ] Config updated with model_profile and workflow section
+- [ ] User presented with 5 settings (smart_exec + profile + 3 toggles)
+- [ ] Config updated with smart_execution, model_profile and workflow section
 - [ ] Changes confirmed to user
 </success_criteria>
