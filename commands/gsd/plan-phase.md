@@ -199,6 +199,8 @@ Answer: "What do I need to know to PLAN this phase well?"
 {phase_context}
 </context>
 
+{notes_section}
+
 <output>
 Write research findings to: {phase_dir}/{phase}-RESEARCH.md
 </output>
@@ -251,6 +253,56 @@ VERIFICATION_CONTENT=$(cat "${PHASE_DIR}"/*-VERIFICATION.md 2>/dev/null)
 UAT_CONTENT=$(cat "${PHASE_DIR}"/*-UAT.md 2>/dev/null)
 ```
 
+## 7.5. Match Relevant Notes
+
+```bash
+# Match notes for this phase
+PHASE_NAME=$(grep "Phase ${PHASE}:" .planning/ROADMAP.md | sed 's/.*Phase [0-9]*: //')
+PHASE_GOAL=$(grep -A3 "Phase ${PHASE}:" .planning/ROADMAP.md | grep "Goal:" | sed 's/.*Goal: //')
+
+# Get target files if available (from RESEARCH.md or existing PLAN.md)
+PHASE_FILES=$(grep -E "^- \`[^\`]+\`" "${PHASE_DIR}"/*-RESEARCH.md 2>/dev/null | \
+  grep -o '\`[^\`]*\`' | tr -d '\`' | tr '\n' ' ')
+# Also check PLAN.md files_modified if available
+if [ -z "$PHASE_FILES" ]; then
+  PHASE_FILES=$(grep "files_modified:" "${PHASE_DIR}"/*-PLAN.md 2>/dev/null | \
+    sed 's/files_modified: \[//' | sed 's/\]//' | tr ',' ' ' | head -1)
+fi
+
+# Call match-notes
+MATCHED_OUTPUT=$(PHASE_NAME="$PHASE_NAME" PHASE_GOAL="$PHASE_GOAL" \
+  PHASE_FILES="$PHASE_FILES" bash commands/gsd/match-notes.md 2>/dev/null)
+
+# Build notes section if matches exist
+NOTES_SECTION=""
+if [ -n "$MATCHED_OUTPUT" ]; then
+  NOTES_SECTION="<matched_notes>
+
+Notes relevant to this phase:
+
+"
+  # Parse all matches
+  in_content=false
+  while IFS= read -r line; do
+    if [ "$line" = "CONTENT_START" ]; then
+      in_content=true
+    elif [ "$line" = "CONTENT_END" ]; then
+      in_content=false
+      NOTES_SECTION="$NOTES_SECTION
+
+---
+"
+    elif [ "$in_content" = "true" ]; then
+      NOTES_SECTION="$NOTES_SECTION$line
+"
+    fi
+  done <<< "$MATCHED_OUTPUT"
+
+  NOTES_SECTION="$NOTES_SECTION
+</matched_notes>"
+fi
+```
+
 ## 8. Spawn gsd-planner Agent
 
 Display stage banner:
@@ -290,6 +342,8 @@ Fill prompt with inlined content and spawn:
 {uat_content}
 
 </planning_context>
+
+{notes_section}
 
 <downstream_consumer>
 Output consumed by /gsd:execute-phase
@@ -378,6 +432,8 @@ Fill checker prompt with inlined content and spawn:
 
 </verification_context>
 
+{notes_section}
+
 <expected_output>
 Return one of:
 - ## VERIFICATION PASSED — all checks pass
@@ -435,6 +491,8 @@ Spawn gsd-planner with revision prompt:
 {structured_issues_from_checker}
 
 </revision_context>
+
+{notes_section}
 
 <instructions>
 Make targeted updates to address checker issues.
