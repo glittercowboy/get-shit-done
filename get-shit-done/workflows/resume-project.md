@@ -206,6 +206,41 @@ Wait for user selection.
 </step>
 
 <step name="route_to_workflow">
+**First, check auto_chain config:**
+
+```bash
+AUTO_CHAIN=$(cat .planning/config.json 2>/dev/null | grep -o '"auto_chain"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+```
+
+**If `auto_chain` is `true` AND primary action is execute or plan:**
+
+Display brief status and auto-trigger:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  RESUMING PROJECT                                             ║
+╚══════════════════════════════════════════════════════════════╝
+
+Phase: [X] of [Y] - [Phase name]
+Progress: [██████░░░░] XX%
+
+⚡ AUTO-CHAIN ENABLED
+
+Next action: [Execute Phase X / Plan Phase X]
+Clearing context and starting...
+
+───────────────────────────────────────────────────────────────
+```
+
+Then immediately:
+1. Clear context with `/clear`
+2. Run the appropriate command:
+   - If incomplete plan: `/gsd:execute-phase {phase}`
+   - If ready to plan: `/gsd:plan-phase {phase}`
+   - If ready to discuss: `/gsd:discuss-phase {phase}` (if CONTEXT.md missing)
+
+**If `auto_chain` is `false` OR action requires user input:**
+
 Based on user selection, route to appropriate workflow:
 
 - **Execute plan** → Show command for user to run after clearing:
@@ -287,12 +322,17 @@ This handles cases where:
   </reconstruction>
 
 <quick_resume>
-If user says "continue" or "go":
+If user says "continue" or "go" OR auto_chain is enabled:
 - Load state silently
 - Determine primary action
 - Execute immediately without presenting options
 
 "Continuing from [state]... [action]"
+
+**With auto_chain enabled:**
+- Skip the options menu entirely
+- Auto-trigger the primary action (execute/plan/discuss)
+- Clear context and run the command automatically
 </quick_resume>
 
 <success_criteria>
