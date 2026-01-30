@@ -376,7 +376,54 @@ EOF
 
 **Note:** Run `/gsd:settings` anytime to update these preferences.
 
-## Phase 5.5: Resolve Model Profile
+## Phase 5.5: Match Notes for Project Context
+
+Match notes relevant to this project/milestone. These notes will be injected into researcher and roadmapper prompts.
+
+```bash
+# Extract milestone name and goals from PROJECT.md if it exists
+if [ -f .planning/PROJECT.md ]; then
+  MILESTONE_NAME=$(grep -A2 "## Current Milestone" .planning/PROJECT.md | tail -1 | sed 's/.*: //')
+  MILESTONE_GOAL=$(grep -A5 "## Current Milestone" .planning/PROJECT.md | grep "Goal:" | sed 's/.*Goal: //')
+else
+  # During new-project, use the project description gathered during questioning
+  MILESTONE_NAME="${PROJECT_NAME:-New Project}"
+  MILESTONE_GOAL="${PROJECT_DESCRIPTION:-}"
+fi
+
+# Call match-notes (no target files for project-level)
+MATCHED_OUTPUT=$(PHASE_NAME="$MILESTONE_NAME" PHASE_GOAL="$MILESTONE_GOAL" \
+  bash commands/gsd/match-notes.md 2>/dev/null)
+
+# Build notes section if matches exist
+NOTES_SECTION=""
+if [ -n "$MATCHED_OUTPUT" ]; then
+  NOTES_SECTION="<matched_notes>
+
+Notes relevant to this project:
+
+"
+  in_content=false
+  while IFS= read -r line; do
+    if [ "$line" = "CONTENT_START" ]; then
+      in_content=true
+    elif [ "$line" = "CONTENT_END" ]; then
+      in_content=false
+      NOTES_SECTION="$NOTES_SECTION
+---
+"
+    elif [ "$in_content" = "true" ]; then
+      NOTES_SECTION="$NOTES_SECTION$line
+"
+    fi
+  done <<< "$MATCHED_OUTPUT"
+
+  NOTES_SECTION="$NOTES_SECTION
+</matched_notes>"
+fi
+```
+
+## Phase 5.6: Resolve Model Profile
 
 Read model profile for agent spawning:
 
@@ -460,6 +507,8 @@ What's the standard 2025 stack for [domain]?
 [PROJECT.md summary - core value, constraints, what they're building]
 </project_context>
 
+${NOTES_SECTION}
+
 <downstream_consumer>
 Your STACK.md feeds into roadmap creation. Be prescriptive:
 - Specific libraries with versions
@@ -499,6 +548,8 @@ What features do [domain] products have? What's table stakes vs differentiating?
 <project_context>
 [PROJECT.md summary]
 </project_context>
+
+${NOTES_SECTION}
 
 <downstream_consumer>
 Your FEATURES.md feeds into requirements definition. Categorize clearly:
@@ -540,6 +591,8 @@ How are [domain] systems typically structured? What are major components?
 [PROJECT.md summary]
 </project_context>
 
+${NOTES_SECTION}
+
 <downstream_consumer>
 Your ARCHITECTURE.md informs phase structure in roadmap. Include:
 - Component boundaries (what talks to what)
@@ -579,6 +632,8 @@ What do [domain] projects commonly get wrong? Critical mistakes?
 <project_context>
 [PROJECT.md summary]
 </project_context>
+
+${NOTES_SECTION}
 
 <downstream_consumer>
 Your PITFALLS.md prevents mistakes in roadmap/planning. For each pitfall:
@@ -815,6 +870,8 @@ Task(prompt="
 
 </planning_context>
 
+${NOTES_SECTION}
+
 <instructions>
 Create roadmap:
 1. Derive phases from requirements (don't impose structure)
@@ -902,6 +959,8 @@ Use AskUserQuestion:
   Update the roadmap based on feedback. Edit files in place.
   Return ROADMAP REVISED with changes made.
   </revision>
+
+  ${NOTES_SECTION}
   ", subagent_type="gsd-roadmapper", model="{roadmapper_model}", description="Revise roadmap")
   ```
 - Present revised roadmap
