@@ -581,19 +581,19 @@ function convertClaudeToCodexPrompt(content) {
 /**
  * Replace Claude-specific paths with Codex equivalents
  */
-function replaceCodexPaths(content, codexPaths) {
-  if (!codexPaths) return content;
+function replaceCodexPaths(content, pathPrefix = './') {
+  const rootPrefix = pathPrefix.endsWith('/') ? pathPrefix : `${pathPrefix}/`;
 
   let replaced = content;
 
   // Specific paths first
-  replaced = replaced.replace(/~\/\.claude\/get-shit-done\//g, codexPaths.skillRoot);
-  replaced = replaced.replace(/~\/\.claude\/agents\//g, codexPaths.agentsRoot);
-  replaced = replaced.replace(/~\/\.claude\/commands\/gsd\//g, codexPaths.promptsDir);
-  replaced = replaced.replace(/~\/\.claude\/commands\//g, codexPaths.promptsDir);
+  replaced = replaced.replace(/~\/\.claude\/get-shit-done\//g, `${rootPrefix}get-shit-done/`);
+  replaced = replaced.replace(/~\/\.claude\/agents\//g, `${rootPrefix}agents/`);
+  replaced = replaced.replace(/~\/\.claude\/commands\/gsd\//g, `${rootPrefix}commands/gsd/`);
+  replaced = replaced.replace(/~\/\.claude\/commands\//g, `${rootPrefix}commands/`);
 
-  // Fallback: point remaining ~/.claude/ references to Codex home
-  replaced = replaced.replace(/~\/\.claude\//g, codexPaths.codexHome);
+  // Fallback: point remaining ~/.claude/ references to project root
+  replaced = replaced.replace(/~\/\.claude\//g, rootPrefix);
 
   return replaced;
 }
@@ -610,7 +610,7 @@ function replaceCodexPaths(content, codexPaths) {
  * @param {string} pathPrefix - Path prefix for file references
  * @param {string} runtime - Target runtime ('claude' or 'opencode')
  */
-function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime, codexPaths = null) {
+function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime) {
   if (!fs.existsSync(srcDir)) {
     return;
   }
@@ -634,7 +634,7 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime, cod
     if (entry.isDirectory()) {
       // Recurse into subdirectories, adding to prefix
       // e.g., commands/gsd/debug/start.md -> command/gsd-debug-start.md
-      copyFlattenedCommands(srcPath, destDir, `${prefix}-${entry.name}`, pathPrefix, runtime, codexPaths);
+      copyFlattenedCommands(srcPath, destDir, `${prefix}-${entry.name}`, pathPrefix, runtime);
     } else if (entry.name.endsWith('.md')) {
       // Flatten: help.md -> gsd-help.md
       const baseName = entry.name.replace('.md', '');
@@ -643,7 +643,7 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime, cod
 
       let content = fs.readFileSync(srcPath, 'utf8');
       if (runtime === 'codex') {
-        content = replaceCodexPaths(content, codexPaths);
+        content = replaceCodexPaths(content, pathPrefix);
         content = convertClaudeToCodexPrompt(content);
       } else {
         const claudeDirRegex = /~\/\.claude\//g;
@@ -666,7 +666,7 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime, cod
  * @param {string} pathPrefix - Path prefix for file references
  * @param {string} runtime - Target runtime ('claude', 'opencode', 'gemini')
  */
-function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime, codexPaths = null) {
+function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
   const isOpencode = runtime === 'opencode';
   const dirName = getDirName(runtime);
 
@@ -683,12 +683,12 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime, codexPath
     const destPath = path.join(destDir, entry.name);
 
     if (entry.isDirectory()) {
-      copyWithPathReplacement(srcPath, destPath, pathPrefix, runtime, codexPaths);
+      copyWithPathReplacement(srcPath, destPath, pathPrefix, runtime);
     } else if (entry.name.endsWith('.md')) {
       // Always replace ~/.claude/ as it is the source of truth in the repo
       let content = fs.readFileSync(srcPath, 'utf8');
       if (runtime === 'codex') {
-        content = replaceCodexPaths(content, codexPaths);
+        content = replaceCodexPaths(content, pathPrefix);
         content = content.replace(/\/gsd:/g, '/prompts:gsd-');
       } else {
         const claudeDirRegex = /~\/\.claude\//g;
@@ -784,59 +784,42 @@ function cleanupOrphanedHooks(settings) {
  */
 function uninstallCodex(isGlobal) {
   const runtimeLabel = 'Codex';
-  const dirName = getDirName('codex');
+  const promptsBaseDir = getCodexHome(explicitConfigDir);
+  const promptsDir = path.join(promptsBaseDir, 'prompts');
+  const locationLabel = promptsBaseDir.replace(os.homedir(), '~');
 
-  const targetDir = isGlobal
-    ? getGlobalDir('codex', explicitConfigDir)
-    : path.join(process.cwd(), dirName);
+  console.log(`  Uninstalling GSD prompts from ${cyan}${runtimeLabel}${reset} at ${cyan}${locationLabel}${reset}\n`);
+  if (!isGlobal) {
+    console.log(`  ${yellow}⚠${reset} Codex prompts are user-scoped; removing from ${cyan}${locationLabel}${reset}\n`);
+  }
 
-  const locationLabel = isGlobal
-    ? targetDir.replace(os.homedir(), '~')
-    : targetDir.replace(process.cwd(), '.');
-
-  console.log(`  Uninstalling GSD from ${cyan}${runtimeLabel}${reset} at ${cyan}${locationLabel}${reset}\n`);
-
-  if (!fs.existsSync(targetDir)) {
-    console.log(`  ${yellow}⚠${reset} Directory does not exist: ${locationLabel}`);
+  if (!fs.existsSync(promptsDir)) {
+    console.log(`  ${yellow}⚠${reset} Prompts directory does not exist: ${locationLabel}`);
     console.log(`  Nothing to uninstall.\n`);
     return;
   }
 
   let removedCount = 0;
 
-  const skillDir = path.join(targetDir, 'skills', 'get-shit-done');
-  if (fs.existsSync(skillDir)) {
-    fs.rmSync(skillDir, { recursive: true });
+  const files = fs.readdirSync(promptsDir);
+  let promptCount = 0;
+  for (const file of files) {
+    if (file.startsWith('gsd-') && file.endsWith('.md')) {
+      fs.unlinkSync(path.join(promptsDir, file));
+      promptCount++;
+    }
+  }
+  if (promptCount > 0) {
     removedCount++;
-    console.log(`  ${green}✓${reset} Removed skills/get-shit-done`);
-  }
-
-  const promptsBaseDir = getCodexHome(explicitConfigDir);
-  const promptsDir = path.join(promptsBaseDir, 'prompts');
-  if (!isGlobal && promptsBaseDir !== targetDir) {
-    console.log(`  ${yellow}⚠${reset} Codex prompts are user-scoped; removing from ${cyan}${promptsBaseDir.replace(os.homedir(), '~')}${reset}`);
-  }
-  if (fs.existsSync(promptsDir)) {
-    const files = fs.readdirSync(promptsDir);
-    let promptCount = 0;
-    for (const file of files) {
-      if (file.startsWith('gsd-') && file.endsWith('.md')) {
-        fs.unlinkSync(path.join(promptsDir, file));
-        promptCount++;
-      }
-    }
-    if (promptCount > 0) {
-      removedCount++;
-      console.log(`  ${green}✓${reset} Removed ${promptCount} prompts from prompts/`);
-    }
+    console.log(`  ${green}✓${reset} Removed ${promptCount} prompts from prompts/`);
   }
 
   if (removedCount === 0) {
-    console.log(`  ${yellow}⚠${reset} No GSD files found to remove.`);
+    console.log(`  ${yellow}⚠${reset} No GSD prompts found to remove.`);
   }
 
   console.log(`
-  ${green}Done!${reset} GSD has been uninstalled from ${runtimeLabel}.
+  ${green}Done!${reset} GSD prompts have been uninstalled from ${runtimeLabel}.
   Your other files and settings have been preserved.
 `);
 }
@@ -1159,112 +1142,28 @@ function verifyPrefixedFiles(dirPath, prefix, description) {
 }
 
 /**
- * Install GSD for Codex
- * - Copies skill content to ~/.codex/skills/get-shit-done (or local ./.codex/skills/get-shit-done)
+ * Install GSD prompts for Codex
  * - Generates Codex prompts in ~/.codex/prompts
  */
 function installCodex(isGlobal) {
   const runtime = 'codex';
-  const dirName = getDirName(runtime);
   const src = path.join(__dirname, '..');
-
-  const targetDir = isGlobal
-    ? getGlobalDir(runtime, explicitConfigDir)
-    : path.join(process.cwd(), dirName);
-
-  const locationLabel = isGlobal
-    ? targetDir.replace(os.homedir(), '~')
-    : targetDir.replace(process.cwd(), '.');
-
-  console.log(`  Installing for ${cyan}Codex${reset} to ${cyan}${locationLabel}${reset}\n`);
-
-  const failures = [];
-  const skillsRoot = path.join(targetDir, 'skills');
-  const skillRoot = path.join(skillsRoot, 'get-shit-done');
-  const codexHomeRef = isGlobal
-    ? `${targetDir}/`
-    : `./${dirName}/`;
-  const skillsRootRef = isGlobal
-    ? `${skillsRoot}/`
-    : `./${dirName}/skills/`;
-  const skillRootRef = `${skillsRootRef}get-shit-done/`;
-  const agentsRootRef = `${skillRootRef}agents/`;
-
   const promptsBaseDir = getCodexHome(explicitConfigDir);
   const promptsDir = path.join(promptsBaseDir, 'prompts');
-  if (!isGlobal && promptsBaseDir !== targetDir) {
-    console.log(`  ${yellow}⚠${reset} Codex prompts are user-scoped; installing to ${cyan}${promptsBaseDir.replace(os.homedir(), '~')}${reset}`);
+  const locationLabel = promptsBaseDir.replace(os.homedir(), '~');
+
+  console.log(`  Installing for ${cyan}Codex${reset} to ${cyan}${locationLabel}${reset}\n`);
+  if (!isGlobal) {
+    console.log(`  ${yellow}⚠${reset} Codex prompts are user-scoped; installing to ${cyan}${locationLabel}${reset}\n`);
   }
 
-  // Copy get-shit-done content into the skill
-  const skillSrc = path.join(src, 'get-shit-done');
-  const codexPaths = {
-    codexHome: codexHomeRef,
-    skillsRoot: skillsRootRef,
-    skillRoot: skillRootRef,
-    agentsRoot: agentsRootRef,
-    promptsDir: `${promptsDir}/`,
-  };
-
-  copyWithPathReplacement(skillSrc, skillRoot, skillsRootRef, runtime, codexPaths);
-  if (verifyInstalled(skillRoot, 'skills/get-shit-done')) {
-    console.log(`  ${green}✓${reset} Installed skills/get-shit-done`);
-  } else {
-    failures.push('skills/get-shit-done');
-  }
-
-  // Copy GSD agents into the skill for reference
-  const agentsSrc = path.join(src, 'agents');
-  if (fs.existsSync(agentsSrc)) {
-    const agentsDest = path.join(skillRoot, 'agents');
-    copyWithPathReplacement(agentsSrc, agentsDest, skillsRootRef, runtime, codexPaths);
-    if (verifyInstalled(agentsDest, 'skills/get-shit-done/agents')) {
-      console.log(`  ${green}✓${reset} Installed skills/get-shit-done/agents`);
-    } else {
-      failures.push('skills/get-shit-done/agents');
-    }
-  }
-
-  // Copy Codex SKILL.md
-  const codexSkillSrc = path.join(src, 'codex', 'SKILL.md');
-  const codexSkillDest = path.join(skillRoot, 'SKILL.md');
-  if (fs.existsSync(codexSkillSrc)) {
-    fs.copyFileSync(codexSkillSrc, codexSkillDest);
-    if (verifyFileInstalled(codexSkillDest, 'SKILL.md')) {
-      console.log(`  ${green}✓${reset} Installed SKILL.md`);
-    } else {
-      failures.push('SKILL.md');
-    }
-  } else {
-    console.error(`  ${yellow}✗${reset} Failed to install SKILL.md: source file missing`);
-    failures.push('SKILL.md');
-  }
-
-  // Copy CHANGELOG.md
-  const changelogSrc = path.join(src, 'CHANGELOG.md');
-  const changelogDest = path.join(skillRoot, 'CHANGELOG.md');
-  if (fs.existsSync(changelogSrc)) {
-    fs.copyFileSync(changelogSrc, changelogDest);
-    if (verifyFileInstalled(changelogDest, 'CHANGELOG.md')) {
-      console.log(`  ${green}✓${reset} Installed CHANGELOG.md`);
-    } else {
-      failures.push('CHANGELOG.md');
-    }
-  }
-
-  // Write VERSION file
-  const versionDest = path.join(skillRoot, 'VERSION');
-  fs.writeFileSync(versionDest, pkg.version);
-  if (verifyFileInstalled(versionDest, 'VERSION')) {
-    console.log(`  ${green}✓${reset} Wrote VERSION (${pkg.version})`);
-  } else {
-    failures.push('VERSION');
-  }
+  const failures = [];
 
   // Generate Codex prompts
   fs.mkdirSync(promptsDir, { recursive: true });
   const gsdSrc = path.join(src, 'commands', 'gsd');
-  copyFlattenedCommands(gsdSrc, promptsDir, 'gsd', skillsRootRef, runtime, codexPaths);
+  const codexPathPrefix = './';
+  copyFlattenedCommands(gsdSrc, promptsDir, 'gsd', codexPathPrefix, runtime);
   if (verifyPrefixedFiles(promptsDir, 'gsd-', 'prompts/gsd-*')) {
     const count = fs.readdirSync(promptsDir).filter(f => f.startsWith('gsd-') && f.endsWith('.md')).length;
     console.log(`  ${green}✓${reset} Installed ${count} prompts to prompts/`);
@@ -1277,7 +1176,7 @@ function installCodex(isGlobal) {
     process.exit(1);
   }
 
-  return { runtime, targetDir, skillRoot, promptsDir };
+  return { runtime, promptsDir };
 }
 
 /**
@@ -1540,17 +1439,13 @@ function finishInstall(settingsPath, settings, statuslineCommand, shouldInstallS
 function finishInstallCodex(result) {
   if (!result) return;
 
-  const skillLocation = result.skillRoot
-    ? result.skillRoot.replace(os.homedir(), '~')
-    : '~/.codex/skills/get-shit-done';
   const promptsLocation = result.promptsDir
     ? result.promptsDir.replace(os.homedir(), '~')
     : '~/.codex/prompts';
 
   console.log(`
-  ${green}Done!${reset} Launch Codex and run ${cyan}/prompts:gsd-help${reset} or ${cyan}$get-shit-done${reset}.
+  ${green}Done!${reset} Launch Codex and run ${cyan}/prompts:gsd-help${reset}.
 
-  Skill installed at: ${cyan}${skillLocation}${reset}
   Prompts installed at: ${cyan}${promptsLocation}${reset}
 
   ${cyan}Join the community:${reset} https://discord.gg/5JJgD5svVS
