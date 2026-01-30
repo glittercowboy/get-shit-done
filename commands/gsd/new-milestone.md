@@ -122,7 +122,48 @@ git add .planning/PROJECT.md .planning/STATE.md
 git commit -m "docs: start milestone v[X.Y] [Name]"
 ```
 
-## Phase 6.5: Resolve Model Profile
+## Phase 6.5: Match Notes for Milestone Context
+
+Match notes relevant to this milestone. These notes will be injected into researcher and roadmapper prompts.
+
+```bash
+# Use milestone name and goals gathered earlier
+MILESTONE_NAME="${MILESTONE_VERSION:-v1.x} ${MILESTONE_NAME:-New Milestone}"
+MILESTONE_GOAL="${MILESTONE_GOALS:-}"
+
+# Call match-notes (no target files for milestone-level)
+MATCHED_OUTPUT=$(PHASE_NAME="$MILESTONE_NAME" PHASE_GOAL="$MILESTONE_GOAL" \
+  bash commands/gsd/match-notes.md 2>/dev/null)
+
+# Build notes section if matches exist
+NOTES_SECTION=""
+if [ -n "$MATCHED_OUTPUT" ]; then
+  NOTES_SECTION="<matched_notes>
+
+Notes relevant to this milestone:
+
+"
+  in_content=false
+  while IFS= read -r line; do
+    if [ "$line" = "CONTENT_START" ]; then
+      in_content=true
+    elif [ "$line" = "CONTENT_END" ]; then
+      in_content=false
+      NOTES_SECTION="$NOTES_SECTION
+---
+"
+    elif [ "$in_content" = "true" ]; then
+      NOTES_SECTION="$NOTES_SECTION$line
+"
+    fi
+  done <<< "$MATCHED_OUTPUT"
+
+  NOTES_SECTION="$NOTES_SECTION
+</matched_notes>"
+fi
+```
+
+## Phase 6.6: Resolve Model Profile
 
 Read model profile for agent spawning:
 
@@ -201,6 +242,8 @@ What stack additions/changes are needed for [new features]?
 [PROJECT.md summary - current state, new milestone goals]
 </project_context>
 
+${NOTES_SECTION}
+
 <downstream_consumer>
 Your STACK.md feeds into roadmap creation. Be prescriptive:
 - Specific libraries with versions for NEW capabilities
@@ -241,6 +284,8 @@ How do [target features] typically work? What's expected behavior?
 <project_context>
 [PROJECT.md summary - new milestone goals]
 </project_context>
+
+${NOTES_SECTION}
 
 <downstream_consumer>
 Your FEATURES.md feeds into requirements definition. Categorize clearly:
@@ -283,6 +328,8 @@ How do [target features] integrate with existing [domain] architecture?
 [PROJECT.md summary - current architecture, new features]
 </project_context>
 
+${NOTES_SECTION}
+
 <downstream_consumer>
 Your ARCHITECTURE.md informs phase structure in roadmap. Include:
 - Integration points with existing components
@@ -321,6 +368,8 @@ What are common mistakes when adding [target features] to [domain]?
 <project_context>
 [PROJECT.md summary - current state, new features]
 </project_context>
+
+${NOTES_SECTION}
 
 <downstream_consumer>
 Your PITFALLS.md prevents mistakes in roadmap/planning. For each pitfall:
@@ -556,6 +605,8 @@ Task(prompt="
 
 </planning_context>
 
+${NOTES_SECTION}
+
 <instructions>
 Create roadmap for milestone v[X.Y]:
 1. Start phase numbering from [N] (continues from previous milestone)
@@ -635,6 +686,8 @@ Use AskUserQuestion:
   Update the roadmap based on feedback. Edit files in place.
   Return ROADMAP REVISED with changes made.
   </revision>
+
+  ${NOTES_SECTION}
   ", subagent_type="gsd-roadmapper", model="{roadmapper_model}", description="Revise roadmap")
   ```
 - Present revised roadmap
