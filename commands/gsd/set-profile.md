@@ -1,9 +1,9 @@
 ---
 name: set-profile
-description: Switch model profile for GSD agents (quality/balanced/budget)
+description: Switch model profile for GSD agents (quality/balanced/budget/custom)
 arguments:
   - name: profile
-    description: "Profile name: quality, balanced, or budget"
+    description: "Profile name: quality, balanced, budget, or custom"
     required: true
 ---
 
@@ -17,6 +17,7 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 | **quality** | Opus everywhere except read-only verification |
 | **balanced** | Opus for planning, Sonnet for execution/verification (default) |
 | **budget** | Sonnet for writing, Haiku for research/verification |
+| **custom** | User-defined model for each agent |
 </profiles>
 
 <process>
@@ -24,11 +25,97 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 ## 1. Validate argument
 
 ```
-if $ARGUMENTS.profile not in ["quality", "balanced", "budget"]:
+if $ARGUMENTS.profile not in ["quality", "balanced", "budget", "custom"]:
   Error: Invalid profile "$ARGUMENTS.profile"
-  Valid profiles: quality, balanced, budget
+  Valid profiles: quality, balanced, budget, custom
   STOP
 ```
+
+## 1.5. Handle Custom Profile
+
+If `$ARGUMENTS.profile` is "custom":
+
+### Read existing custom config (if any)
+
+```bash
+# Check for existing custom_profile_models
+EXISTING_CUSTOM=$(cat .planning/config.json 2>/dev/null | grep -o '"custom_profile_models"' || echo "")
+```
+
+### Prompt for each agent
+
+Use AskUserQuestion for sequential single-select prompts. The 5 agents to configure (in this order):
+
+1. **Planner (gsd-planner)** - default: opus (from balanced)
+2. **Plan Checker (gsd-plan-checker)** - default: sonnet (from balanced)
+3. **Executor (gsd-executor)** - default: sonnet (from balanced)
+4. **Verifier (gsd-verifier)** - default: sonnet (from balanced)
+5. **Codebase Mapper (gsd-codebase-mapper)** - default: haiku (from balanced)
+
+For each agent, prompt:
+
+```
+AskUserQuestion([
+  {
+    question: "What model for {Friendly Name} ({gsd-agent-name})?",
+    header: "Custom Profile",
+    multiSelect: false,
+    options: [
+      { label: "Opus", description: "Maximum reasoning power" },
+      { label: "Sonnet", description: "Balanced quality/speed (default)" },
+      { label: "Haiku", description: "Fast and economical" }
+    ]
+  }
+])
+```
+
+Store each selection (convert label to lowercase: "Opus" -> "opus").
+
+### Show summary table
+
+After all 5 agents configured, display:
+
+```
+Configuration summary:
+
+| Agent | Model |
+|-------|-------|
+| Planner (gsd-planner) | {selection} |
+| Plan Checker (gsd-plan-checker) | {selection} |
+| Executor (gsd-executor) | {selection} |
+| Verifier (gsd-verifier) | {selection} |
+| Codebase Mapper (gsd-codebase-mapper) | {selection} |
+
+Save this configuration?
+```
+
+Use AskUserQuestion with Yes/No options.
+
+### Handle confirmation
+
+If "Yes": Continue to step 3 to save config.
+If "No": Display "Custom configuration cancelled." and STOP (do not update config).
+
+### Prepare config update
+
+If confirmed, set:
+- `model_profile` = "custom"
+- `custom_profile_models` = map of agent name -> model selection
+
+```json
+{
+  "model_profile": "custom",
+  "custom_profile_models": {
+    "gsd-planner": "{selection}",
+    "gsd-plan-checker": "{selection}",
+    "gsd-executor": "{selection}",
+    "gsd-verifier": "{selection}",
+    "gsd-codebase-mapper": "{selection}"
+  }
+}
+```
+
+Then proceed to step 3 (Update config.json).
 
 ## 2. Check for project
 
@@ -49,12 +136,34 @@ Read current config:
 cat .planning/config.json
 ```
 
-Update `model_profile` field (or add if missing):
+Update config based on profile type:
+
+**If profile is "custom":**
+
+Update both `model_profile` AND `custom_profile_models`:
+```json
+{
+  "model_profile": "custom",
+  "custom_profile_models": {
+    "gsd-planner": "{selection from step 1.5}",
+    "gsd-plan-checker": "{selection from step 1.5}",
+    "gsd-executor": "{selection from step 1.5}",
+    "gsd-verifier": "{selection from step 1.5}",
+    "gsd-codebase-mapper": "{selection from step 1.5}"
+  }
+}
+```
+
+**Otherwise (quality/balanced/budget):**
+
+Update only `model_profile` field:
 ```json
 {
   "model_profile": "$ARGUMENTS.profile"
 }
 ```
+
+Preserve any existing `custom_profile_models` field when switching to non-custom profiles (don't delete it).
 
 Write updated config back to `.planning/config.json`.
 
@@ -64,8 +173,24 @@ Write updated config back to `.planning/config.json`.
 ✓ Model profile set to: $ARGUMENTS.profile
 
 Agents will now use:
-[Show table from model-profiles.md for selected profile]
+```
 
+If profile is "custom":
+  Show the custom_profile_models map as a table:
+  ```
+  | Agent | Model |
+  |-------|-------|
+  | gsd-planner | {custom value} |
+  | gsd-plan-checker | {custom value} |
+  | gsd-executor | {custom value} |
+  | gsd-verifier | {custom value} |
+  | gsd-codebase-mapper | {custom value} |
+  ```
+
+Otherwise (quality/balanced/budget):
+  Show table from model-profiles.md for selected profile (existing behavior)
+
+```
 Next spawned agents will use the new profile.
 ```
 
@@ -101,6 +226,36 @@ Agents will now use:
 | gsd-executor | opus |
 | gsd-verifier | sonnet |
 | ... | ... |
+```
+
+**Configure custom profile:**
+```
+/gsd:set-profile custom
+
+[Interactive prompts for each agent...]
+
+Configuration summary:
+
+| Agent | Model |
+|-------|-------|
+| Planner (gsd-planner) | opus |
+| Plan Checker (gsd-plan-checker) | haiku |
+| Executor (gsd-executor) | sonnet |
+| Verifier (gsd-verifier) | haiku |
+| Codebase Mapper (gsd-codebase-mapper) | haiku |
+
+Save this configuration? [Yes]
+
+✓ Model profile set to: custom
+
+Agents will now use:
+| Agent | Model |
+|-------|-------|
+| gsd-planner | opus |
+| gsd-plan-checker | haiku |
+| gsd-executor | sonnet |
+| gsd-verifier | haiku |
+| gsd-codebase-mapper | haiku |
 ```
 
 </examples>

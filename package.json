@@ -41,6 +41,7 @@
     "esbuild": "^0.24.0"
   },
   "scripts": {
+    "start": "node bin/install.js",
     "build:hooks": "node scripts/build-hooks.js",
     "prepublishOnly": "npm run build:hooks"
   }
