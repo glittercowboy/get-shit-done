@@ -584,7 +584,7 @@ Plans verified. Run `/gsd:execute-phase {phase}` to proceed.
 
 **DO NOT** check code existence — that's gsd-verifier's job. You verify plans, not codebase.
 
-**DO NOT** run the application. Static plan analysis only.
+**DO NOT run the application.** This is static plan analysis. No `pnpm start`, no `curl` to running server.
 
 **DO NOT** accept vague tasks. "Implement auth" is not specific. Tasks need concrete files, actions, verification.
 

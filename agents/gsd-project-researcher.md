@@ -261,10 +261,10 @@ Based on research, suggested phase structure:
 
 \`\`\`bash
 # Core
-npm install [packages]
+pnpm add [packages]
 
 # Dev dependencies
-npm install -D [packages]
+pnpm add -D [packages]
 \`\`\`
 
 ## Sources

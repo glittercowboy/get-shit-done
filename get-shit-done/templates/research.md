@@ -73,9 +73,7 @@ The established libraries/tools for this domain:
 
 **Installation:**
 ```bash
-npm install [packages]
-# or
-yarn add [packages]
+pnpm add [packages]
 ```
 </standard_stack>
 
@@ -293,7 +291,7 @@ Key finding: Don't hand-roll physics or collision detection. Rapier (via @react-
 
 **Installation:**
 ```bash
-npm install three @react-three/fiber @react-three/drei @react-three/rapier zustand
+pnpm add three @react-three/fiber @react-three/drei @react-three/rapier zustand
 ```
 </standard_stack>
 

@@ -211,7 +211,7 @@ Priority: Context7 > Official Docs > Official GitHub > Verified WebSearch > Unve
 
 **Installation:**
 \`\`\`bash
-npm install [packages]
+pnpm add [packages]
 \`\`\`
 
 ## Architecture Patterns
