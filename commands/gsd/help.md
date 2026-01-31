@@ -327,6 +327,18 @@ Usage: `/gsd:set-profile budget`
 **`/gsd:help`**
 Show this command reference.
 
+**`/gsd:research-cache [list|clear|stats]`**
+View and manage the global research cache.
+
+- Stores research findings from previous phases for reuse
+- Speeds up research for recurring tech stacks (e.g., R3F, Rapier)
+- Entries expire based on confidence: HIGH=90d, MEDIUM=30d, LOW=7d
+- Automatically queried during `/gsd:research-phase` and `/gsd:plan-phase`
+
+Usage: `/gsd:research-cache` (list all entries)
+Usage: `/gsd:research-cache stats` (show cache statistics)
+Usage: `/gsd:research-cache clear` (remove expired entries)
+
 **`/gsd:update`**
 Update GSD to latest version with changelog preview.
 
@@ -348,6 +360,7 @@ Usage: `/gsd:join-discord`
 
 ## Files & Structure
 
+### Project Files
 ```
 .planning/
 ├── PROJECT.md            # Project vision
@@ -375,6 +388,16 @@ Usage: `/gsd:join-discord`
         ├── 02-01-PLAN.md
         └── 02-01-SUMMARY.md
 ```
+
+### Global Cache (Cross-Project)
+```
+~/.claude/cache/research/
+├── index.json              # Fast lookup index
+└── entries/
+    └── {hash}.json         # Cached research findings
+```
+
+Research cache stores findings from previous projects for reuse. Entries expire based on confidence level.
 
 ## Workflow Modes
 
