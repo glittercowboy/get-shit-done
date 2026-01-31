@@ -36,12 +36,20 @@
   "engines": {
     "node": ">=16.7.0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "@types/node": "^25.1.0",
+    "@types/react": "^19.2.10",
+    "esbuild": "^0.24.0",
+    "react-agentic": "^0.0.7",
+    "ts-morph": "^27.0.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "build:hooks": "node scripts/build-hooks.js",
+    "generate:commands": "rm -rf generated/commands && rm -rf generated/runtime && npx react-agentic build 'tsx/commands/**/*.tsx' --out generated/commands/gsd",
+    "generate:agents": "rm -rf generated/agents && npx react-agentic build 'tsx/agents/**/*.tsx' --out generated/agents",
+    "generate:tsx": "rm -rf generated && npm run generate:commands && npm run generate:agents",
     "prepublishOnly": "npm run build:hooks"
   }
 }
