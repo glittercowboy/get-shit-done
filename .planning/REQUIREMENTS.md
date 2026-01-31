@@ -152,32 +152,33 @@ Enable collaborative multi-developer workflows by integrating GSD commands with 
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SPEC-01 | 1 | Pending |
-| SPEC-02 | 1 | Pending |
-| SPEC-03 | 4 | Pending |
-| SPEC-04 | 6 | Pending |
-| CLI-01 | 1 | Pending |
-| CLI-02 | 2 | Pending |
-| CLI-03 | 2 | Pending |
-| CLI-04 | 3 | Pending |
-| CLI-05 | 3 | Pending |
-| AUTO-01 | 2 | Pending |
-| AUTO-02 | 2 | Pending |
-| AUTO-03 | 3 | Pending |
-| AUTO-04 | 3 | Pending |
-| AUTO-05 | 3 | Pending |
-| SYNC-01 | 2 | Pending |
-| SYNC-02 | 4 | Pending |
-| SYNC-03 | 4 | Pending |
-| SYNC-04 | 4 | Pending |
-| SPRINT-01 | 5 | Pending |
-| SPRINT-02 | 5 | Pending |
-| SPRINT-03 | 5 | Pending |
-| SPRINT-04 | 5 | Pending |
-| REPORT-01 | 6 | Pending |
-| REPORT-02 | 6 | Pending |
-| DOCS-01 | 6 | Pending |
-| DOCS-02 | 6 | Pending |
+| SPEC-01 | 1 | Roadmapped |
+| SPEC-02 | 1 | Roadmapped |
+| SPEC-03 | 4 | Roadmapped |
+| SPEC-04 | 6 | Roadmapped |
+| CLI-01 | 1 | Roadmapped |
+| CLI-02 | 2 | Roadmapped |
+| CLI-03 | 2 | Roadmapped |
+| CLI-04 | 3 | Roadmapped |
+| CLI-05 | 3 | Roadmapped |
+| AUTO-01 | 2 | Roadmapped |
+| AUTO-02 | 2 | Roadmapped |
+| AUTO-03 | 3 | Roadmapped |
+| AUTO-04 | 3 | Roadmapped |
+| AUTO-05 | 3 | Roadmapped |
+| SYNC-01 | 2 | Roadmapped |
+| SYNC-02 | 4 | Roadmapped |
+| SYNC-03 | 4 | Roadmapped |
+| SYNC-04 | 4 | Roadmapped |
+| SPRINT-01 | 5 | Roadmapped |
+| SPRINT-02 | 5 | Roadmapped |
+| SPRINT-03 | 5 | Roadmapped |
+| SPRINT-04 | 5 | Roadmapped |
+| REPORT-01 | 6 | Roadmapped |
+| REPORT-02 | 6 | Roadmapped |
+| DOCS-01 | 6 | Roadmapped |
+| DOCS-02 | 6 | Roadmapped |
 
 ---
 *Requirements defined: 2026-01-31*
+*Roadmapped: 2026-01-31 (26/26 mapped to 6 phases)*
