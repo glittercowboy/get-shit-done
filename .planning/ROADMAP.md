@@ -36,38 +36,45 @@ Plans:
 - [ ] 01-03: acli wrapper with error handling patterns
 
 ### Phase 2: Push Sync
-**Goal**: Enable GSD → Jira push sync with automatic creation hooks
+**Goal**: Enable GSD → Jira push sync with automatic creation hooks and branch creation
 **Depends on**: Phase 1
-**Requirements**: CLI-02, CLI-03, AUTO-01, AUTO-02, SYNC-01
+**Requirements**: CLI-02, CLI-03, AUTO-01, AUTO-02, SYNC-01, GIT-01
 **Success Criteria** (what must be TRUE):
   1. User can run `gsd:jira-sync` to push GSD artifacts to Jira
   2. User can run `gsd:jira-status` to see pending changes and last sync time
   3. New milestones automatically create Jira Initiatives
   4. New phases automatically create Jira Epics with linked Stories
   5. Hierarchy relationships preserved (Initiative → Epic → Story)
+  6. Feature branches auto-created with Jira issue key (e.g., `feature/PROJ-123-phase-name`)
 **Plans**: TBD
 
 Plans:
 - [ ] 02-01: Sync engine core with GSD artifact parsing
 - [ ] 02-02: gsd:jira-sync and gsd:jira-status commands
 - [ ] 02-03: Auto-sync hooks for new-milestone and plan-phase
+- [ ] 02-04: Git branch creation with Jira issue keys
 
 ### Phase 3: Execution Integration
-**Goal**: Integrate Jira updates into GSD execution workflow
+**Goal**: Integrate Jira updates into GSD execution workflow with Git integration
 **Depends on**: Phase 2
-**Requirements**: CLI-04, CLI-05, AUTO-03, AUTO-04, AUTO-05
+**Requirements**: CLI-04, CLI-05, AUTO-03, AUTO-04, AUTO-05, GIT-02, GIT-03, GIT-04
 **Success Criteria** (what must be TRUE):
   1. User can get Jira URLs for any GSD item via `gsd:jira-link`
   2. User can open Jira board or specific issues via `gsd:jira-open`
   3. Plan execution transitions Jira Stories to In Progress
   4. Sub-tasks created and auto-transitioned during plan execution
   5. Phase verification updates Epic status and closes completed Stories
+  6. Commit messages auto-include Jira issue key for linking
+  7. Smart commit keywords (#done, #in-progress) transition Jira issues
+  8. PR titles/descriptions auto-include Jira issue key and link
 **Plans**: TBD
 
 Plans:
 - [ ] 03-01: gsd:jira-link and gsd:jira-open commands
 - [ ] 03-02: Execute-plan Jira integration (status + sub-tasks)
 - [ ] 03-03: Verify-phase Jira integration
+- [ ] 03-04: Git commit message and smart commit integration
+- [ ] 03-05: PR template with Jira linking
 
 ### Phase 4: Bidirectional Sync
 **Goal**: Enable Jira → GSD sync with conflict detection and resolution
@@ -127,8 +134,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/3 | Not started | - |
-| 2. Push Sync | 0/3 | Not started | - |
-| 3. Execution Integration | 0/3 | Not started | - |
+| 2. Push Sync | 0/4 | Not started | - |
+| 3. Execution Integration | 0/5 | Not started | - |
 | 4. Bidirectional Sync | 0/3 | Not started | - |
 | 5. Sprint Management | 0/3 | Not started | - |
 | 6. Polish & Docs | 0/3 | Not started | - |
@@ -163,10 +170,14 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | SPEC-04 | 6 | Multi-developer workflow docs |
 | REPORT-01 | 6 | gsd:jira-report command |
 | REPORT-02 | 6 | gsd:jira-dashboard command |
+| GIT-01 | 2 | Auto-create feature branches with Jira key |
+| GIT-02 | 3 | Commit messages include Jira key |
+| GIT-03 | 3 | Smart commit keywords for transitions |
+| GIT-04 | 3 | PR titles/descriptions with Jira links |
 | DOCS-01 | 6 | Setup guide |
 | DOCS-02 | 6 | Multi-developer collaboration guide |
 
-**Coverage:** 26/26 requirements mapped (100%)
+**Coverage:** 30/30 requirements mapped (100%)
 
 ---
 *Roadmap created: 2026-01-31*
