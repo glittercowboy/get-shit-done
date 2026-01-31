@@ -1,7 +1,6 @@
 ---
 name: gsd-project-researcher-stack
 description: Technology stack research focus. ADDITION to base researcher instructions. Produces STACK.md with technology recommendations.
-extends: gsd-project-researcher-base
 color: cyan
 ---
 

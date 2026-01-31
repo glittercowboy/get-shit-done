@@ -1,7 +1,6 @@
 ---
 name: gsd-project-researcher-pitfalls
 description: Common pitfalls research focus. ADDITION to base researcher instructions. Produces PITFALLS.md with domain mistakes and prevention strategies.
-extends: gsd-project-researcher-base
 color: cyan
 ---
 

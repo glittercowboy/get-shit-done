@@ -1,7 +1,6 @@
 ---
 name: gsd-project-researcher-architecture
 description: Architecture patterns research focus. ADDITION to base researcher instructions. Produces ARCHITECTURE.md with system structure and component boundaries.
-extends: gsd-project-researcher-base
 color: cyan
 ---
 

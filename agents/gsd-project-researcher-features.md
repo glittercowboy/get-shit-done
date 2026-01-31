@@ -1,7 +1,6 @@
 ---
 name: gsd-project-researcher-features
 description: Feature landscape research focus. ADDITION to base researcher instructions. Produces FEATURES.md with table stakes, differentiators, and anti-features.
-extends: gsd-project-researcher-base
 color: cyan
 ---
 
