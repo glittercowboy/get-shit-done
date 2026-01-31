@@ -36,13 +36,6 @@ Purpose: [Why this matters for the project]
 Output: [What artifacts will be created]
 </objective>
 
-<execution_context>
-@~/.claude/get-shit-done/workflows/execute-plan.md
-@~/.claude/get-shit-done/templates/summary.md
-[If plan contains checkpoint tasks (type="checkpoint:*"), add:]
-@~/.claude/get-shit-done/references/checkpoints.md
-</execution_context>
-
 <context>
 @.planning/PROJECT.md
 @.planning/ROADMAP.md
@@ -370,12 +363,6 @@ Build dashboard with visual verification.
 Purpose: Integrate user and product features into unified view.
 Output: Working dashboard component.
 </objective>
-
-<execution_context>
-@~/.claude/get-shit-done/workflows/execute-plan.md
-@~/.claude/get-shit-done/templates/summary.md
-@~/.claude/get-shit-done/references/checkpoints.md
-</execution_context>
 
 <context>
 @.planning/PROJECT.md

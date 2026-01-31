@@ -6,6 +6,153 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-01-25
+
+### Fixed
+- **Robust Config Parsing**: All config.json parsing now uses jq with grep fallback for cross-platform reliability
+  - Fixes fragility with different JSON formatting/nesting
+  - Applies to: model_profile, optimization flags, workflow settings in `execute-phase.md` and `complete-milestone.md`
+- **macOS Compatibility**: Fixed sed/head commands for cross-platform compatibility
+  - Changed `sed -n` to `sed -En` for extended regex support
+  - Changed `head -n -1` to `sed '$d'` for reliable last-line removal on BSD/macOS
+  - Applies to: delta-context extraction in `execute-phase.md`
+- **Delta Context Safety**: Added validation and fallback for delta-context extraction
+  - Verifies PHASE_SECTION and CURRENT_POS are not empty after extraction
+  - Falls back to full context mode if extraction fails
+  - Prevents silent failures when STATE.md/ROADMAP.md headers change
+- **TDD + Delta Context Inconsistency**: TDD tasks now force full context mode
+  - When `tdd="true"` detected, overrides `delta_context=true` setting
+  - Ensures TDD executor has access to test patterns, conventions, and global decisions
+  - Fixes case where full executor was used with trimmed context
+
+### Added
+- **Configurable Integration Check**: Integration check threshold now configurable in config.json
+  - New settings: `workflow.integration_check.enabled` (default: true), `workflow.integration_check.min_phases` (default: 4)
+  - Borderline cases (min_phases or min_phases+1) now prompt user with AskUserQuestion
+  - More flexible than hardcoded >3 phases threshold
+- **Workflow Maintenance Documentation**: Created `WORKFLOW_MAINTENANCE.md` guide
+  - Documents relationship between execute-plan.md and execute-plan-compact.md
+  - Maintenance strategy for keeping files logically synchronized
+  - Testing checklist and version history tracking
+- **Workflow Parity Test**: Added automated test script `tests/test-workflow-parity.sh`
+  - Verifies critical sections exist in both workflow files
+  - Helps prevent drift during maintenance
+  - Includes detailed error reporting and fix suggestions
+
+### Changed
+- **Integration Check Threshold**: Changed from hardcoded >3 phases to configurable min_phases
+  - Default increased from 3 to 4 phases in config.json template
+  - Can be customized per-project based on complexity needs
+
+## [2.1.2] - 2026-01-24
+
+### Added
+- **Integration Check in Milestone Completion**: `complete-milestone.md` workflow now includes automatic integration verification
+  - Spawns `gsd-integration-checker` for milestones with >3 phases
+  - Catches cross-phase wiring issues (orphaned exports, unused APIs, incomplete E2E flows)
+  - User can continue with known issues or fix first
+  - Added to success_criteria checklist
+
+### Documentation
+- Documented `extends:` mechanism limitation in CONCERNS.md
+  - Claude Code does not automatically load base files referenced by `extends:` field
+  - Research agent base + focus architecture deferred until orchestrator refactor
+
+## [2.1.1] - 2026-01-24
+
+### Fixed
+- **Tiered Loading Self-Sufficiency**: `gsd-executor-core.md` no longer references extended file
+  - Auth gate handling inlined (STOP, checkpoint, specify auth steps)
+  - TDD cycle summary inlined (RED-GREEN-REFACTOR with atomic commits)
+- **TDD Task Detection**: `execute-phase.md` now detects `tdd="true"` tasks and uses full executor
+  - Ensures detailed TDD guidance is available when needed
+  - Core executor used only for non-TDD plans (preserves token savings)
+- **Migration Edge Case**: `migrate.md` now checks for `optimization` section presence
+  - Prevents skipping migration when config has `gsd_version` but missing `optimization`
+  - Handles corrupted or manually edited configs gracefully
+
+### Changed
+- Updated CONCERNS.md: 3 critical issues marked as RESOLVED/MITIGATED
+
+## [2.1.0] - 2026-01-24
+
+### Added
+- **Delta Context Protocol Implemented**: Load only relevant portions of context files per subagent
+  - `delta-context-helpers.md` reference file with extraction functions
+  - `extract_phase_section()` - extracts current phase from ROADMAP.md (~1,600 tokens saved)
+  - `extract_relevant_decisions()` - extracts global + phase-specific decisions from STATE.md (~1,000 tokens saved)
+  - `extract_mapped_requirements()` - extracts task-mapped requirements from REQUIREMENTS.md (~1,800 tokens saved)
+  - Context matrix defining what each agent type receives
+- `optimization.delta_context` flag in config.json (default: true in template)
+
+### Changed
+- `execute-phase.md` command now reads `delta_context` flag and builds selective context
+- `execute-phase.md` workflow updated with delta context loading logic
+- Subagent prompts now receive `{context_for_executor}` instead of raw STATE.md
+
+### Performance
+- **~1,000-2,600 additional tokens saved per executor** with delta_context enabled
+- **~4,600 tokens saved per phase** (3 executors + 1 verifier)
+- Combined with other v2.0 optimizations: **~28,000-30,000 tokens saved per phase**
+
+## [2.0.0] - 2026-01-24
+
+### 🚀 Major Release: Zero Degradation Token Optimization
+
+**Breaking Changes:**
+- New config schema with `optimization` section
+- Requires migration for existing projects via `/gsd:migrate`
+- Agent files split into tiered instructions (core + extended)
+- New compact workflow files for reduced token consumption
+
+### Added
+- **Tiered Instructions System**: Agent files split into core (~35%) and extended (~65%) versions
+  - `gsd-planner-core.md` and `gsd-planner-extended.md`
+  - `gsd-executor-core.md` and `gsd-executor-extended.md`
+  - `gsd-verifier-core.md` and `gsd-verifier-extended.md`
+- **Shared Research Base**: Project researchers now share common base with focus-specific additions
+  - `gsd-project-researcher-base.md` (shared)
+  - Focus files: `stack.md`, `features.md`, `architecture.md`, `pitfalls.md`
+- **Compact Workflow Files**: Optimized versions with 80%+ reduction
+  - `execute-plan-compact.md` (81% smaller)
+  - `checkpoints-minimal.md` (72% smaller)
+- **Delta Context Protocol**: Load only relevant sections of context files - fully implemented (see [Unreleased])
+- **Lazy Reference Loading**: Conditional checkpoint reference loading based on plan autonomy
+- **Context Budget Warning System**: Monitor token usage at 40%/60%/75% thresholds
+- **Optimization Configuration**: New `optimization` section in config.json
+  - Three levels: `minimal` (v1 compat), `standard`, `aggressive`
+  - Individual toggles for each optimization
+- `/gsd:migrate` command for upgrading v1.x projects to v2.0
+- Comprehensive optimization design document (`GSD-V2-OPTIMIZATION-DESIGN.md`)
+- Detailed token consumption benchmark (`TOKEN-BENCHMARK.md`) with v1 vs v2 comparison
+
+### Changed
+- Default config template includes `gsd_version: "2.0.0"`
+- `/gsd:settings` now includes optimization configuration options
+- Agent loading logic uses tiered instructions (core first, extended on retry/complexity)
+- Context files loaded selectively based on agent type and task requirements
+- Checkpoint references loaded only for non-autonomous plans
+
+### Performance
+- **~23,000 tokens saved per phase** with all optimizations enabled:
+  - Compact workflows: ~12,500 tokens/executor
+  - Lazy references: ~8,700 tokens/executor (autonomous plans)
+  - Tiered instructions: ~2,200 tokens/executor
+- **Backward compatible**: All optimizations default to `false`
+- **Delta context**: Now implemented - additional ~4,600 tokens saved per phase (see [Unreleased])
+
+### Migration
+- Existing v1.x projects detected automatically
+- Migration preserves all settings while adding optimization config
+- Compatibility mode available (`optimization.level: "minimal"`) for zero-change behavior
+- See design document for detailed migration impact analysis
+
+### Documentation
+- Updated README with v2.0 features
+- New comprehensive benchmark comparing v1.9.13 vs v2.0.0
+- Design document explaining all optimizations and philosophy
+- Migration guide in `/gsd:migrate` command
+
 ## [1.10.1] - 2025-01-30
 
 ### Fixed
@@ -1069,7 +1216,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - YOLO mode for autonomous execution
 - Interactive mode with checkpoints
 
-[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v2.1.3...HEAD
+[2.1.3]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.1.3
+[2.1.2]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.1.2
+[2.1.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.1.1
+[2.1.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.1.0
+[2.0.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.0.0
 [1.10.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.1
 [1.10.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.0
 [1.9.12]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.12

@@ -406,11 +406,6 @@ Purpose: [Why this matters for the project]
 Output: [What artifacts will be created]
 </objective>
 
-<execution_context>
-@~/.claude/get-shit-done/workflows/execute-plan.md
-@~/.claude/get-shit-done/templates/summary.md
-</execution_context>
-
 <context>
 @.planning/PROJECT.md
 @.planning/ROADMAP.md
