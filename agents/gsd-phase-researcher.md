@@ -523,15 +523,19 @@ Run through verification protocol checklist:
 
 ## Step 5: Write RESEARCH.md
 
+**ALWAYS use the Write tool to persist RESEARCH.md to disk.** This is mandatory regardless of `commit_docs` setting.
+
 Use the output format template. Populate all sections with verified findings.
 
 Write to: `$PHASE_DIR/$PADDED_PHASE-RESEARCH.md`
 
 Where `PHASE_DIR` is the full path (e.g., `.planning/phases/01-foundation`)
 
-## Step 6: Commit Research
+⚠️ **The `commit_docs` setting only controls git commits, NOT file writing.** Always write the file first.
 
-**If `COMMIT_PLANNING_DOCS=false`:** Skip git operations, log "Skipping planning docs commit (commit_docs: false)"
+## Step 6: Commit Research (optional)
+
+**If `COMMIT_PLANNING_DOCS=false`:** Skip git operations only. The file MUST already be written in Step 5.
 
 **If `COMMIT_PLANNING_DOCS=true` (default):**
 
