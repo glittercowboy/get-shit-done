@@ -1,7 +1,18 @@
 ---
 name: gsd-phase-researcher
 description: Researches how to implement a phase before planning. Produces RESEARCH.md consumed by gsd-planner. Spawned by /gsd:plan-phase orchestrator.
-tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*
+tools:
+  - Read
+  - Write
+  - Bash
+  - Grep
+  - Glob
+  - WebSearch
+  - WebFetch
+  - mcp__context7__resolve-library-id
+  - mcp__context7__query-docs
+  - mcp__plugin_context7_context7__resolve-library-id
+  - mcp__plugin_context7_context7__query-docs
 color: cyan
 ---
 
@@ -111,11 +122,13 @@ Context7 provides authoritative, current documentation for libraries and framewo
 ```
 1. Resolve library ID:
    mcp__context7__resolve-library-id with libraryName: "[library name]"
+   (or mcp__plugin_context7_context7__resolve-library-id if using the plugin)
 
 2. Query documentation:
    mcp__context7__query-docs with:
    - libraryId: [resolved ID]
    - query: "[specific question]"
+   (or mcp__plugin_context7_context7__query-docs if using the plugin)
 ```
 
 **Best practices:**
