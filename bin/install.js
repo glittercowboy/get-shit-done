@@ -768,7 +768,7 @@ function uninstall(isGlobal, runtime = 'claude') {
   // 4. Remove GSD hooks
   const hooksDir = path.join(targetDir, 'hooks');
   if (fs.existsSync(hooksDir)) {
-    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh'];
+    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh', 'gsd-precompact.js'];
     let hookCount = 0;
     for (const hook of gsdHooks) {
       const hookPath = path.join(hooksDir, hook);
@@ -818,10 +818,32 @@ function uninstall(isGlobal, runtime = 'claude') {
       if (settings.hooks.SessionStart.length === 0) {
         delete settings.hooks.SessionStart;
       }
-      // Clean up empty hooks object
-      if (Object.keys(settings.hooks).length === 0) {
-        delete settings.hooks;
+    }
+
+    // Remove GSD hooks from PreCompact
+    if (settings.hooks && settings.hooks.PreCompact) {
+      const before = settings.hooks.PreCompact.length;
+      settings.hooks.PreCompact = settings.hooks.PreCompact.filter(entry => {
+        if (entry.hooks && Array.isArray(entry.hooks)) {
+          const hasGsdHook = entry.hooks.some(h =>
+            h.command && h.command.includes('gsd-precompact')
+          );
+          return !hasGsdHook;
+        }
+        return true;
+      });
+      if (settings.hooks.PreCompact.length < before) {
+        settingsModified = true;
+        console.log(`  ${green}✓${reset} Removed GSD pre-compaction hook from settings`);
       }
+      if (settings.hooks.PreCompact.length === 0) {
+        delete settings.hooks.PreCompact;
+      }
+    }
+
+    // Clean up empty hooks object
+    if (settings.hooks && Object.keys(settings.hooks).length === 0) {
+      delete settings.hooks;
     }
 
     if (settingsModified) {
@@ -1153,6 +1175,9 @@ function install(isGlobal, runtime = 'claude') {
   const updateCheckCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-check-update.js')
     : 'node ' + dirName + '/hooks/gsd-check-update.js';
+  const precompactCommand = isGlobal
+    ? buildHookCommand(targetDir, 'gsd-precompact.js')
+    : 'node ' + dirName + '/hooks/gsd-precompact.js';
 
   // Enable experimental agents for Gemini CLI (required for custom sub-agents)
   if (isGemini) {
@@ -1188,6 +1213,27 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured update check hook`);
+    }
+
+    // Configure PreCompact hook for context exhaustion handling
+    if (!settings.hooks.PreCompact) {
+      settings.hooks.PreCompact = [];
+    }
+
+    const hasGsdPrecompactHook = settings.hooks.PreCompact.some(entry =>
+      entry.hooks && entry.hooks.some(h => h.command && h.command.includes('gsd-precompact'))
+    );
+
+    if (!hasGsdPrecompactHook) {
+      settings.hooks.PreCompact.push({
+        hooks: [
+          {
+            type: 'command',
+            command: precompactCommand
+          }
+        ]
+      });
+      console.log(`  ${green}✓${reset} Configured pre-compaction hook`);
     }
   }
 
