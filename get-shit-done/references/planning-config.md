@@ -12,6 +12,12 @@ Configuration options for `.planning/` directory behavior.
   "branching_strategy": "none",
   "phase_branch_template": "gsd/phase-{phase}-{slug}",
   "milestone_branch_template": "gsd/{milestone}-{slug}"
+},
+"skills": {
+  "enabled": false,
+  "discovery": "auto",
+  "skill_paths": [],
+  "skill_mappings": {}
 }
 ```
 
@@ -22,6 +28,10 @@ Configuration options for `.planning/` directory behavior.
 | `git.branching_strategy` | `"none"` | Git branching approach: `"none"`, `"phase"`, or `"milestone"` |
 | `git.phase_branch_template` | `"gsd/phase-{phase}-{slug}"` | Branch template for phase strategy |
 | `git.milestone_branch_template` | `"gsd/{milestone}-{slug}"` | Branch template for milestone strategy |
+| `skills.enabled` | `false` | Enable skill integration |
+| `skills.discovery` | `"auto"` | How to find skills: `"auto"`, `"manual"`, `"none"` |
+| `skills.skill_paths` | `[]` | Additional paths to search for skills |
+| `skills.skill_mappings` | `{}` | Map phase keywords to relevant skills |
 </config_schema>
 
 <commit_docs_behavior>
@@ -87,7 +97,7 @@ To use uncommitted mode:
    ```
 
 2. **Add to .gitignore:**
-   ```
+   ```text
    .planning/
    ```
 
@@ -185,5 +195,59 @@ Squash merge is recommended — keeps main branch history clean while preserving
 | `milestone` | Release branches, staging environments, PR per version |
 
 </branching_strategy_behavior>
+
+<skill_integration_config>
+
+## Skill Integration
+
+GSD can integrate with Claude Code skills to enhance planning and execution.
+
+**When `skills.enabled: true`:**
+- Planner suggests relevant skills based on phase keywords
+- Executor invokes skills referenced in task actions
+- `/gsd:suggest-skills` command available
+
+**When `skills.enabled: false` (default):**
+- Standard GSD workflow without skill integration
+
+**Discovery modes:**
+
+| Mode | Behavior |
+|------|----------|
+| `auto` | Discovers skills from Claude Code registry and project `.claude/skills/` |
+| `manual` | Only uses skills explicitly listed in `skill_mappings` |
+| `none` | Disables skill discovery entirely |
+
+**Skill mappings:**
+
+Map phase keywords to relevant skills:
+
+```json
+"skills": {
+  "enabled": true,
+  "skill_mappings": {
+    "testing": ["test-gen", "test-coverage", "unit-testing"],
+    "deployment": ["k8s-deploy", "argocd-app"],
+    "database": ["bq-schema", "bq-query", "bq-cost"],
+    "code-quality": ["code-review", "code-smell", "refactor-code"],
+    "release": ["release-prep", "changelog", "github-release"],
+    "debugging": ["debug-code", "trace-error"]
+  }
+}
+```
+
+**Usage in plans:**
+
+Reference skills in task actions:
+
+```xml
+<task type="auto">
+  <action>Use /test-gen to create unit tests for UserService</action>
+</task>
+```
+
+See `references/skill-integration.md` for full documentation.
+
+</skill_integration_config>
 
 </planning_config>

@@ -31,7 +31,7 @@ cat .planning/STATE.md 2>/dev/null
 
 **If file missing but .planning/ exists:**
 
-```
+```text
 STATE.md missing but planning artifacts exist.
 Options:
 1. Reconstruct from existing artifacts
@@ -51,7 +51,6 @@ git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
 
 Store `COMMIT_PLANNING_DOCS` for use in git operations.
 </step>
-
 
 <step name="load_plan">
 Read the plan file provided in your prompt context.
@@ -118,6 +117,7 @@ Execute each task in the plan.
 2. **If `type="auto"`:**
 
    - Check if task has `tdd="true"` attribute → follow TDD execution flow
+   - **Check for skill references** in `<action>` (see skill_invocation below)
    - Work toward task completion
    - **If CLI/API returns authentication error:** Handle as authentication gate
    - **When you discover additional work not in plan:** Apply deviation rules automatically
@@ -139,6 +139,44 @@ Execute each task in the plan.
    </step>
 
 </execution_flow>
+
+<skill_invocation>
+**When task action references a skill (e.g., "Use /test-gen to..."):**
+
+Skills are Claude Code prompts that provide specialized capabilities. When a task action includes a skill reference:
+
+1. **Detect skill reference** - Look for `/skill-name` pattern in `<action>` text
+2. **Parse skill name** - Extract skill identifier (e.g., `test-gen` from `/test-gen`)
+3. **Invoke skill** - Use the Skill tool:
+   ```text
+   Skill(skill: "skill-name", args: "[relevant context]")
+   ```
+
+4. **Apply skill output** - Incorporate skill results into task execution
+5. **Continue task** - Complete remaining task work
+
+**Common skill patterns:**
+
+| Skill Reference | Invocation | Use Case |
+|-----------------|------------|----------|
+| `/test-gen` | `Skill(skill: "test-gen")` | Generate unit tests |
+| `/code-review` | `Skill(skill: "code-review")` | Review implementation |
+| `/changelog` | `Skill(skill: "changelog")` | Generate changelog |
+
+**Skill output handling:**
+
+- **Code generation skills** (test-gen, scaffold) → Apply generated code to files
+- **Analysis skills** (code-review, code-smell) → Address findings in implementation
+- **Workflow skills** (changelog, release-prep) → Follow skill's process
+
+**If skill not available:**
+
+1. Log warning: "Skill /X not found, continuing without"
+2. Complete task using standard approach
+3. Note in SUMMARY.md deviations: "Skill /X unavailable"
+
+See @~/.claude/get-shit-done/references/skill-integration.md for full guidance.
+</skill_invocation>
 
 <deviation_rules>
 **While executing tasks, you WILL discover work not in the plan.** This is normal.

@@ -241,7 +241,7 @@ Record in `user_setup` frontmatter. Only include what Claude literally cannot do
 
 **Dependency graph construction:**
 
-```
+```text
 Example with 6 tasks:
 
 Task A (User model): needs nothing, creates src/models/user.ts
@@ -266,19 +266,21 @@ Wave analysis:
 ## Vertical Slices vs Horizontal Layers
 
 **Vertical slices (PREFER):**
-```
+```text
 Plan 01: User feature (model + API + UI)
 Plan 02: Product feature (model + API + UI)
 Plan 03: Order feature (model + API + UI)
 ```
+
 Result: All three can run in parallel (Wave 1)
 
 **Horizontal layers (AVOID):**
-```
+```sql
 Plan 01: Create User model, Product model, Order model
 Plan 02: Create User API, Product API, Order API
 Plan 03: Create User UI, Product UI, Order UI
 ```
+
 Result: Fully sequential (02 needs 01, 03 needs 02)
 
 **When vertical slices work:**
@@ -1112,6 +1114,43 @@ cat "$PHASE_DIR"/*-DISCOVERY.md 2>/dev/null
 **If RESEARCH.md exists:** Use standard_stack, architecture_patterns, dont_hand_roll, common_pitfalls. Research has already identified the right tools.
 </step>
 
+<step name="check_skill_integration">
+Check if skill integration is enabled and recommend relevant skills:
+
+```bash
+# Check skill configuration
+SKILLS_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"enabled"[[:space:]]*:[[:space:]]*true' | head -1)
+```
+
+**If skills enabled:**
+
+1. Extract phase keywords from goal and context
+2. Match keywords against skill_mappings in config.json
+3. Identify relevant skills for this phase
+
+**Skill matching keywords:**
+
+| Phase Keywords | Relevant Skills |
+|----------------|-----------------|
+| test, coverage, TDD | test-gen, test-coverage, unit-testing |
+| deploy, k8s, kubernetes | k8s-deploy, argocd-app |
+| database, sql, query, bigquery | bq-schema, bq-query, bq-cost |
+| review, refactor, quality | code-review, code-smell, refactor-code |
+| release, version, changelog | release-prep, changelog, github-release |
+| debug, error, trace | debug-code, trace-error |
+
+**If relevant skills found:**
+
+Include skill references in task actions where appropriate:
+- Testing phases → suggest /test-gen for test creation
+- Release phases → suggest /changelog and /release-prep
+- Code quality phases → suggest /code-review before completion
+
+**Note:** Skills are suggestions, not requirements. Only include skill references when they genuinely enhance the task.
+
+See @~/.claude/get-shit-done/references/skill-integration.md for full skill integration guidance.
+</step>
+
 <step name="break_into_tasks">
 Decompose phase into tasks. **Think dependencies first, not sequence.**
 
@@ -1139,7 +1178,7 @@ Prefer vertical slices over horizontal layers.
 <step name="assign_waves">
 Compute wave numbers before writing plans.
 
-```
+```bash
 waves = {}  # plan_id -> wave_number
 
 for each plan in plan_order:
@@ -1150,6 +1189,7 @@ for each plan in plan_order:
 
   waves[plan.id] = plan.wave
 ```
+
 </step>
 
 <step name="group_into_plans">
@@ -1212,7 +1252,7 @@ Update ROADMAP.md to finalize phase placeholders created by add-phase or insert-
 
 **Plan list** (always update):
 - Replace `Plans:\n- [ ] TBD ...` with actual plan checkboxes:
-  ```
+  ```text
   Plans:
   - [ ] {phase}-01-PLAN.md — {brief objective}
   - [ ] {phase}-02-PLAN.md — {brief objective}

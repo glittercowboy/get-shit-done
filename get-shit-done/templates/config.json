@@ -31,5 +31,20 @@
   "safety": {
     "always_confirm_destructive": true,
     "always_confirm_external_services": true
+  },
+  "skills": {
+    "enabled": false,
+    "discovery": "auto",
+    "skill_paths": [],
+    "skill_mappings": {
+      "testing": ["test-gen", "test-coverage", "unit-testing"],
+      "deployment": ["k8s-deploy", "argocd-app"],
+      "database": ["bq-schema", "bq-query"],
+      "code-quality": ["code-review", "code-smell", "refactor-code"],
+      "documentation": ["changelog", "doc-sync"],
+      "release": ["release-prep", "github-release", "github-pr"],
+      "debugging": ["debug-code", "trace-error"],
+      "integration": ["slack-search", "jira-issue", "confluence-search"]
+    }
   }
 }
