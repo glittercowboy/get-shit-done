@@ -574,9 +574,11 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime) {
  * @param {string} destDir - Destination directory
  * @param {string} pathPrefix - Path prefix for file references
  * @param {string} runtime - Target runtime ('claude', 'opencode', 'gemini')
+ * @param {boolean} isCommand - If true, convert to TOML for Gemini (commands only)
  */
-function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
+function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime, isCommand = false) {
   const isOpencode = runtime === 'opencode';
+  const isGemini = runtime === 'gemini';
   const dirName = getDirName(runtime);
 
   // Clean install: remove existing destination to prevent orphaned files
@@ -586,13 +588,36 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
   fs.mkdirSync(destDir, { recursive: true });
 
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+  
+  // Build list of runtime-specific variants to handle file replacement
+  // e.g., map-codebase-gemini.md replaces map-codebase.md for Gemini runtime
+  const geminiVariants = new Set(
+    entries
+      .filter(e => e.name.endsWith('-gemini.md'))
+      .map(e => e.name.replace(/-gemini\.md$/, '.md'))
+  );
 
   for (const entry of entries) {
     const srcPath = path.join(srcDir, entry.name);
-    const destPath = path.join(destDir, entry.name);
+    let destFileName = entry.name;
+    
+    // Handle runtime-specific file variants
+    if (entry.name.endsWith('-gemini.md')) {
+      // Gemini variant: only install for Gemini runtime, rename to base name
+      if (!isGemini) {
+        continue; // Skip Gemini-specific files for other runtimes
+      }
+      // Rename: map-codebase-gemini.md → map-codebase.md (then .toml for commands)
+      destFileName = entry.name.replace(/-gemini\.md$/, '.md');
+    } else if (isGemini && geminiVariants.has(entry.name)) {
+      // Skip base file if a Gemini variant exists
+      continue;
+    }
+    
+    const destPath = path.join(destDir, destFileName);
 
     if (entry.isDirectory()) {
-      copyWithPathReplacement(srcPath, destPath, pathPrefix, runtime);
+      copyWithPathReplacement(srcPath, destPath, pathPrefix, runtime, isCommand);
     } else if (entry.name.endsWith('.md')) {
       // Always replace ~/.claude/ as it is the source of truth in the repo
       let content = fs.readFileSync(srcPath, 'utf8');
@@ -603,14 +628,18 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
       if (isOpencode) {
         content = convertClaudeToOpencodeFrontmatter(content);
         fs.writeFileSync(destPath, content);
-      } else if (runtime === 'gemini') {
-        // Convert to TOML for Gemini (strip <sub> tags — terminals can't render subscript)
+      } else if (isGemini && isCommand) {
+        // Convert to TOML for Gemini COMMANDS ONLY (strip <sub> tags — terminals can't render subscript)
         content = stripSubTags(content);
         const tomlContent = convertClaudeToGeminiToml(content);
         // Replace extension with .toml
         const tomlPath = destPath.replace(/\.md$/, '.toml');
         fs.writeFileSync(tomlPath, tomlContent);
       } else {
+        // For non-commands (workflows, templates, references), just do path replacement
+        if (isGemini) {
+          content = stripSubTags(content);
+        }
         fs.writeFileSync(destPath, content);
       }
     } else {
@@ -1040,7 +1069,7 @@ function install(isGlobal, runtime = 'claude') {
     
     const gsdSrc = path.join(src, 'commands', 'gsd');
     const gsdDest = path.join(commandsDir, 'gsd');
-    copyWithPathReplacement(gsdSrc, gsdDest, pathPrefix, runtime);
+    copyWithPathReplacement(gsdSrc, gsdDest, pathPrefix, runtime, true);  // isCommand=true for TOML conversion
     if (verifyInstalled(gsdDest, 'commands/gsd')) {
       console.log(`  ${green}✓${reset} Installed commands/gsd`);
     } else {
