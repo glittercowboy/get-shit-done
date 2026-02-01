@@ -435,8 +435,12 @@ function convertClaudeToOpencodeFrontmatter(content) {
       if (hexColor) {
         newLines.push(`color: "${hexColor}"`);
       } else if (colorValue.startsWith('#')) {
-        // Already hex, keep as is
-        newLines.push(line);
+        // Validate hex color format (#RGB or #RRGGBB)
+        if (/^#[0-9a-f]{3}$|^#[0-9a-f]{6}$/i.test(colorValue)) {
+          // Already hex and valid, keep as is
+          newLines.push(line);
+        }
+        // Skip invalid hex colors
       }
       // Skip unknown color names
       continue;
