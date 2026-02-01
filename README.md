@@ -526,6 +526,23 @@ Use `/gsd:settings` to toggle these, or override per-invocation:
 | `parallelization.enabled` | `true` | Run independent plans simultaneously |
 | `planning.commit_docs` | `true` | Track `.planning/` in git |
 
+### Git Branching
+
+Control how GSD handles branches during execution.
+
+| Setting | Options | Default | What it does |
+|---------|---------|---------|--------------|
+| `git.branching_strategy` | `none`, `phase`, `milestone` | `none` | Branch creation strategy |
+| `git.phase_branch_template` | string | `gsd/phase-{phase}-{slug}` | Template for phase branches |
+| `git.milestone_branch_template` | string | `gsd/{milestone}-{slug}` | Template for milestone branches |
+
+**Strategies:**
+- **`none`** — Commits to current branch (default GSD behavior)
+- **`phase`** — Creates a branch per phase, merges at phase completion
+- **`milestone`** — Creates one branch for entire milestone, merges at completion
+
+At milestone completion, GSD offers squash merge (recommended) or merge with history.
+
 ---
 
 ## Troubleshooting

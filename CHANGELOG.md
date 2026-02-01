@@ -153,6 +153,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Design document explaining all optimizations and philosophy
 - Migration guide in `/gsd:migrate` command
 
+## [1.11.1] - 2026-01-31
+
+### Added
+- Git branching strategy configuration with three options:
+  - `none` (default): commit to current branch
+  - `phase`: create branch per phase (`gsd/phase-{N}-{slug}`)
+  - `milestone`: create branch per milestone (`gsd/{version}-{slug}`)
+- Squash merge option at milestone completion (recommended) with merge-with-history alternative
+- Context compliance verification dimension in plan checker — flags if plans contradict user decisions
+
+### Fixed
+- CONTEXT.md from `/gsd:discuss-phase` now properly flows to all downstream agents (researcher, planner, checker, revision loop)
+
 ## [1.10.1] - 2025-01-30
 
 ### Fixed
@@ -1222,6 +1235,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [2.1.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.1.1
 [2.1.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.1.0
 [2.0.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v2.0.0
+[1.11.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.11.1
 [1.10.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.1
 [1.10.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.0
 [1.9.12]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.12
