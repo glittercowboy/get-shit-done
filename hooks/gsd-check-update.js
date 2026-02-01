@@ -45,8 +45,23 @@ const child = spawn(process.execPath, ['-e', `
     latest = execSync('npm view get-shit-done-cc version', { encoding: 'utf8', timeout: 10000, windowsHide: true }).trim();
   } catch (e) {}
 
+  // Compare versions using semver logic (newer version available)
+  function isNewerVersion(latest, installed) {
+    if (!latest || !installed) return false;
+    const parse = v => v.split('.').map(n => parseInt(n, 10) || 0);
+    const l = parse(latest);
+    const i = parse(installed);
+    for (let j = 0; j < Math.max(l.length, i.length); j++) {
+      const lv = l[j] || 0;
+      const iv = i[j] || 0;
+      if (lv > iv) return true;
+      if (lv < iv) return false;
+    }
+    return false;
+  }
+
   const result = {
-    update_available: latest && installed !== latest,
+    update_available: isNewerVersion(latest, installed),
     installed,
     latest: latest || 'unknown',
     checked: Math.floor(Date.now() / 1000)
