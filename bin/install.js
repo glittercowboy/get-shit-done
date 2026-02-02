@@ -194,6 +194,71 @@ function writeSettings(settingsPath, settings) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
 }
 
+// Cache for attribution settings (populated once per runtime during install)
+const attributionCache = new Map();
+
+/**
+ * Get commit attribution setting for a runtime
+ * @param {string} runtime - 'claude', 'opencode', or 'gemini'
+ * @returns {null|undefined|string} null = remove, undefined = keep default, string = custom
+ */
+function getCommitAttribution(runtime) {
+  // Return cached value if available
+  if (attributionCache.has(runtime)) {
+    return attributionCache.get(runtime);
+  }
+
+  let result;
+
+  if (runtime === 'opencode') {
+    const config = readSettings(path.join(getGlobalDir('opencode', null), 'opencode.json'));
+    result = config.disable_ai_attribution === true ? null : undefined;
+  } else if (runtime === 'gemini') {
+    // Gemini: check gemini settings.json for attribution config
+    const settings = readSettings(path.join(getGlobalDir('gemini', explicitConfigDir), 'settings.json'));
+    if (!settings.attribution || settings.attribution.commit === undefined) {
+      result = undefined;
+    } else if (settings.attribution.commit === '') {
+      result = null;
+    } else {
+      result = settings.attribution.commit;
+    }
+  } else {
+    // Claude Code
+    const settings = readSettings(path.join(getGlobalDir('claude', explicitConfigDir), 'settings.json'));
+    if (!settings.attribution || settings.attribution.commit === undefined) {
+      result = undefined;
+    } else if (settings.attribution.commit === '') {
+      result = null;
+    } else {
+      result = settings.attribution.commit;
+    }
+  }
+
+  // Cache and return
+  attributionCache.set(runtime, result);
+  return result;
+}
+
+/**
+ * Process Co-Authored-By lines based on attribution setting
+ * @param {string} content - File content to process
+ * @param {null|undefined|string} attribution - null=remove, undefined=keep, string=replace
+ * @returns {string} Processed content
+ */
+function processAttribution(content, attribution) {
+  if (attribution === null) {
+    // Remove Co-Authored-By lines and the preceding blank line
+    return content.replace(/(\r?\n){2}Co-Authored-By:.*$/gim, '');
+  }
+  if (attribution === undefined) {
+    return content;
+  }
+  // Replace with custom attribution (escape $ to prevent backreference injection)
+  const safeAttribution = attribution.replace(/\$/g, '$$$$');
+  return content.replace(/Co-Authored-By:.*$/gim, `Co-Authored-By: ${safeAttribution}`);
+}
+
 /**
  * Convert Claude Code frontmatter to opencode format
  * - Converts 'allowed-tools:' array to 'permission:' object
@@ -560,6 +625,7 @@ function copyFlattenedCommands(srcDir, destDir, prefix, pathPrefix, runtime) {
       const opencodeDirRegex = /~\/\.opencode\//g;
       content = content.replace(claudeDirRegex, pathPrefix);
       content = content.replace(opencodeDirRegex, pathPrefix);
+      content = processAttribution(content, getCommitAttribution(runtime));
       content = convertClaudeToOpencodeFrontmatter(content);
 
       fs.writeFileSync(destPath, content);
@@ -598,7 +664,8 @@ function copyWithPathReplacement(srcDir, destDir, pathPrefix, runtime) {
       let content = fs.readFileSync(srcPath, 'utf8');
       const claudeDirRegex = /~\/\.claude\//g;
       content = content.replace(claudeDirRegex, pathPrefix);
-      
+      content = processAttribution(content, getCommitAttribution(runtime));
+
       // Convert frontmatter for opencode compatibility
       if (isOpencode) {
         content = convertClaudeToOpencodeFrontmatter(content);
@@ -1081,6 +1148,7 @@ function install(isGlobal, runtime = 'claude') {
         // Always replace ~/.claude/ as it is the source of truth in the repo
         const dirRegex = /~\/\.claude\//g;
         content = content.replace(dirRegex, pathPrefix);
+        content = processAttribution(content, getCommitAttribution(runtime));
         // Convert frontmatter for runtime compatibility
         if (isOpencode) {
           content = convertClaudeToOpencodeFrontmatter(content);
