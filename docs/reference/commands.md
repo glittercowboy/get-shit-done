@@ -135,12 +135,22 @@ Research phase implementation standalone.
 
 ---
 
-### `/gsd:discuss-phase [phase]`
+### `/gsd:discuss-phase [phase] [--research]`
 Gather context and clarify approach before planning.
 
-**Arguments:** Optional — phase number (prompts if not provided)
+**Arguments:**
+- `[phase]` — Phase number (prompts if not provided)
+- `--research` — Spawn researcher to guide questions with domain expertise
 
-**Creates:** `.planning/phases/{NN}-{name}/{phase}-CONTEXT.md`
+**Creates:**
+- `.planning/phases/{NN}-{name}/{phase}-CONTEXT.md` — Decisions for downstream agents
+- `.planning/phases/{NN}-{name}/{phase}-DISCUSSION-GUIDE.md` — (with --research) Domain guidance
+
+**Features:**
+- **Adaptive questioning** — 2-6 questions per area based on user decisiveness
+- **Coverage tracking** — Recommends whether more questions are needed
+- **In-progress recap** — Confirms decisions after each area
+- **Real-time scope guard** — Captures deferred ideas immediately
 
 **Purpose:** Lock decisions before research/planning so they aren't revisited
 

@@ -10,6 +10,7 @@ GSD uses specialized subagents for different tasks. Each agent is spawned fresh 
 | `gsd-executor` | Execute plans with atomic commits | `/gsd:execute-phase` |
 | `gsd-verifier` | Verify goal achievement | `/gsd:execute-phase` |
 | `gsd-plan-checker` | Validate plans before execution | `/gsd:plan-phase` |
+| `gsd-discuss-researcher` | Research domain for discussion guidance | `/gsd:discuss-phase --research` |
 | `gsd-phase-researcher` | Research phase implementation | `/gsd:plan-phase` |
 | `gsd-project-researcher` | Research domain ecosystem | `/gsd:new-project` |
 | `gsd-research-synthesizer` | Synthesize research outputs | `/gsd:new-project` |
@@ -136,6 +137,33 @@ GSD uses specialized subagents for different tasks. Each agent is spawned fresh 
 - `blocker` — Must fix before execution
 - `warning` — Should fix
 - `info` — Suggestions
+
+---
+
+## gsd-discuss-researcher
+
+**Purpose:** Research domain to guide discussion questions for `/gsd:discuss-phase`.
+
+**Tools:** Read, WebSearch, WebFetch, Context7, Perplexity
+
+**Reads:**
+- ROADMAP.md (phase description)
+
+**Creates:** `.planning/phases/{NN}-{name}/{phase}-DISCUSSION-GUIDE.md`
+
+**Sections:**
+- Key Decision Areas (with coverage indicators)
+- Domain Best Practices
+- Common Mistakes
+- Suggested Question Flow
+
+**Key Behaviors:**
+1. Identifies domain type (visual, API, CLI, docs, organization)
+2. Researches what decisions matter in that domain
+3. Provides concrete options for each decision area
+4. Defines coverage indicators for tracking
+
+**Model Profile:** sonnet/haiku/haiku (lightweight research)
 
 ---
 
@@ -317,6 +345,9 @@ GSD uses specialized subagents for different tasks. Each agent is spawned fresh 
     ├─ 4× gsd-project-researcher (parallel)
     ├─ gsd-research-synthesizer
     └─ gsd-roadmapper
+
+/gsd:discuss-phase --research
+    └─ gsd-discuss-researcher (optional)
 
 /gsd:plan-phase
     ├─ gsd-phase-researcher (if needed)

@@ -69,6 +69,8 @@ Template for `.planning/phases/XX-name/{phase}-CONTEXT.md` - captures implementa
 *Context gathered: [date]*
 ```
 
+---
+
 <good_examples>
 
 **Example 1: Visual feature (Post Feed)**

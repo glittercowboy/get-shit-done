@@ -11,6 +11,7 @@ Model profiles control which Claude model each GSD agent uses. This allows balan
 | gsd-executor | opus | sonnet | sonnet |
 | gsd-phase-researcher | opus | sonnet | haiku |
 | gsd-project-researcher | opus | sonnet | haiku |
+| gsd-discuss-researcher | sonnet | haiku | haiku |
 | gsd-research-synthesizer | sonnet | sonnet | haiku |
 | gsd-debugger | opus | sonnet | sonnet |
 | gsd-codebase-mapper | sonnet | haiku | haiku |
@@ -71,3 +72,6 @@ Verification requires goal-backward reasoning - checking if code *delivers* what
 
 **Why Haiku for gsd-codebase-mapper?**
 Read-only exploration and pattern extraction. No reasoning required, just structured output from file contents.
+
+**Why Haiku for gsd-discuss-researcher?**
+Discussion guidance is lightweight research — identifying decision areas and common patterns, not deep technical investigation. Haiku can query Perplexity/WebSearch and structure results effectively. Sonnet only for quality profile where cost is less concern.
