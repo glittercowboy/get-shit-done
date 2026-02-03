@@ -10,8 +10,8 @@
     "theme-color": "#1A1B26"
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/assets/gsd-logo-2000.svg",
+    "dark": "/assets/gsd-logo-2000.svg"
   },
   "favicon": "/favicon.png",
   "topbar": {
