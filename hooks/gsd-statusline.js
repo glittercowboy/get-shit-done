@@ -78,13 +78,30 @@ process.stdin.on('end', () => {
       } catch (e) {}
     }
 
-    // Git branch (traverse up to find .git)
+    // Git branch (traverse up to find .git, supports worktrees)
     let branch = '';
     let currentPath = dir;
     while (currentPath) {
-      const gitDir = path.join(currentPath, '.git');
-      if (fs.existsSync(gitDir)) {
+      const gitPath = path.join(currentPath, '.git');
+      if (fs.existsSync(gitPath)) {
         try {
+          let gitDir = gitPath;
+          const stats = fs.statSync(gitPath);
+
+          // If .git is a file (worktree), read the gitdir path
+          if (stats.isFile()) {
+            const gitFileContent = fs.readFileSync(gitPath, 'utf8');
+            const gitDirMatch = gitFileContent.match(/gitdir:\s*(.+)/);
+            if (gitDirMatch) {
+              gitDir = gitDirMatch[1].trim();
+              // Handle relative paths in worktree .git files
+              if (!path.isAbsolute(gitDir)) {
+                gitDir = path.resolve(currentPath, gitDir);
+              }
+            }
+          }
+
+          // Read HEAD from the actual git directory
           const headFile = path.join(gitDir, 'HEAD');
           if (fs.existsSync(headFile)) {
             const headContent = fs.readFileSync(headFile, 'utf8');
