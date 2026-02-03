@@ -3,6 +3,12 @@
   "name": "Get Shit Done",
   "theme": "prism",
   "layout": "sidenav",
+  "metadata": {
+    "og:image": "https://raw.githubusercontent.com/glittercowboy/get-shit-done/83845755b318aeacaac7d24c380a0e8f273046ef/assets/terminal.svg",
+    "twitter:card": "summary_large_image",
+    "twitter:image": "https://raw.githubusercontent.com/glittercowboy/get-shit-done/83845755b318aeacaac7d24c380a0e8f273046ef/assets/terminal.svg",
+    "theme-color": "#1A1B26"
+  },
   "logo": {
     "light": "/logo/light.svg",
     "dark": "/logo/dark.svg"
@@ -10,6 +16,10 @@
   "favicon": "/favicon.png",
   "topbar": {
     "style": "gradient"
+  },
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/glittercowboy/get-shit-done"
   },
   "background": {
     "style": "grid"
@@ -53,15 +63,19 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": ["introduction", "installation"]
+      "pages": ["introduction", "installation", "quickstart"]
     },
     {
-      "group": "Core Concepts",
-      "pages": ["workflow", "why-it-works"]
+      "group": "How It Works",
+      "pages": ["workflow", "artifacts", "why-it-works", "diagrams"]
     },
     {
       "group": "Reference",
-      "pages": ["commands", "configuration"]
+      "pages": ["commands", "configuration", "troubleshooting"]
+    },
+    {
+      "group": "Contributing",
+      "pages": ["contributing", "style-guide"]
     }
   ],
   "footer": {

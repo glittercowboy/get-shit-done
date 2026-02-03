@@ -1,0 +1,65 @@
+---
+title: "Contributing"
+description: "How to ship changes without enterprise theater"
+---
+
+GSD optimizes for **solo developer + Claude workflow**. Contributions follow the same rule: ship useful code with clean revert points.
+
+## Branch Strategy
+
+- `main` is production.
+- No direct commits to `main`.
+- Work happens on branches → PR → merge.
+
+Branch naming:
+
+- `feat/description`
+- `fix/description`
+- `docs/description`
+- `refactor/description`
+- `hotfix/version-description`
+
+## Commits
+
+Use Conventional Commits:
+
+```text
+feat(checkpoints): add rollback capability
+fix(install): handle Windows path edge case
+docs(site): add mintlify docs pages
+```
+
+Format: `type(scope): description`
+
+## PR Title + Body
+
+Title uses conventional commit format.
+
+Body template:
+
+```markdown
+## What
+
+[One sentence: what does this PR do?]
+
+## Why
+
+[One sentence: why is this change needed?]
+
+## Testing
+
+[How did you verify it works?]
+
+## Breaking Changes
+
+[List any, or "None"]
+```
+
+## What Not To Do
+
+- Enterprise patterns (story points, ceremonies, RACI, release committees)
+- Vague PRs ("Fix bugs", "Improve performance")
+
+<Note>
+  Docs and commands avoid temporal language ("previously", "no longer") except in CHANGELOG and commits.
+</Note>

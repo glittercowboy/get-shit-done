@@ -1,0 +1,53 @@
+---
+title: "Diagrams"
+description: "Mermaid diagrams for the workflow and file model"
+---
+
+## Workflow Loop
+
+```mermaid
+sequenceDiagram
+  participant U as You
+  participant G as GSD
+
+  U->>G: /gsd:new-project
+  G-->>U: PROJECT / REQUIREMENTS / ROADMAP / STATE
+
+  U->>G: /gsd:discuss-phase N
+  G-->>U: N-CONTEXT.md
+
+  U->>G: /gsd:plan-phase N
+  G-->>U: N-RESEARCH.md + N-*-PLAN.md
+
+  U->>G: /gsd:execute-phase N
+  G-->>U: commits + N-*-SUMMARY.md + N-VERIFICATION.md
+
+  U->>G: /gsd:verify-work N
+  G-->>U: UAT steps + fix plans (if needed)
+```
+
+## Prompt Artifact Stack
+
+```mermaid
+flowchart LR
+  A[PROJECT.md] --> Z["Model context"]
+  B[REQUIREMENTS.md] --> Z
+  C[ROADMAP.md] --> Z
+  D[STATE.md] --> Z
+  E[phase CONTEXT.md] --> Z
+  F[phase PLAN.md] --> Z
+  G[phase SUMMARY.md] --> Z
+```
+
+## Brand Assets (Upstream)
+
+These are in `assets/` in the upstream repo:
+
+- `assets/terminal.svg`
+- `assets/gsd-logo-2000.svg`
+- `assets/gsd-logo-2000.png`
+
+<img
+  src="https://raw.githubusercontent.com/glittercowboy/get-shit-done/main/assets/gsd-logo-2000.svg"
+  alt="GSD ASCII logo"
+/>

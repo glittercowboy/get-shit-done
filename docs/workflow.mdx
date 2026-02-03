@@ -5,6 +5,19 @@ description: "How to use GSD to build projects"
 
 > **Already have code?** Run `/gsd:map-codebase` first. It spawns parallel agents to analyze your stack, architecture, conventions, and concerns. Then `/gsd:new-project` knows your codebase — questions focus on what you're adding, and planning automatically loads your patterns.
 
+```mermaid
+flowchart TD
+  A[/gsd:new-project/] --> B[PROJECT + REQUIREMENTS + ROADMAP + STATE]
+  B --> C[/gsd:discuss-phase N/]
+  C --> D[N-CONTEXT.md]
+  D --> E[/gsd:plan-phase N/]
+  E --> F[N-RESEARCH.md + N-*-PLAN.md]
+  F --> G[/gsd:execute-phase N/]
+  G --> H[Commits + N-*-SUMMARY.md + N-VERIFICATION.md]
+  H --> I[/gsd:verify-work N/]
+  I --> J[UAT + fixes]
+```
+
 ## 1. Initialize Project
 
 ```bash
