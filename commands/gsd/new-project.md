@@ -329,6 +329,7 @@ questions: [
     options: [
       { label: "Balanced (Recommended)", description: "Sonnet for most agents — good quality/cost ratio" },
       { label: "Quality", description: "Opus for research/roadmap — higher cost, deeper analysis" },
+      { label: "Unlimited", description: "Opus for all agents — maximum quality, highest cost" },
       { label: "Budget", description: "Haiku where possible — fastest, lowest cost" }
     ]
   }
@@ -343,7 +344,7 @@ Create `.planning/config.json` with all settings:
   "depth": "quick|standard|comprehensive",
   "parallelization": true|false,
   "commit_docs": true|false,
-  "model_profile": "quality|balanced|budget",
+  "model_profile": "unlimited|quality|balanced|budget",
   "workflow": {
     "research": true|false,
     "plan_check": true|false,
@@ -381,18 +382,21 @@ EOF
 Read model profile for agent spawning:
 
 ```bash
-MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+# Read from config.json (may be empty if not set)
+CONFIG_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+# Fallback chain: config.json -> env var -> "balanced"
+MODEL_PROFILE="${CONFIG_PROFILE:-${GSD_DEFAULT_MODEL_PROFILE:-balanced}}"
 ```
 
-Default to "balanced" if not set.
+Default to "balanced" if neither config.json nor env var is set.
 
 **Model lookup table:**
 
-| Agent | quality | balanced | budget |
-|-------|---------|----------|--------|
-| gsd-project-researcher | opus | sonnet | haiku |
-| gsd-research-synthesizer | sonnet | sonnet | haiku |
-| gsd-roadmapper | opus | sonnet | sonnet |
+| Agent | `unlimited` | `quality` | `balanced` | `budget` |
+|-------|-------------|-----------|------------|----------|
+| gsd-project-researcher | opus | opus | sonnet | haiku |
+| gsd-research-synthesizer | opus | sonnet | sonnet | haiku |
+| gsd-roadmapper | opus | opus | sonnet | sonnet |
 
 Store resolved models for use in Task calls below.
 

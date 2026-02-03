@@ -36,16 +36,19 @@ Normalize phase input in step 1 before any directory lookups.
 Read model profile for agent spawning:
 
 ```bash
-MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+# Read from config.json (may be empty if not set)
+CONFIG_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+# Fallback chain: config.json -> env var -> "balanced"
+MODEL_PROFILE="${CONFIG_PROFILE:-${GSD_DEFAULT_MODEL_PROFILE:-balanced}}"
 ```
 
-Default to "balanced" if not set.
+Default to "balanced" if neither config.json nor env var is set.
 
 **Model lookup table:**
 
-| Agent | quality | balanced | budget |
-|-------|---------|----------|--------|
-| gsd-phase-researcher | opus | sonnet | haiku |
+| Agent | `unlimited` | `quality` | `balanced` | `budget` |
+|-------|-------------|-----------|------------|----------|
+| gsd-phase-researcher | opus | opus | sonnet | haiku |
 
 Store resolved model for use in Task calls below.
 

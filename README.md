@@ -467,7 +467,7 @@ You're never locked in. The system adapts.
 | Command | What it does |
 |---------|--------------|
 | `/gsd:settings` | Configure model profile and workflow agents |
-| `/gsd:set-profile <profile>` | Switch model profile (quality/balanced/budget) |
+| `/gsd:set-profile <profile>` | Switch model profile (unlimited/quality/balanced/budget) |
 | `/gsd:add-todo [desc]` | Capture idea for later |
 | `/gsd:check-todos` | List pending todos |
 | `/gsd:debug [desc]` | Systematic debugging with persistent state |
@@ -494,6 +494,7 @@ Control which Claude model each agent uses. Balance quality vs token spend.
 
 | Profile | Planning | Execution | Verification |
 |---------|----------|-----------|--------------|
+| `unlimited` | Opus | Opus | Opus |
 | `quality` | Opus | Opus | Sonnet |
 | `balanced` (default) | Opus | Sonnet | Sonnet |
 | `budget` | Sonnet | Sonnet | Haiku |
@@ -518,6 +519,14 @@ These spawn additional agents during planning/execution. They improve quality bu
 Use `/gsd:settings` to toggle these, or override per-invocation:
 - `/gsd:plan-phase --skip-research`
 - `/gsd:plan-phase --skip-verify`
+
+### Environment Variables
+
+| Variable | Default | What it does |
+|----------|---------|--------------|
+| `GSD_DEFAULT_MODEL_PROFILE` | `balanced` | Default model profile when no `.planning/config.json` exists |
+
+Fallback chain: `config.json` -> `GSD_DEFAULT_MODEL_PROFILE` -> `balanced`
 
 ### Execution
 

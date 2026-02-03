@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Unlimited model profile** — Use Opus for all agents without exception (`/gsd:set-profile unlimited` or configure in `/gsd:settings`)
+- **GSD_DEFAULT_MODEL_PROFILE** environment variable — Set default profile when no config.json exists (fallback: config.json -> env var -> "balanced")
+
 ## [1.11.1] - 2026-01-31
 
 ### Added
