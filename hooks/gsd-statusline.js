@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Claude Code Statusline - GSD Edition
-// Shows: model | current task | directory | context usage
+// Shows: model | current task | git branch | directory | context usage
 
 const fs = require('fs');
 const path = require('path');
@@ -78,12 +78,37 @@ process.stdin.on('end', () => {
       } catch (e) {}
     }
 
+    // Git branch (traverse up to find .git)
+    let branch = '';
+    let currentPath = dir;
+    while (currentPath) {
+      const gitDir = path.join(currentPath, '.git');
+      if (fs.existsSync(gitDir)) {
+        try {
+          const headFile = path.join(gitDir, 'HEAD');
+          if (fs.existsSync(headFile)) {
+            const headContent = fs.readFileSync(headFile, 'utf8');
+            const match = headContent.match(/ref: refs\/heads\/(.+)/);
+            if (match) {
+              branch = ` \x1b[35m${match[1].trim()}\x1b[0m │`;
+            }
+          }
+        } catch (e) {
+          // Silently fail on git errors - don't break statusline
+        }
+        break;
+      }
+      const parentPath = path.dirname(currentPath);
+      if (parentPath === currentPath) break;
+      currentPath = parentPath;
+    }
+
     // Output
     const dirname = path.basename(dir);
     if (task) {
-      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${dirname}\x1b[0m${ctx}`);
+      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ \x1b[1m${task}\x1b[0m │${branch} \x1b[2m${dirname}\x1b[0m${ctx}`);
     } else {
-      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ \x1b[2m${dirname}\x1b[0m${ctx}`);
+      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │${branch} \x1b[2m${dirname}\x1b[0m${ctx}`);
     }
   } catch (e) {
     // Silent fail - don't break statusline on parse errors
