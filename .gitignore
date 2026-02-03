@@ -14,3 +14,6 @@ hooks/dist/
 # Animation assets
 animation/
 *.gif
+
+# Planning docs (local-only)
+.planning/
