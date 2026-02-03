@@ -11,8 +11,18 @@
     "light": "#629457",
     "dark": "#68ACD7",
     "anchors": {
-      "from": "#629457",
-      "to": "#68ACD7"
+      "from": "#68ACD7",
+      "to": "#7FA1D1"
+    }
+  },
+  "font": {
+    "headings": {
+      "family": "IBM Plex Sans",
+      "url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    },
+    "body": {
+      "family": "IBM Plex Sans",
+      "url": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
     }
   },
   "navigation": [
