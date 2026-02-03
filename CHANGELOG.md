@@ -6,6 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Skill Integration** — GSD can now leverage Claude Code skills during planning and execution
+  - New `/gsd:suggest-skills` command to discover and recommend relevant skills for your project
+  - Planner automatically suggests skills based on phase keywords (testing, deployment, code quality, etc.)
+  - Executor invokes skills when referenced in task actions (e.g., "Use /test-gen to create tests")
+  - New `skills` configuration section in config.json with customizable skill mappings
+  - Reference documentation at `references/skill-integration.md`
+
 ## [1.11.1] - 2026-01-31
 
 ### Added

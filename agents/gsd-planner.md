@@ -273,7 +273,7 @@ Record in `user_setup` frontmatter. Only include what Claude literally cannot do
 
 **Dependency graph construction:**
 
-```
+```text
 Example with 6 tasks:
 
 Task A (User model): needs nothing, creates src/models/user.ts
@@ -298,19 +298,21 @@ Wave analysis:
 ## Vertical Slices vs Horizontal Layers
 
 **Vertical slices (PREFER):**
-```
+```text
 Plan 01: User feature (model + API + UI)
 Plan 02: Product feature (model + API + UI)
 Plan 03: Order feature (model + API + UI)
 ```
+
 Result: All three can run in parallel (Wave 1)
 
 **Horizontal layers (AVOID):**
-```
+```sql
 Plan 01: Create User model, Product model, Order model
 Plan 02: Create User API, Product API, Order API
 Plan 03: Create User UI, Product UI, Order UI
 ```
+
 Result: Fully sequential (02 needs 01, 03 needs 02)
 
 **When vertical slices work:**
@@ -1144,6 +1146,66 @@ cat "$PHASE_DIR"/*-DISCOVERY.md 2>/dev/null
 **If RESEARCH.md exists:** Use standard_stack, architecture_patterns, dont_hand_roll, common_pitfalls. Research has already identified the right tools.
 </step>
 
+<step name="check_skill_integration">
+Check if skill integration is enabled and discover available skills:
+
+```bash
+# Check skill configuration
+SKILLS_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"enabled"[[:space:]]*:[[:space:]]*true' | head -1)
+```
+
+**If skills enabled:**
+
+1. **Discover available skills first (MANDATORY):**
+
+```bash
+# Discover user-installed skills
+AVAILABLE_SKILLS=""
+for skill in ~/.claude/commands/*/*.md; do
+  [ -f "$skill" ] && AVAILABLE_SKILLS="$AVAILABLE_SKILLS $(basename "$skill" .md)"
+done
+
+# Discover project-local skills
+for skill in .claude/commands/*.md; do
+  [ -f "$skill" ] && AVAILABLE_SKILLS="$AVAILABLE_SKILLS $(basename "$skill" .md)"
+done
+
+echo "Available skills: $AVAILABLE_SKILLS"
+```
+
+2. Extract phase keywords from goal and context
+3. Match keywords against skill_mappings in config.json
+4. **Verify each mapped skill actually exists before suggesting**
+
+**Skill verification:**
+
+For each skill in skill_mappings that matches phase keywords:
+- Check if skill exists in AVAILABLE_SKILLS
+- Only include skills that are verified to exist
+- Log warning for mapped skills that don't exist
+
+**Fallback behavior if skill not found:**
+
+If a skill from skill_mappings doesn't exist:
+1. Log: "Skill /X configured but not found on system"
+2. Skip the skill in recommendations
+3. Suggest user run `/gsd:suggest-skills` to update mappings
+
+**If relevant AND EXISTING skills found:**
+
+Include skill references in task actions where appropriate:
+- Only reference skills verified to exist
+- Testing phases → suggest testing skills if available
+- Release phases → suggest release skills if available
+- Code quality phases → suggest review skills if available
+
+**Note:** Skills are suggestions, not requirements. Only include skill references for skills that:
+1. Actually exist on the user's system
+2. Genuinely enhance the task
+
+See @~/.claude/get-shit-done/references/skill-integration.md for full skill integration guidance.
+</step>
+
 <step name="break_into_tasks">
 Decompose phase into tasks. **Think dependencies first, not sequence.**
 
@@ -1171,7 +1233,7 @@ Prefer vertical slices over horizontal layers.
 <step name="assign_waves">
 Compute wave numbers before writing plans.
 
-```
+```bash
 waves = {}  # plan_id -> wave_number
 
 for each plan in plan_order:
@@ -1182,6 +1244,7 @@ for each plan in plan_order:
 
   waves[plan.id] = plan.wave
 ```
+
 </step>
 
 <step name="group_into_plans">
@@ -1244,7 +1307,7 @@ Update ROADMAP.md to finalize phase placeholders created by add-phase or insert-
 
 **Plan list** (always update):
 - Replace `Plans:\n- [ ] TBD ...` with actual plan checkboxes:
-  ```
+  ```text
   Plans:
   - [ ] {phase}-01-PLAN.md — {brief objective}
   - [ ] {phase}-02-PLAN.md — {brief objective}

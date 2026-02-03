@@ -31,5 +31,11 @@
   "safety": {
     "always_confirm_destructive": true,
     "always_confirm_external_services": true
+  },
+  "skills": {
+    "enabled": false,
+    "discovery": "auto",
+    "skill_paths": [],
+    "skill_mappings": {}
   }
 }

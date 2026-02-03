@@ -35,7 +35,7 @@ npx get-shit-done-cc@latest
 
 ## Core Workflow
 
-```
+```text
 /gsd:new-project → /gsd:plan-phase → /gsd:execute-phase → repeat
 ```
 
@@ -302,6 +302,19 @@ Create phases to close gaps identified by audit.
 
 Usage: `/gsd:plan-milestone-gaps`
 
+### Skill Integration
+
+**`/gsd:suggest-skills [phase]`**
+Discover and recommend skills for your project or phase.
+
+- Analyzes project/phase keywords to match relevant skills
+- Shows high/medium relevance recommendations
+- Offers to configure skill mappings in config.json
+- Skills can be referenced in plan task actions
+
+Usage: `/gsd:suggest-skills`
+Usage: `/gsd:suggest-skills 3`
+
 ### Configuration
 
 **`/gsd:settings`**
@@ -348,7 +361,7 @@ Usage: `/gsd:join-discord`
 
 ## Files & Structure
 
-```
+```bash
 .planning/
 ├── PROJECT.md            # Project vision
 ├── ROADMAP.md            # Current phase breakdown
@@ -425,7 +438,7 @@ Example config:
 
 **Starting a new project:**
 
-```
+```bash
 /gsd:new-project        # Unified flow: questioning → research → requirements → roadmap
 /clear
 /gsd:plan-phase 1       # Create plans for first phase
@@ -435,13 +448,13 @@ Example config:
 
 **Resuming work after a break:**
 
-```
+```text
 /gsd:progress  # See where you left off and continue
 ```
 
 **Adding urgent mid-milestone work:**
 
-```
+```text
 /gsd:insert-phase 5 "Critical security fix"
 /gsd:plan-phase 5.1
 /gsd:execute-phase 5.1
@@ -449,7 +462,7 @@ Example config:
 
 **Completing a milestone:**
 
-```
+```text
 /gsd:complete-milestone 1.0.0
 /clear
 /gsd:new-milestone  # Start next milestone (questioning → research → requirements → roadmap)
@@ -457,7 +470,7 @@ Example config:
 
 **Capturing ideas during work:**
 
-```
+```text
 /gsd:add-todo                    # Capture from conversation context
 /gsd:add-todo Fix modal z-index  # Capture with explicit description
 /gsd:check-todos                 # Review and work on todos
@@ -466,7 +479,7 @@ Example config:
 
 **Debugging an issue:**
 
-```
+```text
 /gsd:debug "form submission fails silently"  # Start debug session
 # ... investigation happens, context fills up ...
 /clear
