@@ -47,6 +47,7 @@ AskUserQuestion([
     header: "Model",
     multiSelect: false,
     options: [
+      { label: "Unlimited", description: "Opus for all agents (maximum quality, highest cost)" },
       { label: "Quality", description: "Opus everywhere except verification (highest cost)" },
       { label: "Balanced (Recommended)", description: "Opus for planning, Sonnet for execution/verification" },
       { label: "Budget", description: "Sonnet for writing, Haiku for research/verification (lowest cost)" }
@@ -101,7 +102,7 @@ Merge new settings into existing config.json:
 ```json
 {
   ...existing_config,
-  "model_profile": "quality" | "balanced" | "budget",
+  "model_profile": "unlimited" | "quality" | "balanced" | "budget",
   "workflow": {
     "research": true/false,
     "plan_check": true/false,
@@ -126,7 +127,7 @@ Display:
 
 | Setting              | Value |
 |----------------------|-------|
-| Model Profile        | {quality/balanced/budget} |
+| Model Profile        | {unlimited/quality/balanced/budget} |
 | Plan Researcher      | {On/Off} |
 | Plan Checker         | {On/Off} |
 | Execution Verifier   | {On/Off} |

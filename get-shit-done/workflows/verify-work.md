@@ -24,17 +24,20 @@ No Pass/Fail buttons. No severity questions. Just: "Here's what should happen. D
 Read model profile for agent spawning:
 
 ```bash
-MODEL_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"' || echo "balanced")
+# Read from config.json (may be empty if not set)
+CONFIG_PROFILE=$(cat .planning/config.json 2>/dev/null | grep -o '"model_profile"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+# Fallback chain: config.json -> env var -> "balanced"
+MODEL_PROFILE="${CONFIG_PROFILE:-${GSD_DEFAULT_MODEL_PROFILE:-balanced}}"
 ```
 
-Default to "balanced" if not set.
+Default to "balanced" if neither config.json nor GSD_DEFAULT_MODEL_PROFILE env var is set.
 
 **Model lookup table:**
 
-| Agent | quality | balanced | budget |
-|-------|---------|----------|--------|
-| gsd-planner | opus | opus | sonnet |
-| gsd-plan-checker | sonnet | sonnet | haiku |
+| Agent | `unlimited` | `quality` | `balanced` | `budget` |
+|-------|-------------|-----------|------------|----------|
+| gsd-planner | opus | opus | opus | sonnet |
+| gsd-plan-checker | opus | sonnet | sonnet | haiku |
 
 Store resolved models for use in Task calls below.
 </step>

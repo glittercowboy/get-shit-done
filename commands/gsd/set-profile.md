@@ -3,7 +3,7 @@ name: set-profile
 description: Switch model profile for GSD agents (quality/balanced/budget)
 arguments:
   - name: profile
-    description: "Profile name: quality, balanced, or budget"
+    description: "Profile name: unlimited, quality, balanced, or budget"
     required: true
 ---
 
@@ -14,6 +14,7 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 <profiles>
 | Profile | Description |
 |---------|-------------|
+| **unlimited** | Opus for all agents without exception |
 | **quality** | Opus everywhere except read-only verification |
 | **balanced** | Opus for planning, Sonnet for execution/verification (default) |
 | **budget** | Sonnet for writing, Haiku for research/verification |
@@ -24,9 +25,9 @@ Switch the model profile used by GSD agents. This controls which Claude model ea
 ## 1. Validate argument
 
 ```
-if $ARGUMENTS.profile not in ["quality", "balanced", "budget"]:
+if $ARGUMENTS.profile not in ["unlimited", "quality", "balanced", "budget"]:
   Error: Invalid profile "$ARGUMENTS.profile"
-  Valid profiles: quality, balanced, budget
+  Valid profiles: unlimited, quality, balanced, budget
   STOP
 ```
 
@@ -100,6 +101,21 @@ Agents will now use:
 | gsd-planner | opus |
 | gsd-executor | opus |
 | gsd-verifier | sonnet |
+| ... | ... |
+```
+
+**Switch to unlimited mode:**
+```
+/gsd:set-profile unlimited
+
+✓ Model profile set to: unlimited
+
+Agents will now use:
+| Agent | Model |
+|-------|-------|
+| gsd-planner | opus |
+| gsd-executor | opus |
+| gsd-verifier | opus |
 | ... | ... |
 ```
 
