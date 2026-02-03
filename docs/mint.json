@@ -15,7 +15,7 @@
   },
   "favicon": "/favicon.png",
   "topbar": {
-    "style": "gradient"
+    "style": "default"
   },
   "topbarCtaButton": {
     "type": "github",
@@ -24,7 +24,6 @@
   "background": {
     "style": "grid"
   },
-  "backgroundImage": "/bg.svg",
   "modeToggle": {
     "default": "dark"
   },
@@ -43,10 +42,7 @@
       "light": "#FFFFFF",
       "dark": "#1A1B26"
     },
-    "anchors": {
-      "from": "#68ACD7",
-      "to": "#629457"
-    }
+    "anchors": "#68ACD7"
   },
   "font": {
     "headings": {
