@@ -36,10 +36,11 @@ Parse current values (default to `true` if not present):
 - `workflow.tdd` — enforce TDD for all plans (default: `true`)
 - `model_profile` — which model each agent uses (default: `balanced`)
 - `security_compliance` — security compliance level (default: `none`)
+- `git.branching_strategy` — branching approach (default: `"none"`)
 
 ## 3. Present Settings
 
-**Round 1 — Core workflow settings:**
+**Round 1 — Model profile and workflow agents (4 questions max):**
 
 ```
 AskUserQuestion([
@@ -85,7 +86,7 @@ AskUserQuestion([
 
 **Pre-select based on current config values.**
 
-**Round 2 — Development standards and security:**
+**Round 2 — Development standards, security, and git (3 questions):**
 
 ```
 AskUserQuestion([
@@ -107,6 +108,16 @@ AskUserQuestion([
       { label: "soc2", description: "SOC 2 Type II (B2B SaaS)" },
       { label: "hipaa", description: "HIPAA (healthcare, PHI protection)" }
     ]
+  },
+  {
+    question: "Git branching strategy?",
+    header: "Branching",
+    multiSelect: false,
+    options: [
+      { label: "None (Recommended)", description: "Commit directly to current branch" },
+      { label: "Per Phase", description: "Create branch for each phase (gsd/phase-{N}-{name})" },
+      { label: "Per Milestone", description: "Create branch for entire milestone (gsd/{version}-{name})" }
+    ]
   }
 ])
 ```
@@ -127,6 +138,9 @@ Merge new settings into existing config.json:
     "plan_check": true/false,
     "verifier": true/false,
     "tdd": true/false
+  },
+  "git": {
+    "branching_strategy": "none" | "phase" | "milestone"
   }
 }
 ```
@@ -150,6 +164,7 @@ Display:
 | Execution Verifier   | {On/Off} |
 | TDD Workflow         | {On/Off} |
 | Security Compliance  | {none/soc2/hipaa/pci-dss/iso27001} |
+| Git Branching        | {None/Per Phase/Per Milestone} |
 
 These settings apply to future /gsd:plan-phase and /gsd:execute-phase runs.
 
@@ -167,7 +182,7 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 6 settings (profile + 4 toggles + security)
-- [ ] Config updated with model_profile, security_compliance, and workflow section
+- [ ] User presented with 7 settings across 2 rounds (4 + 3, respecting AskUserQuestion limit)
+- [ ] Config updated with model_profile, security_compliance, workflow, and git sections
 - [ ] Changes confirmed to user
 </success_criteria>
