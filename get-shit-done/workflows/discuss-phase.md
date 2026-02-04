@@ -7,15 +7,16 @@ You are a thinking partner, not an interviewer. The user is the visionary — yo
 <downstream_awareness>
 **CONTEXT.md feeds into:**
 
-1. **gsd-phase-researcher** — Reads CONTEXT.md to know WHAT to research
-   - "User wants card-based layout" → researcher investigates card component patterns
-   - "Infinite scroll decided" → researcher looks into virtualization libraries
+1. **gsd-phase-researcher** — Reads CONTEXT.md to know WHAT to research and WHY
+   - "User wants card-based layout because each post should feel contained" → researcher investigates card component patterns with isolation in mind
+   - "Infinite scroll decided for uninterrupted browsing flow" → researcher looks into virtualization libraries
 
-2. **gsd-planner** — Reads CONTEXT.md to know WHAT decisions are locked
+2. **gsd-planner** — Reads CONTEXT.md to know WHAT decisions are locked, WHY they were made, and what constraints exist
    - "Pull-to-refresh on mobile" → planner includes that in task specs
    - "Claude's Discretion: loading skeleton" → planner can decide approach
+   - "Not: timeline layout — user wants contained units" → planner knows what to avoid
 
-**Your job:** Capture decisions clearly enough that downstream agents can act on them without asking the user again.
+**Your job:** Capture decisions AND their reasoning clearly enough that downstream agents can act on them without asking the user again. A decision without its WHY forces the planner to guess intent.
 
 **Not your job:** Figure out HOW to implement. That's what research and planning do with the decisions you capture.
 </downstream_awareness>
@@ -28,6 +29,7 @@ The user knows:
 - What it should look/feel like
 - What's essential vs nice-to-have
 - Specific behaviors or references they have in mind
+- The deeper reasoning behind their preferences
 
 The user doesn't know (and shouldn't be asked):
 - Codebase patterns (researcher reads the code)
@@ -35,7 +37,9 @@ The user doesn't know (and shouldn't be asked):
 - Implementation approach (planner figures this out)
 - Success metrics (inferred from the work)
 
-Ask about vision and implementation choices. Capture decisions for downstream agents.
+Ask about vision and implementation choices. Capture decisions AND reasoning for downstream agents.
+
+**Listen for depth:** When the user gives extended answers that explain their thinking, this reasoning is gold for the context file. Don't compress it to a bullet point — the reasoning IS the value that downstream agents need.
 </philosophy>
 
 <scope_guardrail>
@@ -64,6 +68,9 @@ For now, let's focus on [phase domain]."
 ```
 
 Capture the idea in a "Deferred Ideas" section. Don't lose it, don't act on it.
+
+**When scope discussion reveals WHY something is deferred:**
+The reasoning about WHY something doesn't belong in this phase is a CONSTRAINT for the planner. Capture the reasoning in the Decisions section (e.g., "Not: tap-to-source UI — single-source view is misleading when responses synthesize from multiple segments"). The Deferred Ideas section only gets the slim backlog entry.
 </scope_guardrail>
 
 <gray_area_identification>
@@ -264,6 +271,13 @@ Ask 4 questions per area before offering to continue or move on. Each answer oft
 - Each answer should inform the next question
 - If user picks "Other", receive their input, reflect it back, confirm
 
+**Listening for depth:**
+When the user gives extended answers (not just picking an option), pay attention to:
+- **Terminology they use** — specific words that carry design intent (preserve these verbatim in context)
+- **Reasoning they share** — the WHY behind their preference (this is what the planner needs most)
+- **References they make** — products, experiences, anti-patterns they mention (capture as constraints or specifics)
+- **Philosophy they express** — deeper principles that should guide implementation (these become north stars in the context file)
+
 **Scope creep handling:**
 If user mentions something outside the phase domain:
 ```
@@ -277,7 +291,22 @@ Track deferred ideas internally.
 </step>
 
 <step name="write_context">
-Create CONTEXT.md capturing decisions made.
+Create CONTEXT.md capturing decisions AND their reasoning.
+
+**Quality standard — the planner test:**
+The planner reads this file in a FRESH context window. They were NOT in the discussion. Before writing each section, ask yourself: "If I read only this section, would I understand the user's intent well enough to plan without asking them again?" If no, the section needs more depth.
+
+**Writing principles:**
+
+1. **Decision + Reasoning:** Don't just list WHAT was decided. Capture WHY — the user's reasoning that led to the choice. A decision without reasoning is a shallow bullet that the planner can't act on confidently.
+
+2. **Preserve user voice:** When the user used specific terminology or metaphors that carry design intent, include them with context. These are not decoration — they are constraints that shape implementation spirit.
+
+3. **Constraints in Decisions:** If the discussion revealed something that should NOT be built (and WHY), that's a constraint in the Decisions section. Example: "Not: tap-to-source UI — single-source view is misleading when responses synthesize from multiple segments (NotebookLM anti-pattern)." Deferred Ideas is a slim backlog (1-2 lines per item), not an analysis section.
+
+4. **Core principles per area:** When the discussion revealed a north star or guiding principle for an area, state it prominently at the top of that section. This anchors all the specific decisions below it.
+
+5. **Specifics section:** Capture product references, anti-patterns, and "I want it like X" moments with enough context that the planner understands the reference without having been in the conversation.
 
 **Find or create phase directory:**
 
@@ -307,18 +336,27 @@ fi
 ## Phase Boundary
 
 [Clear statement of what this phase delivers — the scope anchor]
+[What this phase changes in the system — which files/modules are affected]
+[What is explicitly NOT in scope and why — constraints from discussion]
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
-### [Category 1 that was discussed]
-- [Decision or preference captured]
-- [Another decision if applicable]
+### [Area 1 that was discussed]
 
-### [Category 2 that was discussed]
-- [Decision or preference captured]
+**[Core principle — the north star for this area, from discussion]**
+
+- **[Decision]:** [What was decided] — [Why, using user's reasoning and terminology]
+- **[Decision]:** [What was decided] — [Why]
+- **Not:** [What was explicitly rejected] — [Why this was ruled out]
+
+### [Area 2 that was discussed]
+
+**[Core principle for this area]**
+
+- **[Decision]:** [What + Why]
 
 ### Claude's Discretion
 [Areas where user said "you decide" — note that Claude has flexibility here]
@@ -328,16 +366,14 @@ fi
 <specifics>
 ## Specific Ideas
 
-[Any particular references, examples, or "I want it like X" moments from discussion]
-
-[If none: "No specific requirements — open to standard approaches"]
+[Product references, anti-patterns, and "I want it like X" moments — with enough context that the planner understands the reference]
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-[Ideas that came up but belong in other phases. Don't lose them.]
+[Slim backlog: 1-2 lines per idea. Reasoning about WHY something is deferred belongs in Decisions as a constraint, not here.]
 
 [If none: "None — discussion stayed within phase scope"]
 
@@ -361,10 +397,10 @@ Created: .planning/phases/${PADDED_PHASE}-${SLUG}/${PADDED_PHASE}-CONTEXT.md
 ## Decisions Captured
 
 ### [Category]
-- [Key decision]
+- [Key decision + reasoning summary]
 
 ### [Category]
-- [Key decision]
+- [Key decision + reasoning summary]
 
 [If deferred ideas exist:]
 ## Noted for Later
@@ -427,7 +463,10 @@ Confirm: "Committed: docs(${PADDED_PHASE}): capture phase context"
 - User selected which areas to discuss
 - Each selected area explored until user satisfied
 - Scope creep redirected to deferred ideas
-- CONTEXT.md captures actual decisions, not vague vision
-- Deferred ideas preserved for future phases
+- CONTEXT.md captures decisions WITH their reasoning (not shallow bullet lists)
+- User's voice and terminology preserved where it carries design intent
+- Constraints (what NOT to build) captured in Decisions, not inflating Deferred
+- Deferred ideas slim (backlog entries only), reasoning in Decisions
+- Planner can act on every decision without asking the user again
 - User knows next steps
 </success_criteria>
