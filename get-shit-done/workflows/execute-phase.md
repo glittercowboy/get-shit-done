@@ -244,6 +244,66 @@ Report wave structure with context:
 The "What it builds" column comes from skimming plan names/objectives. Keep it brief (3-8 words).
 </step>
 
+<step name="build_execution_context">
+Build minimal execution context for each plan by loading only required workflow modules.
+
+**Always load (core modules):**
+```bash
+BASE_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_base.md)
+COMMITS_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_commits.md)
+DEVIATION_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_deviation.md)
+```
+
+**Conditionally load based on plan frontmatter:**
+
+```bash
+# For each plan in the wave, check frontmatter
+for plan in $WAVE_PLANS; do
+  # Check for TDD flag
+  HAS_TDD=$(grep -q 'tdd:\s*true\|tdd="true"' "$plan" && echo "true" || echo "false")
+
+  # Check for checkpoints (autonomous: false means has checkpoints)
+  HAS_CHECKPOINTS=$(grep -q 'autonomous:\s*false\|type="checkpoint' "$plan" && echo "true" || echo "false")
+
+  # Check verifier config
+  VERIFIER_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"verifier"[[:space:]]*:[[:space:]]*[^,}]*' | grep -q 'true' && echo "true" || echo "false")
+
+  # Build execution context for this plan
+  EXECUTION_CONTEXT="$BASE_CONTENT\n\n$COMMITS_CONTENT\n\n$DEVIATION_CONTENT"
+
+  if [ "$HAS_TDD" = "true" ]; then
+    TDD_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_tdd.md)
+    EXECUTION_CONTEXT="$EXECUTION_CONTEXT\n\n$TDD_CONTENT"
+  fi
+
+  if [ "$HAS_CHECKPOINTS" = "true" ]; then
+    CHECKPOINTS_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_checkpoints.md)
+    EXECUTION_CONTEXT="$EXECUTION_CONTEXT\n\n$CHECKPOINTS_CONTENT"
+  fi
+
+  if [ "$VERIFIER_ENABLED" = "true" ]; then
+    VERIFICATION_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_verification.md)
+    EXECUTION_CONTEXT="$EXECUTION_CONTEXT\n\n$VERIFICATION_CONTENT"
+  fi
+
+  # Store for spawn step
+  PLAN_EXECUTION_CONTEXTS["$plan"]="$EXECUTION_CONTEXT"
+done
+```
+
+**Expected context savings:**
+
+| Plan Type | Modules Loaded | Approximate Lines | Savings vs Full |
+|-----------|----------------|-------------------|-----------------|
+| Standard | base + commits + deviation | ~750 | 60% |
+| TDD | + tdd | ~900 | 52% |
+| With Checkpoints | + checkpoints | ~950 | 49% |
+| With Verification | + verification | ~1050 | 44% |
+| Full (all modules) | All 6 modules | ~1400 | 25% |
+
+**Note:** Original monolithic execute-plan.md was ~1,856 lines.
+</step>
+
 <step name="execute_waves">
 Execute each wave in sequence. Autonomous plans within a wave run in parallel **only if `PARALLELIZATION=true`**.
 
@@ -285,13 +345,18 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel **
    PLAN_CONTENT=$(cat "{plan_path}")
    STATE_CONTENT=$(cat .planning/STATE.md)
    CONFIG_CONTENT=$(cat .planning/config.json 2>/dev/null)
+
+   # Get pre-built execution context from build_execution_context step
+   EXECUTION_CONTEXT="${PLAN_EXECUTION_CONTEXTS[$plan_path]}"
    ```
 
    **If `PARALLELIZATION=true` (default):** Use Task tool with multiple parallel calls.
    
    **If `PARALLELIZATION=false`:** Spawn agents one at a time, waiting for each to complete before starting the next. This ensures no concurrent file modifications or build operations.
 
-   Each agent gets prompt with inlined content:
+   Each agent gets prompt with inlined execution context (only required modules).
+
+   **Parallel safety:** When spawning multiple agents in the same wave (and `PARALLELIZATION=true`), instruct each agent to skip STATE.md updates. The orchestrator consolidates STATE.md after the wave completes (see step 4).
 
    ```
    <objective>
@@ -301,11 +366,12 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel **
    </objective>
 
    <execution_context>
-   @~/.claude/get-shit-done/workflows/execute-plan.md
-   @~/.claude/get-shit-done/templates/summary.md
-   @~/.claude/get-shit-done/references/checkpoints.md
-   @~/.claude/get-shit-done/references/tdd.md
+   {execution_context from build_execution_context step - only required modules}
    </execution_context>
+
+   <additional_references>
+   @~/.claude/get-shit-done/templates/summary.md
+   </additional_references>
 
    <context>
    Plan:

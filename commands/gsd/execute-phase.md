@@ -255,29 +255,43 @@ After user runs /gsd:plan-phase {Z} --gaps:
 </offer_next>
 
 <wave_execution>
-**Parallel spawning:**
+**Parallel spawning with modular context:**
 
-Before spawning, read file contents. The `@` syntax does not work across Task() boundaries.
+Before spawning, read file contents and build minimal execution context. The `@` syntax does not work across Task() boundaries.
 
 ```bash
-# Read each plan and STATE.md
+# Read each plan, STATE.md, and config
 PLAN_01_CONTENT=$(cat "{plan_01_path}")
 PLAN_02_CONTENT=$(cat "{plan_02_path}")
 PLAN_03_CONTENT=$(cat "{plan_03_path}")
 STATE_CONTENT=$(cat .planning/STATE.md)
+CONFIG_CONTENT=$(cat .planning/config.json 2>/dev/null)
+
+# Build execution context per plan (only required modules)
+# Core modules (always loaded):
+BASE_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_base.md)
+COMMITS_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_commits.md)
+DEVIATION_CONTENT=$(cat ~/.claude/get-shit-done/workflows/execute-plan/_deviation.md)
+
+# Conditional modules based on plan frontmatter:
+# - _tdd.md if tdd: true
+# - _checkpoints.md if autonomous: false
+# - _verification.md if config.workflow.verifier: true
 ```
 
-Spawn all plans in a wave with a single message containing multiple Task calls, with inlined content:
+Spawn all plans in a wave with a single message containing multiple Task calls, with inlined content and modular execution context:
 
 ```
-Task(prompt="Execute plan at {plan_01_path}\n\nPlan:\n{plan_01_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
-Task(prompt="Execute plan at {plan_02_path}\n\nPlan:\n{plan_02_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
-Task(prompt="Execute plan at {plan_03_path}\n\nPlan:\n{plan_03_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
+Task(prompt="Execute plan at {plan_01_path}\n\n<execution_context>\n{execution_context_for_plan_01}\n</execution_context>\n\nPlan:\n{plan_01_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
+Task(prompt="Execute plan at {plan_02_path}\n\n<execution_context>\n{execution_context_for_plan_02}\n</execution_context>\n\nPlan:\n{plan_02_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
+Task(prompt="Execute plan at {plan_03_path}\n\n<execution_context>\n{execution_context_for_plan_03}\n</execution_context>\n\nPlan:\n{plan_03_content}\n\nProject state:\n{state_content}", subagent_type="gsd-executor", model="{executor_model}")
 ```
 
 All three run in parallel. Task tool blocks until all complete.
 
 **No polling.** No background agents. No TaskOutput loops.
+
+**Context savings:** Standard plans load ~750 lines (60% reduction from 1,856 line monolithic workflow).
 </wave_execution>
 
 <checkpoint_handling>
