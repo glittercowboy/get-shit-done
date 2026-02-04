@@ -394,6 +394,25 @@ Set during `/gsd:new-project`:
 
 Change anytime by editing `.planning/config.json`
 
+## Tool & Skill Preferences
+
+Create `.planning/preferences.md` to configure tool, skill, and MCP preferences for your project. Agents read this file and follow the instructions when applicable.
+
+```markdown
+# Project Preferences
+
+## Skills
+- Use `frontend-design` skill for all UI work
+
+## MCPs
+- Use `context7` MCP for library documentation lookups
+
+## Tools
+- Use `pnpm` instead of `npm`
+```
+
+Preferences are injected into planner and executor agent prompts. No command needed — create the file manually. See template: `@~/.claude/get-shit-done/templates/preferences.md`
+
 ## Planning Configuration
 
 Configure how planning artifacts are managed in `.planning/config.json`:
