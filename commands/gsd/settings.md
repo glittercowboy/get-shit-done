@@ -88,6 +88,15 @@ AskUserQuestion([
       { label: "Per Phase", description: "Create branch for each phase (gsd/phase-{N}-{name})" },
       { label: "Per Milestone", description: "Create branch for entire milestone (gsd/{version}-{name})" }
     ]
+  },
+  {
+    question: "Use Agent Teams for research & debugging? (Experimental, requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)",
+    header: "Teams",
+    multiSelect: false,
+    options: [
+      { label: "Off (Default)", description: "Standard subagent workflow" },
+      { label: "On", description: "Researchers cross-pollinate, debuggers test adversarially (higher token cost)" }
+    ]
   }
 ])
 ```
@@ -109,7 +118,8 @@ Merge new settings into existing config.json:
   },
   "git": {
     "branching_strategy": "none" | "phase" | "milestone"
-  }
+  },
+  "agent_teams": true|false
 }
 ```
 
@@ -131,6 +141,7 @@ Display:
 | Plan Checker         | {On/Off} |
 | Execution Verifier   | {On/Off} |
 | Git Branching        | {None/Per Phase/Per Milestone} |
+| Agent Teams (Exp.)   | {On/Off} |
 
 These settings apply to future /gsd:plan-phase and /gsd:execute-phase runs.
 
@@ -145,7 +156,7 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 5 settings (profile + 3 workflow toggles + git branching)
+- [ ] User presented with 6 settings (profile + 3 workflow toggles + git branching + agent teams)
 - [ ] Config updated with model_profile, workflow, and git sections
 - [ ] Changes confirmed to user
 </success_criteria>
