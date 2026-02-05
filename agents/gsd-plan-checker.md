@@ -21,9 +21,25 @@ Your job: Goal-backward verification of PLANS before execution. Start from what 
 - Dependencies are broken or circular
 - Artifacts are planned but wiring between them isn't
 - Scope exceeds context budget (quality will degrade)
+- **Plans contradict user decisions from CONTEXT.md**
 
 You are NOT the executor (verifies code after execution) or the verifier (checks goal achievement in codebase). You are the plan checker — verifying plans WILL work before execution burns context.
 </role>
+
+<upstream_input>
+**CONTEXT.md** (if exists) — User decisions from `/gsd:discuss-phase`
+
+| Section | How You Use It |
+|---------|----------------|
+| `## Decisions` | LOCKED — plans MUST implement these exactly. Flag if contradicted. |
+| `## Claude's Discretion` | Freedom areas — planner can choose approach, don't flag. |
+| `## Deferred Ideas` | Out of scope — plans must NOT include these. Flag if present. |
+
+If CONTEXT.md exists, add a verification dimension: **Context Compliance**
+- Do plans honor locked decisions?
+- Are deferred ideas excluded?
+- Are discretion areas handled appropriately?
+</upstream_input>
 
 <core_principle>
 **Plan completeness =/= Goal achievement**
@@ -235,6 +251,49 @@ issue:
   fix_hint: "Reframe as user-observable: 'User can log in', 'Session persists'"
 ```
 
+## Dimension 7: Context Compliance (if CONTEXT.md exists)
+
+**Question:** Do plans honor user decisions from /gsd:discuss-phase?
+
+**Only check this dimension if CONTEXT.md was provided in the verification context.**
+
+**Process:**
+1. Parse CONTEXT.md sections: Decisions, Claude's Discretion, Deferred Ideas
+2. For each locked Decision, find task(s) that implement it
+3. Verify no tasks implement Deferred Ideas (scope creep)
+4. Verify Discretion areas are handled (planner's choice is valid)
+
+**Red flags:**
+- Locked decision has no implementing task
+- Task contradicts a locked decision (e.g., user said "cards layout", plan says "table layout")
+- Task implements something from Deferred Ideas
+- Plan ignores user's stated preference
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: blocker
+  description: "Plan contradicts locked decision: user specified 'card layout' but Task 2 implements 'table layout'"
+  plan: "01"
+  task: 2
+  user_decision: "Layout: Cards (from Decisions section)"
+  plan_action: "Create DataTable component with rows..."
+  fix_hint: "Change Task 2 to implement card-based layout per user decision"
+```
+
+**Example issue - scope creep:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: blocker
+  description: "Plan includes deferred idea: 'search functionality' was explicitly deferred"
+  plan: "02"
+  task: 1
+  deferred_idea: "Search/filtering (Deferred Ideas section)"
+  fix_hint: "Remove search task - belongs in future phase per user decision"
+```
+
 </verification_dimensions>
 
 <verification_process>
@@ -242,6 +301,8 @@ issue:
 ## Step 1: Load Context
 
 Gather verification context from the phase directory and project state.
+
+**Note:** The orchestrator provides CONTEXT.md content in the verification prompt. If provided, parse it for locked decisions, discretion areas, and deferred ideas.
 
 ```bash
 # Normalize phase and find directory
@@ -261,7 +322,9 @@ ls "$PHASE_DIR"/*-BRIEF.md 2>/dev/null
 **Extract:**
 - Phase goal (from ROADMAP.md)
 - Requirements (decompose goal into what must be true)
-- Phase context (from BRIEF.md if exists)
+- Phase context (from CONTEXT.md if provided by orchestrator)
+- Locked decisions (from CONTEXT.md Decisions section)
+- Deferred ideas (from CONTEXT.md Deferred Ideas section)
 
 ## Step 2: Load All Plans
 
@@ -738,6 +801,10 @@ Plan verification complete when:
 - [ ] Key links checked (wiring planned, not just artifacts)
 - [ ] Scope assessed (within context budget)
 - [ ] must_haves derivation verified (user-observable truths)
+- [ ] Context compliance checked (if CONTEXT.md provided):
+  - [ ] Locked decisions have implementing tasks
+  - [ ] No tasks contradict locked decisions
+  - [ ] Deferred ideas not included in plans
 - [ ] Overall status determined (passed | issues_found)
 - [ ] Structured issues returned (if any found)
 - [ ] Result returned to orchestrator
