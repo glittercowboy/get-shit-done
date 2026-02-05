@@ -307,6 +307,47 @@ const claudeToGeminiTools = {
   AskUserQuestion: 'ask_user',
 };
 
+// Tool name mapping from Claude Code to Cursor
+// Cursor uses snake_case tool names like OpenCode
+const claudeToCursorTools = {
+  Read: 'read',
+  Write: 'write',
+  Edit: 'edit',
+  Bash: 'bash',
+  Glob: 'glob',
+  Grep: 'grep',
+  LS: 'ls',
+  MultiEdit: 'multi_edit',
+  AskUserQuestion: 'ask_question',
+  TodoWrite: 'todo_write',
+  WebFetch: 'web_fetch',
+  WebSearch: 'web_search',
+};
+
+/**
+ * Convert a Claude Code tool name to Cursor format
+ * - Applies Claude→Cursor mapping (AskUserQuestion→ask_question, etc.)
+ * - Excludes Task tool — Cursor uses subagent mechanism
+ * - MCP tools (mcp__*) keep their format
+ * @returns {string|null} Cursor tool name, or null if tool should be excluded
+ */
+function convertCursorToolName(claudeTool) {
+  // Task: exclude — Cursor uses subagent mechanism, not Task tool
+  if (claudeTool === 'Task') {
+    return null;
+  }
+  // MCP tools: keep format as-is
+  if (claudeTool.startsWith('mcp__')) {
+    return claudeTool;
+  }
+  // Check for explicit mapping first
+  if (claudeToCursorTools[claudeTool]) {
+    return claudeToCursorTools[claudeTool];
+  }
+  // Default: convert PascalCase to snake_case
+  return claudeTool.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+}
+
 /**
  * Convert a Claude Code tool name to OpenCode format
  * - Applies special mappings (AskUserQuestion -> question, etc.)
