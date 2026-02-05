@@ -34,6 +34,12 @@
 - INST-04: uninstall() for cursor
 - INST-05: Attribution handling
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Conversion functions (tool mapping, frontmatter, body text)
+- [ ] 01-02-PLAN.md — Installer integration (CLI, directory handling, install/uninstall)
+
 **Success Criteria:**
 1. `npx get-shit-done-cc --cursor --global` completes without errors
 2. Files deployed to `~/.cursor/commands/gsd/`, `~/.cursor/agents/`, `~/.cursor/get-shit-done/`
