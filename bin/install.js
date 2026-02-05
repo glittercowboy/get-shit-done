@@ -529,6 +529,17 @@ function convertClaudeToCursorFrontmatter(content) {
   // Replace ~/.claude/ with ~/.cursor/
   convertedContent = convertedContent.replace(/~\/\.claude\//g, '~/.cursor/');
   
+  // Replace /clear with Cursor-appropriate instruction
+  // Cursor has no /clear command - users click "+" button for new chat
+  convertedContent = convertedContent.replace(
+    /`\/clear`\s*(?:first\s*)?→?\s*fresh context window/gi,
+    'Click "+" (new chat) → fresh context window'
+  );
+  convertedContent = convertedContent.replace(
+    /<sub>`\/clear`/gi,
+    '<sub>Click "+" (new chat)'
+  );
+  
   // Check if content has frontmatter
   if (!convertedContent.startsWith('---')) {
     return convertedContent;
@@ -1401,22 +1412,25 @@ function install(isGlobal, runtime = 'claude') {
   }
 
   // Copy hooks from dist/ (bundled with dependencies)
-  const hooksSrc = path.join(src, 'hooks', 'dist');
-  if (fs.existsSync(hooksSrc)) {
-    const hooksDest = path.join(targetDir, 'hooks');
-    fs.mkdirSync(hooksDest, { recursive: true });
-    const hookEntries = fs.readdirSync(hooksSrc);
-    for (const entry of hookEntries) {
-      const srcFile = path.join(hooksSrc, entry);
-      if (fs.statSync(srcFile).isFile()) {
-        const destFile = path.join(hooksDest, entry);
-        fs.copyFileSync(srcFile, destFile);
+  // Skip for Cursor - no statusline or notification support
+  if (!isCursor) {
+    const hooksSrc = path.join(src, 'hooks', 'dist');
+    if (fs.existsSync(hooksSrc)) {
+      const hooksDest = path.join(targetDir, 'hooks');
+      fs.mkdirSync(hooksDest, { recursive: true });
+      const hookEntries = fs.readdirSync(hooksSrc);
+      for (const entry of hookEntries) {
+        const srcFile = path.join(hooksSrc, entry);
+        if (fs.statSync(srcFile).isFile()) {
+          const destFile = path.join(hooksDest, entry);
+          fs.copyFileSync(srcFile, destFile);
+        }
       }
-    }
-    if (verifyInstalled(hooksDest, 'hooks')) {
-      console.log(`  ${green}✓${reset} Installed hooks (bundled)`);
-    } else {
-      failures.push('hooks');
+      if (verifyInstalled(hooksDest, 'hooks')) {
+        console.log(`  ${green}✓${reset} Installed hooks (bundled)`);
+      } else {
+        failures.push('hooks');
+      }
     }
   }
 
@@ -1447,8 +1461,8 @@ function install(isGlobal, runtime = 'claude') {
     }
   }
 
-  // Configure SessionStart hook for update checking (skip for opencode)
-  if (!isOpencode) {
+  // Configure SessionStart hook for update checking (skip for opencode and cursor)
+  if (!isOpencode && !isCursor) {
     if (!settings.hooks) {
       settings.hooks = {};
     }
@@ -1662,37 +1676,37 @@ function installAllRuntimes(runtimes, isGlobal, isInteractive) {
     results.push(result);
   }
 
-  // Handle statusline for Claude, Gemini & Cursor (OpenCode uses themes)
+  // Handle statusline for Claude & Gemini only (OpenCode uses themes, Cursor has no statusline)
   const claudeResult = results.find(r => r.runtime === 'claude');
   const geminiResult = results.find(r => r.runtime === 'gemini');
   const cursorResult = results.find(r => r.runtime === 'cursor');
+  const opencodeResult = results.find(r => r.runtime === 'opencode');
 
-  // Logic: if any supports statusline, ask once if interactive and apply to all applicable.
-  
-  if (claudeResult || geminiResult || cursorResult) {
-    // Use whichever settings exist to check for existing statusline
-    const primaryResult = claudeResult || geminiResult || cursorResult;
+  if (claudeResult || geminiResult) {
+    // Statusline prompt for Claude/Gemini
+    const primaryResult = claudeResult || geminiResult;
     
     handleStatusline(primaryResult.settings, isInteractive, (shouldInstallStatusline) => {
       if (claudeResult) {
         finishInstall(claudeResult.settingsPath, claudeResult.settings, claudeResult.statuslineCommand, shouldInstallStatusline, 'claude');
       }
       if (geminiResult) {
-         finishInstall(geminiResult.settingsPath, geminiResult.settings, geminiResult.statuslineCommand, shouldInstallStatusline, 'gemini');
+        finishInstall(geminiResult.settingsPath, geminiResult.settings, geminiResult.statuslineCommand, shouldInstallStatusline, 'gemini');
       }
+      // Cursor: no statusline support
       if (cursorResult) {
-        finishInstall(cursorResult.settingsPath, cursorResult.settings, cursorResult.statuslineCommand, shouldInstallStatusline, 'cursor');
+        finishInstall(cursorResult.settingsPath, cursorResult.settings, cursorResult.statuslineCommand, false, 'cursor');
       }
-      
-      const opencodeResult = results.find(r => r.runtime === 'opencode');
+      // OpenCode: no statusline support
       if (opencodeResult) {
         finishInstall(opencodeResult.settingsPath, opencodeResult.settings, opencodeResult.statuslineCommand, false, 'opencode');
       }
     });
   } else {
-    // Only OpenCode
-    const opencodeResult = results[0];
-    finishInstall(opencodeResult.settingsPath, opencodeResult.settings, opencodeResult.statuslineCommand, false, 'opencode');
+    // Only OpenCode and/or Cursor - no statusline prompt needed
+    for (const result of results) {
+      finishInstall(result.settingsPath, result.settings, result.statuslineCommand, false, result.runtime);
+    }
   }
 }
 
