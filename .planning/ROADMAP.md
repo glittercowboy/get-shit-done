@@ -82,21 +82,27 @@ Plans:
 **Requirements:**
 - VER-01: Commands load
 - VER-02: Agents accessible
-- VER-03: Hooks trigger
+- VER-03: Hooks trigger (N/A - Cursor has no hook support, skipped by design)
 - VER-04: File references resolve
 - CLN-01: Remove cursor-gsd/
 - CLN-02: Remove GSD-CURSOR-ADAPTATION.md
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Verification (install to Cursor, human checkpoint to verify commands/agents/paths)
+- [ ] 03-02-PLAN.md — Cleanup (remove cursor-gsd/ and GSD-CURSOR-ADAPTATION.md, commit)
+
 **Success Criteria:**
 1. `/gsd-help` command loads and displays help in Cursor
 2. `/gsd-new-project` initializes project correctly
-3. Subagent spawning via Task tool works
-4. Hooks execute on session start
+3. Agent files accessible via @ references
+4. ~~Hooks execute on session start~~ (N/A - skipped by design, no Cursor hook support)
 5. `cursor-gsd/` folder deleted from repository
-6. `GSD-CURSOR-ADAPTATION.md` removed or relocated
+6. `GSD-CURSOR-ADAPTATION.md` removed
 7. Git commit confirms cleanup
 
-**Dependencies:** Phase 2 (hooks must be configured)
+**Dependencies:** Phase 2 (complete)
 
 ---
 
