@@ -439,8 +439,7 @@ Display spawning indicator:
 Spawn 4 parallel gsd-project-researcher agents with rich context:
 
 ```
-Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
-
+Task(prompt="
 <research_type>
 Project Research — Stack dimension for [domain].
 </research_type>
@@ -477,10 +476,9 @@ Your STACK.md feeds into roadmap creation. Be prescriptive:
 Write to: .planning/research/STACK.md
 Use template: ~/.claude/get-shit-done/templates/research-project/STACK.md
 </output>
-", subagent_type="general-purpose", model="{researcher_model}", description="Stack research")
+", subagent_type="gsd-project-researcher", model="{researcher_model}", description="Stack research")
 
-Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
-
+Task(prompt="
 <research_type>
 Project Research — Features dimension for [domain].
 </research_type>
@@ -517,10 +515,9 @@ Your FEATURES.md feeds into requirements definition. Categorize clearly:
 Write to: .planning/research/FEATURES.md
 Use template: ~/.claude/get-shit-done/templates/research-project/FEATURES.md
 </output>
-", subagent_type="general-purpose", model="{researcher_model}", description="Features research")
+", subagent_type="gsd-project-researcher", model="{researcher_model}", description="Features research")
 
-Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
-
+Task(prompt="
 <research_type>
 Project Research — Architecture dimension for [domain].
 </research_type>
@@ -557,10 +554,9 @@ Your ARCHITECTURE.md informs phase structure in roadmap. Include:
 Write to: .planning/research/ARCHITECTURE.md
 Use template: ~/.claude/get-shit-done/templates/research-project/ARCHITECTURE.md
 </output>
-", subagent_type="general-purpose", model="{researcher_model}", description="Architecture research")
+", subagent_type="gsd-project-researcher", model="{researcher_model}", description="Architecture research")
 
-Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
-
+Task(prompt="
 <research_type>
 Project Research — Pitfalls dimension for [domain].
 </research_type>
@@ -597,7 +593,7 @@ Your PITFALLS.md prevents mistakes in roadmap/planning. For each pitfall:
 Write to: .planning/research/PITFALLS.md
 Use template: ~/.claude/get-shit-done/templates/research-project/PITFALLS.md
 </output>
-", subagent_type="general-purpose", model="{researcher_model}", description="Pitfalls research")
+", subagent_type="gsd-project-researcher", model="{researcher_model}", description="Pitfalls research")
 ```
 
 After all 4 agents complete, spawn synthesizer to create SUMMARY.md:

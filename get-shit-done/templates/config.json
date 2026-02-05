@@ -1,6 +1,7 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "model_profile": "balanced",
   "workflow": {
     "research": true,
     "plan_check": true,
@@ -27,6 +28,9 @@
     "execute_next_plan": true,
     "issues_review": true,
     "confirm_transition": true
+  },
+  "git": {
+    "branching_strategy": "none"
   },
   "safety": {
     "always_confirm_destructive": true,
