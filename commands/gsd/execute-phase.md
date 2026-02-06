@@ -178,6 +178,14 @@ Goal verified ✓
 
 ───────────────────────────────────────────────────────────────
 
+**Auto-mode signal:** After displaying the Route A banner, check auto-mode:
+
+```bash
+AUTO_MODE=$(cat .planning/config.json 2>/dev/null | grep -o '"auto_mode"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+```
+
+If `AUTO_MODE` is `true`: write the file `.planning/.auto-next` with the single line `plan-phase {Z+1}` (where {Z+1} is the next phase number). This signals the Stop hook to auto-continue to planning.
+
 ---
 
 **Route B: Phase verified, milestone complete**
@@ -243,6 +251,14 @@ Report: .planning/phases/{phase_dir}/{phase}-VERIFICATION.md
 - /gsd:verify-work {Z} — manual testing before planning
 
 ───────────────────────────────────────────────────────────────
+
+**Auto-mode signal:** After displaying the Route C banner, check auto-mode:
+
+```bash
+AUTO_MODE=$(cat .planning/config.json 2>/dev/null | grep -o '"auto_mode"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+```
+
+If `AUTO_MODE` is `true`: write the file `.planning/.auto-next` with the single line `plan-phase {Z} --gaps` (where {Z} is the current phase number). This signals the Stop hook to auto-continue to gap closure planning.
 
 ---
 
