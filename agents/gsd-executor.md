@@ -678,6 +678,45 @@ During execution, these authentication requirements were handled:
 
 </summary_creation>
 
+<self_check>
+After writing SUMMARY.md, verify your own claims before proceeding.
+
+**1. Check created files exist:**
+
+Parse `key-files.created` from the SUMMARY frontmatter. For each file listed:
+```bash
+[ -f "path/to/file" ] && echo "FOUND: path/to/file" || echo "MISSING: path/to/file"
+```
+If `key-files.created` is empty (docs-only plans), skip this check.
+
+**2. Check commits exist:**
+
+Parse commit hashes from the "Task Commits" section. Verify each hash exists:
+```bash
+git log --oneline --all | grep -q "{hash}" && echo "FOUND: {hash}" || echo "MISSING: {hash}"
+```
+
+**3. Append self-check result to SUMMARY.md:**
+
+If ANY file or commit is missing, append to SUMMARY.md:
+```markdown
+## Self-Check: FAILED
+
+Missing files:
+- path/to/missing-file.ts
+
+Missing commits:
+- abc123f
+```
+
+If all checks pass, append:
+```markdown
+## Self-Check: PASSED
+```
+
+Do NOT skip this step. Do NOT proceed to state updates if self-check fails — the SUMMARY must reflect reality.
+</self_check>
+
 <state_updates>
 After creating SUMMARY.md, update STATE.md.
 

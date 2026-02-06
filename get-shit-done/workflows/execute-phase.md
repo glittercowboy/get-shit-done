@@ -337,6 +337,20 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel **
    - Read SUMMARY.md to extract what was built
    - Note any issues or deviations
 
+   **Spot-check claims before trusting SUMMARY:**
+
+   For each completed plan's SUMMARY.md:
+   - Pick the first 2 files from `key-files.created` frontmatter — verify they exist on disk with `[ -f ]`
+   - Check `git log --oneline --all --grep="{phase}-{plan}"` returns at least 1 commit
+   - Check SUMMARY.md for `## Self-Check: FAILED` marker
+
+   If ANY spot-check fails:
+   - Do NOT proceed silently
+   - Report which plan failed verification and what was missing
+   - Route to failure handler (step 4): ask user "Retry plan?" or "Continue with remaining waves?"
+
+   If spot-checks pass: proceed normally.
+
    **Output:**
    ```
    ---
@@ -611,6 +625,22 @@ git add .planning/ROADMAP.md .planning/STATE.md .planning/phases/{phase_dir}/*-V
 git add .planning/REQUIREMENTS.md  # if updated
 git commit -m "docs(phase-{X}): complete phase execution"
 ```
+</step>
+
+<step name="index_memory">
+**If gsd_memory MCP tools are available:**
+
+Check if `gsd_memory_index` tool exists. If available, trigger indexing:
+
+```
+gsd_memory_index({
+  path: process.cwd()
+})
+```
+
+This updates the project's searchable knowledge base with new summaries and verification results.
+
+**If tool not available:** Skip silently.
 </step>
 
 <step name="offer_next">

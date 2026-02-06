@@ -15,13 +15,27 @@ Updates `.planning/config.json` with workflow preferences and model profile sele
 
 <process>
 
-## 1. Validate Environment
+## 1. Ensure config exists
 
 ```bash
 ls .planning/config.json 2>/dev/null
 ```
 
-**If not found:** Error - run `/gsd:new-project` first.
+If `.planning/config.json` missing, create it with defaults:
+```bash
+mkdir -p .planning
+```
+```json
+{
+  "model_profile": "balanced",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true
+  }
+}
+```
+Write this to `.planning/config.json`, then continue.
 
 ## 2. Read Current Config
 

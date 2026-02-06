@@ -9,6 +9,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - `/gsd:checkpoint` command — quick state serialization to prevent context compaction loss during long sessions
 - `verify-gsd-state.js` script — cross-platform artifact verification for all phases
+## [1.11.2] - 2026-02-05
+
+### Added
+- Security section in README with Claude Code deny rules for sensitive files
+
+### Changed
+- Install respects `attribution.commit` setting for OpenCode compatibility (#286)
+
+### Fixed
+- **CRITICAL:** Prevent API keys from being committed via `/gsd:map-codebase` (#429)
+- Enforce context fidelity in planning pipeline - agents now honor CONTEXT.md decisions (#326, #216, #206)
+- Executor verifies task completion to prevent hallucinated success (#315)
+- Auto-create `config.json` when missing during `/gsd:settings` (#264)
+- `/gsd:update` respects local vs global install location
+- Researcher writes RESEARCH.md regardless of `commit_docs` setting
+- Statusline crash handling, color validation, git staging rules
+- Statusline.js reference updated during install (#330)
+- Parallelization config setting now respected (#379)
+- ASCII box-drawing vs text content with diacritics (#289)
+- Removed broken gsd-gemini link (404)
+
 ## [1.11.1] - 2026-01-31
 
 ### Added
@@ -1085,7 +1106,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - YOLO mode for autonomous execution
 - Interactive mode with checkpoints
 
-[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.11.1...HEAD
+[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.11.2...HEAD
+[1.11.2]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.11.2
 [1.11.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.11.0
 [1.10.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.1
 [1.10.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.0

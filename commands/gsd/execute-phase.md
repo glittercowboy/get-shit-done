@@ -76,7 +76,7 @@ Phase: $ARGUMENTS
    For each wave in order:
    - Spawn `gsd-executor` for each plan in wave (parallel Task calls)
    - Wait for completion (Task blocks)
-   - Verify SUMMARYs created
+   - Verify SUMMARYs created and spot-check claims
    - Proceed to next wave
 
 5. **Aggregate results**

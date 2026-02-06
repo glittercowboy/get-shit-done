@@ -460,6 +460,13 @@ For Pattern A (fully autonomous) and Pattern C (decision-dependent), skip this s
 
    D. Report completion
 
+   E. Self-check the aggregated SUMMARY:
+      - Parse `key-files.created` from the SUMMARY frontmatter
+      - Verify first 2 files exist on disk with `[ -f ]`
+      - Check `git log --oneline --all --grep="{phase}-{plan}"` returns at least 1 commit
+      - If any check fails: append `## Self-Check: FAILED` section to SUMMARY listing missing items
+      - If all pass: append `## Self-Check: PASSED`
+
 **Example execution trace:**
 
 ````

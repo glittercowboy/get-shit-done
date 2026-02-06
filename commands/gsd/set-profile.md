@@ -30,17 +30,27 @@ if $ARGUMENTS.profile not in ["quality", "balanced", "budget"]:
   STOP
 ```
 
-## 2. Check for project
+## 2. Ensure config exists
 
 ```bash
 ls .planning/config.json 2>/dev/null
 ```
 
-If no `.planning/` directory:
+If `.planning/config.json` missing, create it with defaults:
+```bash
+mkdir -p .planning
 ```
-Error: No GSD project found.
-Run /gsd:new-project first to initialize a project.
+```json
+{
+  "model_profile": "balanced",
+  "workflow": {
+    "research": true,
+    "plan_check": true,
+    "verifier": true
+  }
+}
 ```
+Write this to `.planning/config.json`, then continue.
 
 ## 3. Update config.json
 
@@ -49,7 +59,7 @@ Read current config:
 cat .planning/config.json
 ```
 
-Update `model_profile` field (or add if missing):
+Update `model_profile` field:
 ```json
 {
   "model_profile": "$ARGUMENTS.profile"

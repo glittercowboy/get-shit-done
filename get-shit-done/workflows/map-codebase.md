@@ -227,6 +227,41 @@ wc -l .planning/codebase/*.md
 
 If any documents missing or empty, note which agents may have failed.
 
+Continue to scan_for_secrets.
+</step>
+
+<step name="scan_for_secrets">
+**CRITICAL SECURITY CHECK:** Scan output files for accidentally leaked secrets before committing.
+
+Run secret pattern detection:
+
+```bash
+# Check for common API key patterns in generated docs
+grep -E '(sk-[a-zA-Z0-9]{20,}|sk_live_[a-zA-Z0-9]+|sk_test_[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9_-]+|AKIA[A-Z0-9]{16}|xox[baprs]-[a-zA-Z0-9-]+|-----BEGIN.*PRIVATE KEY|eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.)' .planning/codebase/*.md 2>/dev/null && SECRETS_FOUND=true || SECRETS_FOUND=false
+```
+
+**If SECRETS_FOUND=true:**
+
+```
+⚠️  SECURITY ALERT: Potential secrets detected in codebase documents!
+
+Found patterns that look like API keys or tokens in:
+[show grep output]
+
+This would expose credentials if committed.
+
+**Action required:**
+1. Review the flagged content above
+2. If these are real secrets, they must be removed before committing
+3. Consider adding sensitive files to Claude Code "Deny" permissions
+
+Pausing before commit. Reply "safe to proceed" if the flagged content is not actually sensitive, or edit the files first.
+```
+
+Wait for user confirmation before continuing to commit_codebase_map.
+
+**If SECRETS_FOUND=false:**
+
 Continue to commit_codebase_map.
 </step>
 
