@@ -285,6 +285,9 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel **
    PLAN_CONTENT=$(cat "{plan_path}")
    STATE_CONTENT=$(cat .planning/STATE.md)
    CONFIG_CONTENT=$(cat .planning/config.json 2>/dev/null)
+   # Extract "## GSD Preferences" section from CLAUDE.md (if exists)
+   # Reads from heading to next ## heading or EOF
+   GSD_PREFERENCES=$(sed -n '/^## GSD Preferences$/,/^## /{/^## /!p}' CLAUDE.md 2>/dev/null)
    ```
 
    **If `PARALLELIZATION=true` (default):** Use Task tool with multiple parallel calls.
@@ -316,6 +319,9 @@ Execute each wave in sequence. Autonomous plans within a wave run in parallel **
 
    Config (if exists):
    {config_content}
+
+   GSD Preferences (from CLAUDE.md, if exists):
+   {gsd_preferences}
    </context>
 
    <success_criteria>

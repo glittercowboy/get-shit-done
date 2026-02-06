@@ -394,6 +394,25 @@ Set during `/gsd:new-project`:
 
 Change anytime by editing `.planning/config.json`
 
+## Tool & Skill Preferences
+
+Add a `## GSD Preferences` section to your project's `CLAUDE.md` to configure tool, skill, and MCP preferences. Orchestrators extract this section and inject it into agent spawn prompts.
+
+```markdown
+## GSD Preferences
+
+### Skills
+- Use `frontend-design` skill for all UI work
+
+### MCPs
+- Use `context7` MCP for library documentation lookups
+
+### Tools
+- Use `pnpm` instead of `npm`
+```
+
+Only the `## GSD Preferences` section is extracted — the rest of CLAUDE.md is not injected into agent prompts.
+
 ## Planning Configuration
 
 Configure how planning artifacts are managed in `.planning/config.json`:
