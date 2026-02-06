@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Claude Code Statusline - GSD Edition
-// Shows: model | current task | directory | context usage
+// Shows: model | current task | git branch | directory | context usage
 
 const fs = require('fs');
 const path = require('path');
@@ -78,12 +78,54 @@ process.stdin.on('end', () => {
       } catch (e) {}
     }
 
+    // Git branch (traverse up to find .git, supports worktrees)
+    let branch = '';
+    let currentPath = dir;
+    while (currentPath) {
+      const gitPath = path.join(currentPath, '.git');
+      if (fs.existsSync(gitPath)) {
+        try {
+          let gitDir = gitPath;
+          const stats = fs.statSync(gitPath);
+
+          // If .git is a file (worktree), read the gitdir path
+          if (stats.isFile()) {
+            const gitFileContent = fs.readFileSync(gitPath, 'utf8');
+            const gitDirMatch = gitFileContent.match(/gitdir:\s*(.+)/);
+            if (gitDirMatch) {
+              gitDir = gitDirMatch[1].trim();
+              // Handle relative paths in worktree .git files
+              if (!path.isAbsolute(gitDir)) {
+                gitDir = path.resolve(currentPath, gitDir);
+              }
+            }
+          }
+
+          // Read HEAD from the actual git directory
+          const headFile = path.join(gitDir, 'HEAD');
+          if (fs.existsSync(headFile)) {
+            const headContent = fs.readFileSync(headFile, 'utf8');
+            const match = headContent.match(/ref: refs\/heads\/(.+)/);
+            if (match) {
+              branch = ` \x1b[35m${match[1].trim()}\x1b[0m │`;
+            }
+          }
+        } catch (e) {
+          // Silently fail on git errors - don't break statusline
+        }
+        break;
+      }
+      const parentPath = path.dirname(currentPath);
+      if (parentPath === currentPath) break;
+      currentPath = parentPath;
+    }
+
     // Output
     const dirname = path.basename(dir);
     if (task) {
-      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${dirname}\x1b[0m${ctx}`);
+      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ \x1b[1m${task}\x1b[0m │${branch} \x1b[2m${dirname}\x1b[0m${ctx}`);
     } else {
-      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ \x1b[2m${dirname}\x1b[0m${ctx}`);
+      process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │${branch} \x1b[2m${dirname}\x1b[0m${ctx}`);
     }
   } catch (e) {
     // Silent fail - don't break statusline on parse errors
