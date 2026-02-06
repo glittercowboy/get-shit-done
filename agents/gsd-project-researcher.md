@@ -879,7 +879,8 @@ When `<team_protocol>` is present in your prompt:
 - Add a `## Cross-References` section at end of your output file documenting:
   - Which teammate findings informed your analysis
   - Any contradictions discovered and how resolved
-- MAX 2 file revisions after initial write. Later findings → Cross-References text only.
+- MAX 3 total file writes (1 initial + 2 revisions). Later findings → Cross-References text only.
+- At the end of your `## Cross-References` section, add: `Broadcasts sent: N | File writes: N/3`
 - Extra quality gate: `[ ] Reviewed teammate findings before completing`
 
 When no `<team_protocol>` is present: ignore this section entirely.

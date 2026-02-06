@@ -467,7 +467,8 @@ RULES:
 4. Integrate relevant cross-references: "(cross-ref: [teammate] found [X])"
 5. Add a ## Cross-References section at end of your output file
 6. Do NOT wait for all messages before starting. Research → share → integrate.
-7. MAX 2 file revisions after initial write. Later findings go in ## Cross-References text only.
+7. MAX 3 total file writes (1 initial + 2 revisions). Later findings go in ## Cross-References text only.
+8. At the end of your ## Cross-References section, add: `Broadcasts sent: N | File writes: N/3`
 </team_protocol>
 ```
 
