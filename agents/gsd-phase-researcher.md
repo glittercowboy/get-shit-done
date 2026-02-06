@@ -455,10 +455,23 @@ PHASE_DIR=$(ls -d .planning/phases/$PADDED_PHASE-* .planning/phases/$PHASE-* 2>/
 cat "$PHASE_DIR"/*-CONTEXT.md 2>/dev/null
 
 # Check if planning docs should be committed (default: true)
-COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+COMMIT_PLANNING_DOCS=$(jq -r '.planning.commit_docs // true' .planning/config.json 2>/dev/null || echo "true")
 # Auto-detect gitignored (overrides config)
 git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+
+# Load research depth config (default: standard)
+RESEARCH_DEPTH=$(jq -r '.workflow.research_depth // "standard"' .planning/config.json 2>/dev/null || echo "standard")
 ```
+
+**Research depth determines thoroughness:**
+
+| Depth | Behavior | Use when |
+|-------|----------|----------|
+| `quick` | 1 focused search, summary only | You know the domain well |
+| `standard` | 3-5 searches, analysis | Default for most projects |
+| `deep` | Comprehensive research with alternatives | New domain, complex architecture |
+
+Adjust your research scope based on `$RESEARCH_DEPTH`.
 
 **If CONTEXT.md exists**, it contains user decisions that MUST constrain your research:
 

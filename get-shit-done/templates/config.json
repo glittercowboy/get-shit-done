@@ -1,14 +1,24 @@
 {
   "mode": "interactive",
+  "model_profile": "balanced",
   "depth": "standard",
   "workflow": {
     "research": true,
     "plan_check": true,
-    "verifier": true
+    "verifier": true,
+    "research_depth": "standard",
+    "plan_atomicity": "medium"
   },
   "planning": {
     "commit_docs": true,
     "search_gitignored": false
+  },
+  "git": {
+    "branching_strategy": "none",
+    "branch_template": "{type}/{phase}-{name}",
+    "phase_branch_template": "gsd/phase-{phase}-{slug}",
+    "milestone_branch_template": "gsd/{milestone}-{slug}",
+    "commit_format": "conventional"
   },
   "parallelization": {
     "enabled": true,
@@ -16,6 +26,7 @@
     "task_level": false,
     "skip_checkpoints": true,
     "max_concurrent_agents": 3,
+    "max_wave_size": 4,
     "min_plans_for_parallel": 2
   },
   "gates": {

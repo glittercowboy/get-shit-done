@@ -252,3 +252,74 @@ Each plan produces 2-4 commits (tasks + metadata). Clear, granular, bisectable.
 - "Commit noise" irrelevant when consumer is Claude, not humans
 
 </commit_strategy_rationale>
+
+<branch_templates>
+
+## Branch Templates
+
+Custom branch naming via `git.branch_template` in config.json.
+
+**Template variables:**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{type}` | Branch type (feat, fix, etc.) | `feat` |
+| `{phase}` | Zero-padded phase number | `03` |
+| `{name}` | Phase or plan name | `authentication` |
+| `{slug}` | Lowercase, hyphenated name | `user-auth` |
+| `{milestone}` | Milestone version | `v1.0` |
+
+**Configuration:**
+
+```json
+{
+  "git": {
+    "branching_strategy": "phase",
+    "branch_template": "{type}/{phase}-{name}"
+  }
+}
+```
+
+**Examples:**
+
+| Template | Result |
+|----------|--------|
+| `{type}/{phase}-{name}` | `feat/03-authentication` |
+| `gsd/{milestone}/{phase}` | `gsd/v1.0/03` |
+| `feature/{slug}` | `feature/user-auth` |
+| `gsd/phase-{phase}-{slug}` | `gsd/phase-03-auth` |
+
+</branch_templates>
+
+<commit_formats_config>
+
+## Commit Format Configuration
+
+Control commit message style via `git.commit_format` in config.json.
+
+**Options:**
+
+| Format | Style | Example |
+|--------|-------|---------|
+| `conventional` | `type(scope): message` | `feat(03-01): add login endpoint` |
+| `simple` | Plain message | `Add login endpoint` |
+
+**Default:** `conventional` (recommended for GSD context engineering).
+
+**Configuration:**
+
+```json
+{
+  "git": {
+    "commit_format": "conventional"
+  }
+}
+```
+
+**Conventional format** enables:
+- `git log --grep="feat("` to find all features
+- `git log --grep="(03-"` to find all Phase 3 work
+- Semantic versioning automation
+- Changelog generation
+
+</commit_formats_config>

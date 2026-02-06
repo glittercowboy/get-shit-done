@@ -183,7 +183,19 @@ Every task has four required fields:
 
 ## Task Sizing
 
-Each task should take Claude **15-60 minutes** to execute. This calibrates granularity:
+Each task should take Claude **15-60 minutes** to execute. This calibrates granularity.
+
+**Task count is configured by `plan_atomicity` in config.json:**
+
+| Atomicity | Tasks per plan | Example |
+|-----------|----------------|---------|
+| `small` | 1-2 tasks | Complex TDD features, integration points |
+| `medium` | 2-4 tasks | Default for most work |
+| `large` | 4-8 tasks | Boilerplate, simple CRUD, trusted patterns |
+
+Check `$PLAN_ATOMICITY` variable (loaded in load_project_state step) when splitting work.
+
+**Duration guidelines:**
 
 | Duration | Action |
 |----------|--------|
@@ -1039,12 +1051,23 @@ If STATE.md missing but .planning/ exists, offer to reconstruct or continue with
 
 ```bash
 # Check if planning docs should be committed (default: true)
-COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
+COMMIT_PLANNING_DOCS=$(jq -r '.planning.commit_docs // true' .planning/config.json 2>/dev/null || echo "true")
 # Auto-detect gitignored (overrides config)
 git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+
+# Load plan atomicity config (default: medium)
+PLAN_ATOMICITY=$(jq -r '.workflow.plan_atomicity // "medium"' .planning/config.json 2>/dev/null || echo "medium")
 ```
 
-Store `COMMIT_PLANNING_DOCS` for use in git operations.
+Store `COMMIT_PLANNING_DOCS` and `PLAN_ATOMICITY` for use in planning.
+
+**Plan atomicity determines task count per plan:**
+
+| Atomicity | Tasks per plan | Use when |
+|-----------|----------------|----------|
+| `small` | 1-2 tasks | Complex features, TDD, need fine control |
+| `medium` | 2-4 tasks | Default for most work |
+| `large` | 4-8 tasks | Simple features, boilerplate, trusted patterns |
 </step>
 
 <step name="load_codebase_context">
