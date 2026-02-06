@@ -280,6 +280,16 @@ Validate built features through conversational UAT.
 
 Usage: `/gsd:verify-work 3`
 
+**`/gsd:add-gaps <phase-number>`**
+Report bugs/gaps found during manual testing of a phase.
+
+- Captures manual test failures into verification report
+- Updates phase status to `gaps_found`
+- Updates STATE.md blockers
+- Triggers gap closure planning
+
+Usage: `/gsd:add-gaps 1`
+
 ### Milestone Auditing
 
 **`/gsd:audit-milestone [version]`**
