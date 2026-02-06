@@ -70,6 +70,33 @@ Map an existing codebase for brownfield projects.
 
 Usage: `/gsd:map-codebase`
 
+### Algorithm Documentation
+
+**`/gsd:map-algorithms`**
+Document algorithms from code (Code → Math direction).
+
+- Detects algorithm patterns (state estimation, ML, optimization, etc.)
+- Proposes candidates via interactive selection
+- Spawns parallel subagents for documentation
+- Creates `.planning/algorithms/*.md` with diagrams
+- Bidirectional: plan-phase auto-loads docs when touching owned files
+
+Usage: `/gsd:map-algorithms`
+Usage: `/gsd:map-algorithms src/filters/*.py` (specific files)
+
+**`/gsd:algorithm-drift`**
+Check for drift between algorithm spec and code implementation.
+
+- Reads spec's `owns:` frontmatter to find implementation files
+- Compares spec against actual code
+- Presents drift analysis with file:line references
+- Suggests actions based on which is "right":
+  - Code is right, spec wrong → run `/gsd:map-algorithms`
+  - Spec is right, code wrong → run `/gsd:add-phase` + `/gsd:plan-phase`
+
+Usage: `/gsd:algorithm-drift ekf`
+Usage: `/gsd:algorithm-drift` (lists available algorithms)
+
 ### Phase Planning
 
 **`/gsd:discuss-phase <number>`**
@@ -367,6 +394,8 @@ Usage: `/gsd:join-discord`
 │   ├── TESTING.md        # Test setup, patterns
 │   ├── INTEGRATIONS.md   # External services, APIs
 │   └── CONCERNS.md       # Tech debt, known issues
+├── algorithms/           # Algorithm specs (math ↔ code bridge)
+│   └── *.md              # Individual algorithm docs with owns: frontmatter
 └── phases/
     ├── 01-foundation/
     │   ├── 01-01-PLAN.md
@@ -471,6 +500,14 @@ Example config:
 # ... investigation happens, context fills up ...
 /clear
 /gsd:debug                                    # Resume from where you left off
+```
+
+**Documenting algorithms:**
+
+```
+/gsd:map-algorithms                          # Detect and document all algorithms
+/gsd:map-algorithms src/filters/*.py         # Document specific files
+/gsd:algorithm-drift ekf                     # Check if spec matches code
 ```
 
 ## Getting Help
