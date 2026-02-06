@@ -47,12 +47,14 @@ Parse current values (default to `true` if not present):
 - `workflow.research` — spawn researcher during plan-phase
 - `workflow.plan_check` — spawn plan checker during plan-phase
 - `workflow.verifier` — spawn verifier during execute-phase
+- `workflow.tdd` — enforce TDD for all plans (default: `true`)
 - `model_profile` — which model each agent uses (default: `balanced`)
+- `security_compliance` — security compliance level (default: `none`)
 - `git.branching_strategy` — branching approach (default: `"none"`)
 
 ## 3. Present Settings
 
-Use AskUserQuestion with current values shown:
+**Round 1 — Model profile and workflow agents (4 questions max):**
 
 ```
 AskUserQuestion([
@@ -92,6 +94,34 @@ AskUserQuestion([
       { label: "Yes", description: "Verify must-haves after execution" },
       { label: "No", description: "Skip post-execution verification" }
     ]
+  }
+])
+```
+
+**Pre-select based on current config values.**
+
+**Round 2 — Development standards, security, and git (3 questions):**
+
+```
+AskUserQuestion([
+  {
+    question: "Enforce TDD workflow? (write tests before code)",
+    header: "TDD",
+    multiSelect: false,
+    options: [
+      { label: "Yes (Recommended)", description: "All plans use RED-GREEN-REFACTOR cycle" },
+      { label: "No", description: "Standard execution without mandatory tests" }
+    ]
+  },
+  {
+    question: "Security compliance level? (Other: iso27001, pci-dss)",
+    header: "Security",
+    multiSelect: false,
+    options: [
+      { label: "none", description: "Basic security best practices only" },
+      { label: "soc2", description: "SOC 2 Type II (B2B SaaS)" },
+      { label: "hipaa", description: "HIPAA (healthcare, PHI protection)" }
+    ]
   },
   {
     question: "Git branching strategy?",
@@ -116,10 +146,12 @@ Merge new settings into existing config.json:
 {
   ...existing_config,
   "model_profile": "quality" | "balanced" | "budget",
+  "security_compliance": "none" | "soc2" | "hipaa" | "pci-dss" | "iso27001",
   "workflow": {
     "research": true/false,
     "plan_check": true/false,
-    "verifier": true/false
+    "verifier": true/false,
+    "tdd": true/false
   },
   "git": {
     "branching_strategy": "none" | "phase" | "milestone"
@@ -144,9 +176,14 @@ Display:
 | Plan Researcher      | {On/Off} |
 | Plan Checker         | {On/Off} |
 | Execution Verifier   | {On/Off} |
+| TDD Workflow         | {On/Off} |
+| Security Compliance  | {none/soc2/hipaa/pci-dss/iso27001} |
 | Git Branching        | {None/Per Phase/Per Milestone} |
 
 These settings apply to future /gsd:plan-phase and /gsd:execute-phase runs.
+
+**TDD Workflow:** When enabled, all plans use RED-GREEN-REFACTOR cycle with 4 test categories.
+**Security Compliance:** Determines which security tests are required. See @~/.claude/get-shit-done/references/security-compliance.md
 
 Quick commands:
 - /gsd:set-profile <profile> — switch model profile
@@ -159,7 +196,7 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 5 settings (profile + 3 workflow toggles + git branching)
-- [ ] Config updated with model_profile, workflow, and git sections
+- [ ] User presented with 7 settings across 2 rounds (4 + 3, respecting AskUserQuestion limit)
+- [ ] Config updated with model_profile, security_compliance, workflow, and git sections
 - [ ] Changes confirmed to user
 </success_criteria>
