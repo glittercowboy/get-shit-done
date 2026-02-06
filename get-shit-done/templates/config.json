@@ -1,6 +1,7 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "project_type": "general",
   "workflow": {
     "research": true,
     "plan_check": true,

@@ -17,6 +17,7 @@ Configuration options for `.planning/` directory behavior.
 
 | Option | Default | Description |
 |--------|---------|-------------|
+| `project_type` | `"general"` | Project type: `"web-frontend"`, `"web-backend"`, `"cli-tool"`, `"library"`, `"general"` |
 | `commit_docs` | `true` | Whether to commit planning artifacts to git |
 | `search_gitignored` | `false` | Add `--no-ignore` to broad rg searches |
 | `git.branching_strategy` | `"none"` | Git branching approach: `"none"`, `"phase"`, or `"milestone"` |

@@ -64,6 +64,42 @@ This is the most leveraged moment in any project. Deep questioning here means be
    HAS_CODEBASE_MAP=$([ -d .planning/codebase ] && echo "yes")
    ```
 
+4. **Detect project type:**
+   ```bash
+   # Detect project type from dependencies and file patterns
+   PROJECT_TYPE="general"
+
+   if [ -f package.json ]; then
+     # Check for frontend frameworks
+     if grep -q '"react"\|"vue"\|"angular"\|"svelte"\|"next"\|"nuxt"\|"@angular"' package.json 2>/dev/null; then
+       PROJECT_TYPE="web-frontend"
+     # Check for backend frameworks
+     elif grep -q '"express"\|"fastify"\|"koa"\|"hapi"\|"nestjs"\|"hono"' package.json 2>/dev/null; then
+       PROJECT_TYPE="web-backend"
+     # Check for CLI tools
+     elif grep -q '"commander"\|"yargs"\|"inquirer"\|"chalk"\|"ora"\|"meow"' package.json 2>/dev/null; then
+       PROJECT_TYPE="cli-tool"
+     # Check for libraries
+     elif grep -q '"types"\|"main"\|"module"\|"exports"' package.json 2>/dev/null && ! grep -q '"start"\|"dev"' package.json 2>/dev/null; then
+       PROJECT_TYPE="library"
+     fi
+   elif [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+     if grep -q 'flask\|django\|fastapi\|starlette' requirements.txt pyproject.toml 2>/dev/null; then
+       PROJECT_TYPE="web-backend"
+     elif grep -q 'click\|typer\|argparse' requirements.txt pyproject.toml 2>/dev/null; then
+       PROJECT_TYPE="cli-tool"
+     fi
+   elif [ -f go.mod ]; then
+     if grep -q 'gin\|echo\|fiber\|chi' go.mod 2>/dev/null; then
+       PROJECT_TYPE="web-backend"
+     elif grep -q 'cobra\|urfave/cli' go.mod 2>/dev/null; then
+       PROJECT_TYPE="cli-tool"
+     fi
+   fi
+
+   echo "Detected project type: $PROJECT_TYPE"
+   ```
+
    **You MUST run all bash commands above using the Bash tool before proceeding.**
 
 ## Phase 2: Brownfield Offer
@@ -341,6 +377,7 @@ Create `.planning/config.json` with all settings:
 {
   "mode": "yolo|interactive",
   "depth": "quick|standard|comprehensive",
+  "project_type": "web-frontend|web-backend|cli-tool|library|general",
   "parallelization": true|false,
   "commit_docs": true|false,
   "model_profile": "quality|balanced|budget",
@@ -351,6 +388,18 @@ Create `.planning/config.json` with all settings:
   }
 }
 ```
+
+**Project type:**
+
+Store the detected `PROJECT_TYPE` from Phase 1 in config. This enables type-specific templates and research focus.
+
+| Type | Description | Research Focus |
+|------|-------------|----------------|
+| `web-frontend` | React, Vue, Angular, Svelte apps | UI/UX patterns, component design, state management |
+| `web-backend` | Express, FastAPI, Go servers | API design, data modeling, auth patterns |
+| `cli-tool` | Command-line tools | Argument parsing, output formatting, shell integration |
+| `library` | Shared packages/modules | API surface design, versioning, documentation |
+| `general` | Default for unknown types | Full-stack research |
 
 **If commit_docs = No:**
 - Set `commit_docs: false` in config.json
