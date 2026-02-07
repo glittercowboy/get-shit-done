@@ -19,6 +19,7 @@ Purpose: Handle urgent work discovered during execution without renumbering enti
 <execution_context>
 @.planning/ROADMAP.md
 @.planning/STATE.md
+@~/.claude/get-shit-done/references/adaptive-depth.md
 </execution_context>
 
 <process>
@@ -57,6 +58,19 @@ if ! [[ "$after_phase" =~ ^[0-9]+$ ]]; then
 fi
 ```
 
+</step>
+
+<step name="capture_intent_seed">
+Use AskUserQuestion (1 question max — insertions are urgent):
+- header: "Intent"
+- question: "What absolutely must be true after this phase?"
+- options:
+  - label: "[Claude's interpretation]"
+    description: "Based on urgency context and description"
+  - label: "[Alternative]"
+    description: "Different critical outcome"
+
+Write intent seed with `richness: seed-urgent` into ROADMAP.md phase entry during the update_roadmap step.
 </step>
 
 <step name="load_roadmap">
@@ -147,6 +161,12 @@ Insert the new phase entry into the roadmap:
 
    **Details:**
    [To be added during planning]
+
+   intent:
+     motivation: "[from capture_intent_seed]"
+     success_looks_like: "[from capture_intent_seed]"
+     constraints: "[from capture_intent_seed]"
+     richness: seed-urgent
    ```
 
 3. Write updated roadmap back to file

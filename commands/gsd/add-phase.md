@@ -19,6 +19,7 @@ Purpose: Add planned work discovered during execution that belongs at the end of
 <execution_context>
 @.planning/ROADMAP.md
 @.planning/STATE.md
+@~/.claude/get-shit-done/references/adaptive-depth.md
 </execution_context>
 
 <process>
@@ -38,6 +39,39 @@ Example: /gsd:add-phase Add authentication system
 ```
 
 Exit.
+</step>
+
+<step name="capture_intent_seed">
+Load adaptive depth protocol from `~/.claude/get-shit-done/references/adaptive-depth.md`.
+
+Assess input richness of the description string.
+
+**If description > 10 words or contains domain-specific terminology:**
+
+Use AskUserQuestion:
+- header: "Intent"
+- question: "What does success look like for '{description}'?"
+- options:
+  - label: "[Claude's interpretation based on project context]"
+    description: "Based on current project state and phase description"
+  - label: "[Alternative interpretation]"
+    description: "Different angle on what this phase should achieve"
+
+**Always (even for thin input):**
+
+Write intent seed YAML into the ROADMAP.md phase entry (in the update_roadmap step):
+
+```yaml
+intent:
+  motivation: "[extracted from user description]"
+  success_looks_like: "[from AskUserQuestion answer or inferred from description]"
+  constraints: "[if mentioned in description, else 'none']"
+  richness: seed
+```
+
+This adds ~15-30 seconds (1 AskUserQuestion) to phase creation.
+
+**Overhead:** Minimal. One optional question, then YAML written inline during roadmap update.
 </step>
 
 <step name="load_roadmap">
@@ -132,6 +166,12 @@ Add the new phase entry to the roadmap:
 
    **Details:**
    [To be added during planning]
+
+   intent:
+     motivation: "[from capture_intent_seed]"
+     success_looks_like: "[from capture_intent_seed]"
+     constraints: "[from capture_intent_seed]"
+     richness: seed
    ```
 
 3. Write updated roadmap back to file

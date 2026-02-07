@@ -294,6 +294,142 @@ issue:
   fix_hint: "Remove search task - belongs in future phase per user decision"
 ```
 
+### Extended Context Compliance (if CONTEXT.md has rich content)
+
+**When CONTEXT.md contains `<specifics>` section, "Core Principle:" statements, or quality constraints, check these additional dimensions:**
+
+**7a. Quality Constraint Verification**
+
+Quality constraints differ from binary decisions. A binary decision ("use cards") needs a task implementing it. A quality constraint ("output must be proportional to data") needs verification criteria.
+
+**Process:**
+1. Identify quality constraints in Decisions section (statements about what output MUST or MUST NOT do)
+2. For each, check: Does a plan have `<verify>` elements or `must_haves.truths` that validate this constraint?
+3. Flag quality constraints that only have implementation tasks but no verification
+
+**Red flags:**
+- Quality constraint has a task ("Create confidence gate") but no verification that the gate actually prevents the bad outcome
+- Anti-pattern listed but no negative check in any `<verify>` element
+- Proportionality constraint without data-driven verification
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: warning
+  sub_dimension: quality_constraint_verification
+  description: "Quality constraint 'output proportional to data' has implementation task but no verification criteria"
+  plan: "01"
+  constraint: "Output depth must be proportional to available data (from Decisions)"
+  fix_hint: "Add must_haves truth: 'Low-data queries produce short responses' and verify element testing this"
+```
+
+**7b. Core Principle Representation**
+
+Core Principles (marked with "**Core Principle:**" in CONTEXT.md) define the WHY behind decision areas. They should appear in plan objectives or must_haves, not be lost in translation.
+
+**Process:**
+1. Extract all "Core Principle:" statements from CONTEXT.md
+2. For each, check: Is the principle reflected in at least one plan's objective or must_haves.truths?
+3. Flag Core Principles with no representation in any plan
+
+**Red flags:**
+- Core Principle completely absent from all plan objectives and must_haves
+- Core Principle paraphrased so heavily that the original intent is lost
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: warning
+  sub_dimension: core_principle_representation
+  description: "Core Principle 'saubere Vermengung' (inseparable blend of qualities) not reflected in any plan objective"
+  fix_hint: "Add to plan objective or must_haves: the output must achieve an inseparable blend of personal closeness, warmth, and groundedness"
+```
+
+**7c. Specifics Propagation**
+
+The `<specifics>` section contains design-intent context: terminology, principles, mandates. These must flow through to task descriptions.
+
+**Process:**
+1. If CONTEXT.md has "Founder Terminology" subsection: check key terms appear in task `<action>` descriptions
+2. If CONTEXT.md has "Guiding Principles": check cross-cutting principles are addressed across plans
+3. If CONTEXT.md has "Critical Analysis Mandate": check dedicated analysis/audit tasks exist
+
+**Red flags:**
+- Founder terminology replaced with generic terms in all task descriptions
+- Guiding Principles not addressed by any task
+- Critical Analysis Mandate present but no analysis/audit task in any plan
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: warning
+  sub_dimension: specifics_propagation
+  description: "Critical Analysis Mandate in specifics requires pipeline audit tasks, but no analysis tasks found in plans"
+  fix_hint: "Add a dedicated task for pipeline capability assessment with findings as deliverable"
+```
+
+## Dimension 8: Intent Map Completeness (if CONTEXT.md exists)
+
+**Question:** Does INTENT-MAP.md exist and correctly map all user decisions?
+
+**Only check this dimension if CONTEXT.md was provided in the verification context.**
+
+**Process:**
+1. Check if INTENT-MAP.md exists in the phase directory
+2. Parse INTENT-MAP.md mapping table
+3. Cross-reference against CONTEXT.md decisions
+4. Validate task references actually exist in PLAN.md files
+
+**Sub-checks:**
+
+**8a: Existence check**
+- Does INTENT-MAP.md exist? (blocker if missing and CONTEXT.md exists)
+- If no CONTEXT.md → skip entire Dimension 8
+
+**8b: Decision coverage**
+- Does every CONTEXT.md decision have a row in the mapping table?
+- Check: Decisions section items, Core Principles, anti-patterns, quality constraints
+- Severity: blocker for MISSING decisions
+
+**8c: Task reference validity**
+- Does every mapped task actually exist in PLAN.md files?
+- Cross-reference "{phase}-{plan} Task N" references against actual task elements
+- Severity: blocker for phantom mappings (references to non-existent tasks)
+
+**8d: Anti-pattern mapping**
+- Are "Not:" constraints and anti-patterns mapped to negative checks?
+- These should map to `<verify>` elements, not just `<action>` elements
+- Severity: warning if anti-patterns only have implementation tasks but no verification
+
+**Red flags:**
+- INTENT-MAP.md missing when CONTEXT.md exists
+- Decisions listed as "unmapped" without justification
+- Task references that don't match any actual plan task
+- Anti-patterns without negative verification
+
+**Example issue:**
+```yaml
+issue:
+  dimension: intent_map_completeness
+  severity: blocker
+  sub_dimension: decision_coverage
+  description: "INTENT-MAP.md missing 2 decisions from CONTEXT.md: 'Core Principle: saubere Vermengung' and 'NOT: NotebookLM anti-pattern'"
+  fix_hint: "Add rows mapping these decisions to specific plan tasks"
+```
+
+**Example issue - phantom mapping:**
+```yaml
+issue:
+  dimension: intent_map_completeness
+  severity: blocker
+  sub_dimension: task_reference_validity
+  description: "INTENT-MAP.md references '15-03 Task 3' but Plan 15-03 only has 2 tasks"
+  fix_hint: "Update mapping to reference correct task or add the missing task to Plan 15-03"
+```
+
 </verification_dimensions>
 
 <verification_process>
@@ -325,6 +461,7 @@ ls "$PHASE_DIR"/*-BRIEF.md 2>/dev/null
 - Phase context (from CONTEXT.md if provided by orchestrator)
 - Locked decisions (from CONTEXT.md Decisions section)
 - Deferred ideas (from CONTEXT.md Deferred Ideas section)
+- INTENT-MAP.md content (from phase directory, if exists)
 
 ## Step 2: Load All Plans
 
@@ -457,6 +594,19 @@ grep "files_modified:" "$PHASE_DIR"/$PHASE-01-PLAN.md
 - 2-3 tasks/plan: Good
 - 4 tasks/plan: Warning
 - 5+ tasks/plan: Blocker (split required)
+
+## Step 8.5: Check Intent Map (if CONTEXT.md exists)
+
+If CONTEXT.md was provided AND INTENT-MAP.md exists:
+
+1. Parse the mapping table from INTENT-MAP.md
+2. Extract all decisions from CONTEXT.md (Decisions, Core Principles, anti-patterns)
+3. For each decision, verify it has a row in the mapping
+4. For each mapped task reference, verify the task exists in PLAN.md
+5. For anti-patterns, verify they map to `<verify>` elements (not just `<action>`)
+
+If CONTEXT.md was provided AND INTENT-MAP.md is MISSING:
+- Create a blocker issue: "INTENT-MAP.md missing — planner must produce decision-to-task mapping when CONTEXT.md exists"
 
 ## Step 9: Verify must_haves Derivation
 
@@ -788,6 +938,35 @@ issues:
 
 </anti_patterns>
 
+<team_mode>
+
+## Agent Teams Integration (Streaming Verification)
+
+When `<team_protocol>` is present in your prompt:
+
+**Per-plan checks (run immediately on each PLAN_READY message):**
+- Valid frontmatter (wave, depends_on, files_modified, autonomous)
+- Tasks have required XML sections (<action>, <verify>, <done>)
+- Scope aligns with phase goal
+- Context/decisions honored
+- must_haves derived from goal
+
+**Issue reporting:** Send immediately — don't batch.
+Format: `ISSUE: {plan-id} | SEVERITY: blocker|warning | DETAIL: {problem and fix}`
+Silence = plan passed per-plan checks.
+
+**Cross-plan checks (run after ALL_PLANS_COMPLETE):**
+- Full requirement coverage
+- Dependency graph correctness
+- No file overlap in same-wave plans
+- Wave ordering correctness
+
+Return final verdict to orchestrator (not to planner).
+
+When no `<team_protocol>` is present: ignore this section entirely.
+
+</team_mode>
+
 <success_criteria>
 
 Plan verification complete when:
@@ -805,6 +984,14 @@ Plan verification complete when:
   - [ ] Locked decisions have implementing tasks
   - [ ] No tasks contradict locked decisions
   - [ ] Deferred ideas not included in plans
+  - [ ] Quality constraints have verification criteria (not just implementation tasks)
+  - [ ] Core Principles represented in plan objectives or must_haves
+  - [ ] Specifics propagated to task descriptions
+- [ ] Intent map completeness checked (if CONTEXT.md provided):
+  - [ ] INTENT-MAP.md exists (blocker if missing with CONTEXT.md)
+  - [ ] All CONTEXT.md decisions have mapping rows
+  - [ ] All task references are valid
+  - [ ] Anti-patterns map to negative verification
 - [ ] Overall status determined (passed | issues_found)
 - [ ] Structured issues returned (if any found)
 - [ ] Result returned to orchestrator

@@ -37,7 +37,10 @@ Phase: $ARGUMENTS (optional)
 <process>
 1. Check for active UAT sessions (resume or start new)
 2. Find SUMMARY.md files for the phase
-3. Extract testable deliverables (user-observable outcomes)
+3. Extract testable deliverables from dual sources:
+   - **Group 1: Plan-derived** (from SUMMARY.md — what Claude claims it built)
+   - **Group 2: Intent-derived** (from CONTEXT.md — what user originally asked for)
+   User sees both perspectives. If plan-tests pass but intent-tests fail → the gap is visible.
 4. Create {phase}-UAT.md with test list
 5. Present tests one at a time:
    - Show expected behavior
@@ -216,4 +219,6 @@ Review the issues above and either:
 - [ ] If issues: gsd-planner creates fix plans from diagnosed gaps
 - [ ] If issues: gsd-plan-checker verifies fix plans (max 3 iterations)
 - [ ] Ready for `/gsd:execute-phase` when complete
+- [ ] If CONTEXT.md exists: intent-derived tests generated alongside plan-derived tests
+- [ ] Both test groups clearly labeled so user sees coverage from both perspectives
 </success_criteria>

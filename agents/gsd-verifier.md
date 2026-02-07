@@ -65,9 +65,21 @@ grep -A 5 "Phase $PHASE_NUM" .planning/ROADMAP.md
 
 # Requirements mapped to this phase
 grep -E "^| $PHASE_NUM" .planning/REQUIREMENTS.md 2>/dev/null
+
+# Also load intent context if exists
+cat "$PHASE_DIR"/*-CONTEXT.md 2>/dev/null
+cat "$PHASE_DIR"/*-INTENT-MAP.md 2>/dev/null
 ```
 
 Extract phase goal from ROADMAP.md. This is the outcome to verify, not the tasks.
+
+If CONTEXT.md exists, extract:
+- Locked decisions (from Decisions section)
+- Core Principles (statements starting with "Core Principle:")
+- Anti-patterns (statements starting with "Not:" or "Never:")
+- Quality constraints (statements about what output MUST or MUST NOT do)
+
+If INTENT-MAP.md exists, use it as the guide for which decisions map to which tasks/artifacts.
 
 ## Step 2: Establish Must-Haves (Initial Mode Only)
 
@@ -367,6 +379,53 @@ verify_state_render_link() {
 }
 ```
 
+## Step 5.5: Verify Intent Fidelity (if CONTEXT.md exists)
+
+If CONTEXT.md and/or INTENT-MAP.md exist for this phase, verify that user decisions were honored in the implementation.
+
+**Using INTENT-MAP.md as guide (if exists):**
+
+For each row in the mapping table:
+1. **Binary decisions** (e.g., "use cards not tables"):
+   - Grep for the chosen pattern in the artifact files
+   - Confirm absence of the rejected pattern
+   - Status: HONORED if chosen pattern found, VIOLATED if rejected pattern found
+
+2. **Quality constraints** (e.g., "output must be proportional to data"):
+   - Check the verification criteria from PLAN.md verify elements
+   - Look for test coverage or validation logic
+   - Status: HONORED if verification exists, UNVERIFIED if no checks found
+
+3. **Anti-patterns** ("Not:" / "Never:"):
+   - Grep for the anti-pattern in implementation files
+   - Status: HONORED if pattern absent, VIOLATED if pattern found
+
+4. **Core Principles:**
+   - Verify the principle is reflected in implementation approach
+   - Check objective alignment in SUMMARY.md
+   - Status: HONORED / PARTIALLY_HONORED / NOT_REFLECTED
+
+**Without INTENT-MAP.md (CONTEXT.md only):**
+
+Parse CONTEXT.md decisions directly and attempt the same checks, but with less precision since task-to-decision mapping must be inferred.
+
+**Output intent fidelity metrics for VERIFICATION.md:**
+
+```yaml
+intent_fidelity:
+  decisions_total: N
+  decisions_honored: X
+  decisions_modified: Y  # Changed during implementation with justification
+  decisions_dropped: Z   # Not implemented, no justification found
+  modifications:
+    - decision: "[original decision]"
+      change: "[what changed]"
+      justification: "[why, from SUMMARY.md or code comments]"
+  drops:
+    - decision: "[original decision]"
+      impact: "[what this means for the user]"
+```
+
 ## Step 6: Check Requirements Coverage
 
 If REQUIREMENTS.md exists and has requirements mapped to this phase:
@@ -607,6 +666,21 @@ human_verification: # Only include if status: human_needed
 | File | Line | Pattern | Severity | Impact |
 | ---- | ---- | ------- | -------- | ------ |
 
+### Intent Fidelity (if CONTEXT.md exists)
+
+**Decisions:** {X}/{N} honored | {Y} modified | {Z} dropped
+
+| Decision | Status | Evidence |
+|----------|--------|----------|
+| [decision from CONTEXT.md] | HONORED / MODIFIED / DROPPED | [grep result or finding] |
+
+{If any modifications or drops:}
+**Modifications:**
+- [decision]: [what changed] — [justification]
+
+**Drops:**
+- [decision]: [impact on user intent]
+
 ### Human Verification Required
 
 {Items needing human testing — detailed format for user}
@@ -774,5 +848,9 @@ return <div>No messages</div>  // Always shows "no messages"
 - [ ] Gaps structured in YAML frontmatter (if gaps_found)
 - [ ] Re-verification metadata included (if previous existed)
 - [ ] VERIFICATION.md created with complete report
+- [ ] CONTEXT.md loaded and decisions extracted (if exists)
+- [ ] INTENT-MAP.md used as verification guide (if exists)
+- [ ] Intent fidelity computed (decisions honored/modified/dropped)
+- [ ] Intent fidelity section included in VERIFICATION.md
 - [ ] Results returned to orchestrator (NOT committed)
 </success_criteria>

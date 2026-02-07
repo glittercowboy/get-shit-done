@@ -10,6 +10,11 @@ allowed-tools:
   - Glob
   - Grep
   - Task
+  - Teammate
+  - SendMessage
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
   - WebFetch
   - mcp__context7__*
 ---
@@ -96,6 +101,19 @@ fi
 ```bash
 ls .planning/phases/${PHASE}-*/*-RESEARCH.md 2>/dev/null
 ls .planning/phases/${PHASE}-*/*-PLAN.md 2>/dev/null
+```
+
+## 2.5. Detect Agent Teams
+
+Check Agent Teams availability (both must be true):
+- Environment: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+- Config: `agent_teams: true` in config.json
+
+```bash
+AGENT_TEAMS_ENV=${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-0}
+AGENT_TEAMS_CONFIG=$(cat .planning/config.json 2>/dev/null | grep -o '"agent_teams"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+USE_AGENT_TEAMS=false
+[ "$AGENT_TEAMS_ENV" = "1" ] && [ "$AGENT_TEAMS_CONFIG" = "true" ] && USE_AGENT_TEAMS=true
 ```
 
 ## 3. Validate Phase
@@ -198,9 +216,11 @@ Answer: "What do I need to know to PLAN this phase well?"
 <phase_context>
 **IMPORTANT:** If CONTEXT.md exists below, it contains user decisions from /gsd:discuss-phase.
 
-- **Decisions section** = Locked choices — research THESE deeply, don't explore alternatives
-- **Claude's Discretion section** = Your freedom areas — research options, make recommendations
-- **Deferred Ideas section** = Out of scope — ignore completely
+- **`<domain>` section** = Phase scope boundary. Defines what this phase delivers and what is NOT in scope. If domain includes mandates (e.g., "critical analysis"), research must address those mandates.
+- **`<decisions>` section** = Locked choices. Each "**Core Principle:**" statement is the WHY behind decisions in that area — use it to focus your research direction. Research THESE decisions deeply, don't explore alternatives. Quality constraints (e.g., "output must be proportional to data") need implementation research, not just library recommendations. Anti-patterns listed are hard constraints — research how to prevent them.
+- **`<specifics>` section** = Design-intent context that carries the user's voice. "Founder Terminology" terms carry design intent and must be understood by researchers (they inform WHAT to research). "Guiding Principles" are cross-cutting constraints. "Critical Analysis Mandate" (if present) means research must also evaluate whether current infrastructure can deliver what the phase demands.
+- **`<deferred>` section** = Out of scope — ignore completely
+- **"Claude's Discretion"** (within decisions) = Your freedom areas — research options, make recommendations
 
 {context_content}
 </phase_context>
@@ -268,7 +288,17 @@ VERIFICATION_CONTENT=$(cat "${PHASE_DIR}"/*-VERIFICATION.md 2>/dev/null)
 UAT_CONTENT=$(cat "${PHASE_DIR}"/*-UAT.md 2>/dev/null)
 ```
 
-## 8. Spawn gsd-planner Agent
+## 8. Plan & Verify
+
+**Gate for streaming verification:**
+- `USE_AGENT_TEAMS = true`
+- `plan_check` enabled (not `--skip-verify`, config `workflow.plan_check` is true)
+- NOT `--gaps` mode (gap closure produces 1-2 plans — sequential is fine)
+
+**MANDATORY: If all gate conditions met → MUST use 8b (Streaming). Otherwise → use 8a (Sequential).**
+**Do NOT override this gate. Do NOT fall back to 8a when gates pass. The user explicitly enabled Agent Teams to use streaming verification — respect that choice regardless of phase complexity.**
+
+### 8a. Standard Sequential Planning
 
 Display stage banner:
 ```
@@ -299,9 +329,21 @@ Fill prompt with inlined content and spawn:
 **Phase Context (if exists):**
 
 IMPORTANT: If phase context exists below, it contains USER DECISIONS from /gsd:discuss-phase.
-- **Decisions** = LOCKED — honor these exactly, do not revisit or suggest alternatives
-- **Claude's Discretion** = Your freedom — make implementation choices here
-- **Deferred Ideas** = Out of scope — do NOT include in this phase
+
+**Section Guide for Planning:**
+
+- **`<domain>` section** = Phase scope boundary. Defines WHAT this phase delivers, what it changes, and what is NOT in scope. Use this to derive plan objectives and reject tasks outside the boundary. If domain states a mandate (e.g., "critical analysis"), that mandate is as binding as any locked decision.
+- **`<decisions>` section** = LOCKED decisions. Honor these exactly, do not revisit or suggest alternatives.
+  - Each "**Core Principle:**" defines the WHY behind decisions in that area — preserve these in plan objectives so executors understand intent, not just tasks.
+  - **Binary decisions** (use X, not Y) → implement exactly as specified
+  - **Quality constraints** (output must be proportional, no hallucination) → encode as verification criteria in `<verify>` elements and as must_haves truths
+  - **Anti-patterns** (never do X) → encode as negative checks in `<verify>` elements (e.g., "grep for pattern X should return 0 matches")
+- **`<specifics>` section** = Design-intent context. This section is NOT just decoration — it informs task quality.
+  - "Founder Terminology" = terms that carry design intent. Preserve exact terms in task `<action>` descriptions so executors maintain the user's voice.
+  - "Guiding Principles" = cross-cutting constraints that apply to ALL tasks in this phase, not just specific decisions.
+  - "Critical Analysis Mandate" (if present) = requires dedicated analysis/audit tasks, not just implementation tasks.
+- **`<deferred>` section** = Out of scope — do NOT include in this phase
+- **"Claude's Discretion"** (within decisions) = Your freedom — make implementation choices here
 
 {context_content}
 
@@ -345,7 +387,7 @@ Task(
 )
 ```
 
-## 9. Handle Planner Return
+#### Handle Planner Return
 
 Parse planner output:
 
@@ -354,17 +396,17 @@ Parse planner output:
 - If `--skip-verify`: Skip to step 13
 - Check config: `WORKFLOW_PLAN_CHECK=$(cat .planning/config.json 2>/dev/null | grep -o '"plan_check"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")`
 - If `workflow.plan_check` is `false`: Skip to step 13
-- Otherwise: Proceed to step 10
+- Otherwise: Proceed to verification
 
 **`## CHECKPOINT REACHED`:**
-- Present to user, get response, spawn continuation (see step 12)
+- Present to user, get response, spawn continuation (see revision loop)
 
 **`## PLANNING INCONCLUSIVE`:**
 - Show what was attempted
 - Offer: Add context, Retry, Manual
 - Wait for user response
 
-## 10. Spawn gsd-plan-checker Agent
+#### Spawn gsd-plan-checker Agent
 
 Display:
 ```
@@ -375,11 +417,14 @@ Display:
 ◆ Spawning plan checker...
 ```
 
-Read plans for the checker:
+Read plans and intent map for the checker:
 
 ```bash
 # Read all plans in phase directory
 PLANS_CONTENT=$(cat "${PHASE_DIR}"/*-PLAN.md 2>/dev/null)
+
+# Load INTENT-MAP.md if exists
+INTENT_MAP_CONTENT=$(cat "${PHASE_DIR}"/*-INTENT-MAP.md 2>/dev/null)
 
 # CONTEXT_CONTENT already loaded in step 4
 # REQUIREMENTS_CONTENT already loaded in step 7
@@ -396,17 +441,31 @@ Fill checker prompt with inlined content and spawn:
 **Plans to verify:**
 {plans_content}
 
+**Intent Map (if exists):**
+{intent_map_content}
+
 **Requirements (if exists):**
 {requirements_content}
 
 **Phase Context (if exists):**
 
 IMPORTANT: If phase context exists below, it contains USER DECISIONS from /gsd:discuss-phase.
-Plans MUST honor these decisions. Flag as issue if plans contradict user's stated vision.
+Plans MUST honor these decisions. Flag as issue if plans contradict OR fail to cover user's stated vision.
 
-- **Decisions** = LOCKED — plans must implement these exactly
-- **Claude's Discretion** = Freedom areas — plans can choose approach
-- **Deferred Ideas** = Out of scope — plans must NOT include these
+**Verification Guide:**
+
+- **`<domain>` section** = Phase scope boundary. Verify plans stay within this boundary. If domain includes mandates (e.g., "critical analysis"), verify plans have tasks addressing them.
+- **`<decisions>` section** = LOCKED. Verify plans implement these exactly.
+  - Each "**Core Principle:**" is the WHY — verify it appears in the plan's objective or must_haves, not just implementation details.
+  - **Binary decisions** → check plan implements the chosen option, not an alternative
+  - **Quality constraints** → check plan has verification criteria that validate the constraint (not just tasks that attempt it)
+  - **Anti-patterns** → check plan has negative verification (checking the bad thing doesn't happen)
+- **`<specifics>` section** = Design-intent context. Verify plans propagate this:
+  - "Founder Terminology" → check key terms appear in task descriptions (not generic replacements)
+  - "Guiding Principles" → check plans address cross-cutting principles, not just isolated decisions
+  - "Critical Analysis Mandate" (if present) → check dedicated analysis tasks exist, not just implementation
+- **`<deferred>` section** = Out of scope — flag if ANY deferred item appears in plans
+- **"Claude's Discretion"** = Freedom areas — plans can choose approach, don't flag
 
 {context_content}
 
@@ -428,7 +487,7 @@ Task(
 )
 ```
 
-## 11. Handle Checker Return
+#### Handle Checker Return
 
 **If `## VERIFICATION PASSED`:**
 - Display: `Plans verified. Ready for execution.`
@@ -438,9 +497,9 @@ Task(
 - Display: `Checker found issues:`
 - List issues from checker output
 - Check iteration count
-- Proceed to step 12
+- Proceed to revision loop
 
-## 12. Revision Loop (Max 3 Iterations)
+#### Revision Loop (Max 3 Iterations)
 
 Track: `iteration_count` (starts at 1 after initial plan + check)
 
@@ -469,9 +528,15 @@ Spawn gsd-planner with revision prompt:
 **Checker issues:**
 {structured_issues_from_checker}
 
+**Intent Map (if exists):**
+{intent_map_content}
+
+If checker found intent map gaps, revise BOTH PLAN.md files AND INTENT-MAP.md.
+
 **Phase Context (if exists):**
 
-IMPORTANT: If phase context exists, revisions MUST still honor user decisions.
+IMPORTANT: If phase context exists, revisions MUST still honor ALL user decisions.
+Pay special attention to: Core Principles (WHY behind decisions), quality constraints (must become verification criteria), anti-patterns (must have negative checks), and `<specifics>` section (terminology, principles, mandates must be propagated to task descriptions).
 
 {context_content}
 
@@ -494,7 +559,7 @@ Task(
 )
 ```
 
-- After planner returns → spawn checker again (step 10)
+- After planner returns → spawn checker again (verification step above)
 - Increment iteration_count
 
 **If iteration_count >= 3:**
@@ -508,6 +573,143 @@ Offer options:
 3. Abandon (exit planning)
 
 Wait for user response.
+
+### 8b. Streaming Plan Verification (Agent Teams)
+
+Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► PLANNING PHASE {X} (streaming verification)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+◆ Spawning planner + checker team...
+  → Planner writes plans, checker verifies incrementally
+  → Issues caught during planning, not after
+```
+
+Use `spawnTeam` to create a 2-agent team: `plan-phase-{N}`
+
+**Planner teammate** gets the standard planning prompt (same inlined context as 8a) with added `<team_protocol>`:
+
+```markdown
+<team_protocol>
+You are the PLANNER in a planner-checker team.
+
+Your teammate: checker (verifies your plans incrementally)
+
+PROTOCOL:
+1. Write each PLAN.md file to disk as normal
+2. After EACH plan file is written, message checker:
+   PLAN_READY: {plan-id} at {file-path} | TASKS: {count} | WAVE: {N}
+3. If checker sends back issues, fix them BEFORE writing the next plan:
+   - Read the issue message
+   - Edit the plan file on disk
+   - Message checker: PLAN_REVISED: {plan-id} at {file-path} | FIXED: {issue summary}
+4. After ALL plans written, message checker:
+   ALL_PLANS_COMPLETE: {total-count} plans at {phase-dir}
+5. Wait for checker's final cross-plan verdict before returning to orchestrator
+6. If you encounter a CHECKPOINT: message orchestrator directly with checkpoint details. Wait for response before continuing.
+
+IMPORTANT: Do not wait for checker between plans unless checker has sent an issue.
+Write continuously — only pause to fix reported issues.
+</team_protocol>
+```
+
+Planner prompt includes inlined context (same as 8a):
+- `<planning_context>` with STATE, ROADMAP, REQUIREMENTS, CONTEXT, RESEARCH content
+- `<downstream_consumer>` and `<quality_gate>` sections
+- Self-read prefix: `"First, read ~/.claude/agents/gsd-planner.md for your role and instructions.\n\n"`
+- Model: `{planner_model}` from profile
+
+**Checker teammate** gets the verification context with added `<team_protocol>`:
+
+```markdown
+<team_protocol>
+You are the CHECKER in a planner-checker team.
+
+Your teammate: planner (writes plans, you verify them)
+
+PROTOCOL:
+1. Wait for PLAN_READY messages from planner
+2. For each plan received, run PER-PLAN checks immediately:
+   - [ ] Valid frontmatter (wave, depends_on, files_modified, autonomous)
+   - [ ] Tasks have <action>, <verify>, <done> sections
+   - [ ] Scope aligns with phase goal
+   - [ ] Context/decisions honored (if CONTEXT.md exists)
+   - [ ] must_haves derived from phase goal
+3. If issues found, message planner immediately:
+   ISSUE: {plan-id} | SEVERITY: {blocker|warning} | DETAIL: {specific problem and fix suggestion}
+4. If plan passes per-plan checks: no message needed (silence = approval)
+5. After receiving ALL_PLANS_COMPLETE, run CROSS-PLAN checks:
+   - [ ] Full requirement coverage across all plans
+   - [ ] Dependency graph correctness (depends_on references valid plan IDs)
+   - [ ] No file overlap between same-wave plans
+   - [ ] Wave ordering makes sense for the dependency graph
+6. Return final verdict to orchestrator:
+   - ## VERIFICATION PASSED — all plans pass
+   - ## ISSUES FOUND — list remaining cross-plan issues
+
+IMPORTANT: Send issues AS SOON AS you find them. Don't batch. The planner can fix while writing later plans.
+</team_protocol>
+```
+
+Checker verification context includes:
+```markdown
+<verification_context>
+**Phase:** {phase_number}
+**Phase Goal:** {goal from ROADMAP}
+
+**Note:** After receiving ALL_PLANS_COMPLETE, also check for INTENT-MAP.md:
+```bash
+cat "${PHASE_DIR}"/*-INTENT-MAP.md 2>/dev/null
+```
+Include Dimension 8 (Intent Map Completeness) in cross-plan checks if INTENT-MAP.md exists.
+
+**Roadmap:**
+{roadmap_content}
+
+**Requirements (if exists):**
+{requirements_content}
+
+**Phase Context (if exists):**
+
+IMPORTANT: If phase context exists below, it contains USER DECISIONS from /gsd:discuss-phase.
+Plans MUST honor these decisions. Flag as issue if plans contradict OR fail to cover user's stated vision.
+
+**Verification Guide:**
+
+- **`<domain>` section** = Phase scope boundary. Verify plans stay within this boundary. If domain includes mandates (e.g., "critical analysis"), verify plans have tasks addressing them.
+- **`<decisions>` section** = LOCKED. Verify plans implement these exactly.
+  - Each "**Core Principle:**" is the WHY — verify it appears in the plan's objective or must_haves, not just implementation details.
+  - **Binary decisions** → check plan implements the chosen option, not an alternative
+  - **Quality constraints** → check plan has verification criteria that validate the constraint (not just tasks that attempt it)
+  - **Anti-patterns** → check plan has negative verification (checking the bad thing doesn't happen)
+- **`<specifics>` section** = Design-intent context. Verify plans propagate this:
+  - "Founder Terminology" → check key terms appear in task descriptions (not generic replacements)
+  - "Guiding Principles" → check plans address cross-cutting principles, not just isolated decisions
+  - "Critical Analysis Mandate" (if present) → check dedicated analysis tasks exist, not just implementation
+- **`<deferred>` section** = Out of scope — flag if ANY deferred item appears in plans
+- **"Claude's Discretion"** = Freedom areas — plans can choose approach, don't flag
+
+{context_content}
+</verification_context>
+```
+
+Self-read prefix: `"First, read ~/.claude/agents/gsd-plan-checker.md for your role and instructions.\n\n"`
+Model: `{checker_model}` from profile
+
+**After team completes:**
+1. Call `Teammate.cleanup()` to remove team resources
+2. If checker returned `## VERIFICATION PASSED`: proceed to next step (display results)
+3. If checker returned `## ISSUES FOUND` (cross-plan issues only — per-plan issues already fixed):
+   - Display remaining issues
+   - These are cross-plan issues that couldn't be fixed inline
+   - Offer: 1) Force proceed, 2) Manual fix, 3) Spawn fresh revision subagent
+   - If option 3: spawn fresh gsd-planner subagent (NOT teammate) with cross-plan issues + plans inlined, then re-run checker as subagent (current sequential pattern for one final pass)
+4. If planner sent `## CHECKPOINT REACHED` via message:
+   - Present checkpoint details to user
+   - Get user response
+   - Send response back to planner teammate via SendMessage
 
 ## 13. Present Final Status
 
@@ -564,5 +766,9 @@ Verification: {Passed | Passed with override | Skipped}
 - [ ] gsd-plan-checker spawned with CONTEXT.md (verifies context compliance)
 - [ ] Verification passed OR user override OR max iterations with user decision
 - [ ] User sees status between agent spawns
+- [ ] Agent Teams detection (if enabled, streaming verification used)
+- [ ] Team cleanup after completion (if teams used)
+- [ ] INTENT-MAP.md passed to checker alongside plans (if CONTEXT.md exists)
+- [ ] If checker finds INTENT-MAP gaps, revision includes both PLAN and MAP
 - [ ] User knows next steps (execute or review)
 </success_criteria>

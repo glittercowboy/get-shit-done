@@ -248,6 +248,60 @@ After (Phase 2 shipped JWT auth, discovered rate limiting needed):
 
 </step>
 
+<step name="create_handoff">
+
+Create HANDOFF.md for the completing phase using the handoff template.
+
+**Load phase data:**
+
+```bash
+# Read all phase artifacts
+PHASE_DIR=".planning/phases/XX-current"
+CONTEXT_CONTENT=$(cat "$PHASE_DIR"/*-CONTEXT.md 2>/dev/null)
+SUMMARIES=$(cat "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null)
+VERIFICATION_CONTENT=$(cat "$PHASE_DIR"/*-VERIFICATION.md 2>/dev/null)
+ROADMAP_CRITERIA=$(grep -A 20 "Phase $PHASE_NUM" .planning/ROADMAP.md 2>/dev/null)
+```
+
+**Template:** `@~/.claude/get-shit-done/templates/handoff.md`
+
+**Write:** `${PHASE_DIR}/${PADDED_PHASE}-HANDOFF.md`
+
+**Key computation:**
+
+1. **Intended vs Actual:**
+   - Extract success criteria from ROADMAP.md phase entry
+   - Cross-reference with VERIFICATION.md results
+   - Mark each criterion as VERIFIED or GAP
+
+2. **Intent Fidelity (if CONTEXT.md exists):**
+   - Extract `intent_fidelity` section from VERIFICATION.md (if present)
+   - Summarize: N/M decisions honored
+   - List any modifications or drops
+
+3. **Delta:**
+   - If CONTEXT.md exists: Compute delta between CONTEXT.md decisions and VERIFICATION.md results
+   - If no CONTEXT.md: Compute delta between ROADMAP success criteria and VERIFICATION truths
+
+4. **Next Phase Must Know:**
+   - Aggregate from SUMMARY.md "Next Phase Readiness" sections (if present)
+   - Include any unresolved concerns from VERIFICATION.md
+   - Include any "Deferred Ideas" from CONTEXT.md
+
+5. **Decisions That Carry Forward:**
+   - Extract decisions from SUMMARY.md files that affect future phases
+   - Include any architectural decisions or constraints
+
+**Consumers:** discuss-phase (next phase loads this), plan-phase (next phase context)
+
+**Commit:** Include HANDOFF.md in the transition commit alongside other artifacts.
+
+```bash
+git add "$PHASE_DIR/${PADDED_PHASE}-HANDOFF.md"
+```
+
+</step>
+
 <step name="update_current_position_after_transition">
 
 Update Current Position section in STATE.md to reflect phase completion and transition.
@@ -551,6 +605,10 @@ Transition is complete when:
 - [ ] PROJECT.md evolved (requirements, decisions, description if needed)
 - [ ] STATE.md updated (position, project reference, context, session)
 - [ ] Progress table updated
+- [ ] HANDOFF.md created with intended vs actual delta
+- [ ] If CONTEXT.md exists: intent fidelity summary included in HANDOFF.md
+- [ ] Next Phase Must Know section populated from SUMMARYs
+- [ ] Decisions That Carry Forward captured
 - [ ] User knows next steps
 
 </success_criteria>

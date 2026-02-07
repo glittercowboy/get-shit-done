@@ -55,6 +55,29 @@ The orchestrator provides user decisions in `<user_decisions>` tags. These come 
 **If you notice a conflict** (e.g., research suggests library Y but user locked library X):
 - Honor the user's locked decision
 - Note in task action: "Using X per user decision (research suggested Y)"
+
+4. **Specific Ideas / Specifics (from `## Specific Ideas` or `<specifics>`)** — Design-intent context
+   - **Founder Terminology:** Terms the user used that carry design intent (e.g., "saubere Vermengung" means inseparable blend, not three separate qualities). Preserve these exact terms in task `<action>` descriptions — they are constraints, not decoration.
+   - **Guiding Principles:** Cross-cutting principles that apply to ALL tasks. When writing task actions, these principles must be reflected — they are not optional guidelines but binding constraints derived from user reasoning.
+   - **Critical Analysis Mandate:** If present, this phase requires dedicated analysis/audit tasks that evaluate whether current infrastructure can deliver what the phase demands. These are NOT implementation tasks — they are investigation tasks with findings as output.
+
+5. **Core Principle patterns** — Within `## Decisions`, each area may have a "**Core Principle:**" statement. This is the WHY behind all decisions in that area. When creating plan objectives and must_haves:
+   - Preserve Core Principles in plan `objective` sections so executors understand intent
+   - Derive must_haves `truths` from Core Principles (they define what "success" means for that area)
+
+6. **Quality constraints vs binary decisions** — CONTEXT.md may contain two types of locked decisions:
+   - **Binary decisions:** "Use X, not Y" → Create tasks that implement X
+   - **Quality constraints:** "Output must be proportional to data", "No hallucination under any circumstances" → These cannot be implemented with a single task. Instead:
+     - Encode as `must_haves.truths` (observable outcomes)
+     - Create verification criteria in `<verify>` elements that test the constraint
+     - Consider creating dedicated validation/gate tasks for quality constraints
+   - **Anti-patterns:** "Never do X" → Create negative verification: `<verify>` elements that confirm the bad pattern does NOT appear
+
+**Self-check extension:** Before returning, also verify:
+- [ ] `<specifics>` content is reflected in task descriptions (terminology preserved, principles addressed)
+- [ ] Core Principles from each decision area appear in plan objectives or must_haves
+- [ ] Quality constraints have verification criteria, not just implementation tasks
+- [ ] Anti-patterns have negative checks in `<verify>` elements
 </context_fidelity>
 
 <philosophy>
@@ -1226,6 +1249,52 @@ Write to `.planning/phases/XX-name/{phase}-{NN}-PLAN.md` (e.g., `01-02-PLAN.md` 
 Include frontmatter (phase, plan, type, wave, depends_on, files_modified, autonomous, must_haves).
 </step>
 
+<step name="write_intent_map">
+**Produce INTENT-MAP.md (if CONTEXT.md exists):**
+
+After creating all PLAN.md files, if CONTEXT.md was provided in `<user_decisions>` or `<planning_context>`, produce `{phase_dir}/{phase}-INTENT-MAP.md`:
+
+```bash
+# Only create if CONTEXT.md exists for this phase
+if [ -n "$CONTEXT_CONTENT" ]; then
+  # Write INTENT-MAP.md
+fi
+```
+
+**INTENT-MAP.md format:**
+
+```markdown
+# Intent Map: Phase {X}
+
+Maps CONTEXT.md decisions to plan tasks. Ensures no user decision is lost in translation.
+
+| CONTEXT.md Decision | Plan Task | How Honored |
+|---------------------|-----------|-------------|
+| [Decision from Decisions section] | {phase}-{plan} Task N | [How the task implements this decision] |
+| [Core Principle: statement] | {phase}-{plan} objective | [How principle is reflected] |
+| [NOT: anti-pattern] | {phase}-{plan} Task N verify | [Negative check confirming absence] |
+| [Founder Term: "term"] | {phase}-{plan} Task N action | [Where term is preserved in task description] |
+
+**Coverage:** X/Y decisions mapped (Z missing)
+
+### Unmapped Decisions
+
+[List any CONTEXT.md decisions not covered by any task, with explanation]
+
+### Quality Constraints
+
+[List quality constraints from CONTEXT.md and their verification approach]
+```
+
+**Process:**
+1. Parse all decisions from CONTEXT.md (Decisions section, Core Principles, anti-patterns, specifics)
+2. For each decision, find the plan task(s) that honor it
+3. Document the mapping explicitly
+4. Flag any unmapped decisions
+
+This is structurally required — the plan-checker will reject plans without INTENT-MAP.md when CONTEXT.md exists.
+</step>
+
 <step name="update_roadmap">
 Update ROADMAP.md to finalize phase placeholders created by add-phase or insert-phase.
 
@@ -1261,7 +1330,7 @@ Commit phase plan(s) and updated roadmap:
 **If `COMMIT_PLANNING_DOCS=true` (default):**
 
 ```bash
-git add .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
+git add .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/phases/$PHASE-*/$PHASE-*-INTENT-MAP.md .planning/ROADMAP.md
 git commit -m "docs($PHASE): create phase plan
 
 Phase $PHASE: $PHASE_NAME
@@ -1300,6 +1369,10 @@ Return structured planning outcome to orchestrator.
 |------|-----------|-------|-------|
 | {phase}-01 | [brief] | 2 | [files] |
 | {phase}-02 | [brief] | 3 | [files] |
+
+### Intent Map
+
+INTENT-MAP.md: {X}/{Y} decisions mapped ({Z missing if any})
 
 ### Next Steps
 
@@ -1382,6 +1455,25 @@ Checker can now re-verify updated plans.
 
 </structured_returns>
 
+<team_mode>
+
+## Agent Teams Integration (Streaming Verification)
+
+When `<team_protocol>` is present in your prompt:
+
+- Write each PLAN.md to disk, then notify checker via message
+- Message format: `PLAN_READY: {id} at {path} | TASKS: {count} | WAVE: {N}`
+- If checker reports issues: fix the plan file, then send `PLAN_REVISED: {id} at {path} | FIXED: {summary}`
+- After all plans: send `ALL_PLANS_COMPLETE: {count} plans at {dir}`
+- Wait for checker's cross-plan verdict before returning
+
+IMPORTANT: Write plans continuously. Only pause to fix checker-reported issues.
+Do NOT pre-emptively wait for approval — silence from checker means plan passed.
+
+When no `<team_protocol>` is present: ignore this section entirely.
+
+</team_mode>
+
 <success_criteria>
 
 ## Standard Mode
@@ -1400,6 +1492,7 @@ Phase planning complete when:
 - [ ] Each task: Type, Files (if auto), Action, Verify, Done
 - [ ] Checkpoints properly structured
 - [ ] Wave structure maximizes parallelism
+- [ ] INTENT-MAP.md created (if CONTEXT.md exists) with all decisions mapped
 - [ ] PLAN file(s) committed to git
 - [ ] User knows next steps and wave structure
 

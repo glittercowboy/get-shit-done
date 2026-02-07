@@ -54,6 +54,15 @@ Recent decisions affecting current work:
 - [Phase X]: [Decision summary]
 - [Phase Y]: [Decision summary]
 
+### Intent Chain
+
+| Phase | Intent Source | Fidelity | Handoff |
+|-------|-------------|----------|---------|
+| - | - | - | - |
+
+*One row per phase. Completed milestone rows archived at milestone close.*
+*Updated during phase transitions.*
+
 ### Pending Todos
 
 [From .planning/todos/pending/ — ideas captured during sessions]
@@ -155,6 +164,11 @@ Updated after each plan completion.
 - Prefix with originating phase
 - Cleared when addressed
 
+**Intent Chain:** Compact table tracking intent fidelity across phases.
+- One row per phase: source (seed/context), fidelity score, handoff link
+- Completed milestone rows archived when milestone closes
+- Keeps STATE.md under 100 lines by compressing phase history into single rows
+
 ### Session Continuity
 Enables instant resumption:
 - When was last session
@@ -170,6 +184,7 @@ Keep STATE.md under 100 lines.
 It's a DIGEST, not an archive. If accumulated context grows too large:
 - Keep only 3-5 recent decisions in summary (full log in PROJECT.md)
 - Keep only active blockers, remove resolved ones
+- Intent Chain table: one row per phase (archive completed milestone rows)
 
 The goal is "read once, know where we are" — if it's too long, that fails.
 

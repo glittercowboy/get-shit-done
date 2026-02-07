@@ -47,6 +47,7 @@ Initialize new project through unified flow.
 One command takes you from idea to ready-for-planning:
 - Deep questioning to understand what you're building
 - Optional domain research (spawns 4 parallel researcher agents)
+- When Agent Teams enabled: researchers cross-pollinate findings for richer output
 - Requirements definition with v1/v2/out-of-scope scoping
 - Roadmap creation with phase breakdown and success criteria
 
@@ -107,6 +108,7 @@ Create detailed execution plan for a specific phase.
 - Breaks phase into concrete, actionable tasks
 - Includes verification criteria and success measures
 - Multiple plans per phase supported (XX-01, XX-02, etc.)
+- When Agent Teams enabled: streaming verification catches issues during planning
 
 Usage: `/gsd:plan-phase 1`
 Result: Creates `.planning/phases/01-foundation/01-01-PLAN.md`
@@ -237,6 +239,7 @@ Systematic debugging with persistent state across context resets.
 - Creates `.planning/debug/[slug].md` to track investigation
 - Investigates using scientific method (evidence → hypothesis → test)
 - Survives `/clear` — run `/gsd:debug` with no args to resume
+- When Agent Teams enabled: parallel adversarial hypothesis testing (2 debuggers challenge each other)
 - Archives resolved issues to `.planning/debug/resolved/`
 
 Usage: `/gsd:debug "login button doesn't work"`
@@ -308,6 +311,7 @@ Usage: `/gsd:plan-milestone-gaps`
 Configure workflow toggles and model profile interactively.
 
 - Toggle researcher, plan checker, verifier agents
+- Toggle agent teams (experimental, requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
 - Select model profile (quality/balanced/budget)
 - Updates `.planning/config.json`
 
