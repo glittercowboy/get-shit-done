@@ -25,14 +25,14 @@ Example: /gsd:add-phase Add authentication system
 Exit.
 </step>
 
-<step name="load_roadmap">
-Load the roadmap file:
+<step name="init_context">
+Load phase operation context:
 
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js verify-path-exists .planning/ROADMAP.md --raw
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init phase-op "0")
 ```
 
-If false:
+Check `roadmap_exists` from init JSON. If false:
 ```
 ERROR: No roadmap found (.planning/ROADMAP.md)
 Run /gsd:new-project to initialize.
@@ -75,8 +75,9 @@ Format as two-digit: `printf "%02d" $next_phase`
 </step>
 
 <step name="generate_slug">
-Convert the phase description to a kebab-case slug:
+Convert the phase description to a kebab-case slug.
 
+Use `init phase-op` which provides `phase_slug` computed from phase name, or call:
 ```bash
 slug=$(node ~/.claude/get-shit-done/bin/gsd-tools.js generate-slug "$description" --raw)
 ```

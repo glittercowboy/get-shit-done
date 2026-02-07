@@ -25,15 +25,16 @@ Example: /gsd:remove-phase 17
 Exit.
 </step>
 
-<step name="load_state">
-Load project state:
+<step name="init_context">
+Load phase operation context:
 
 ```bash
-cat .planning/STATE.md 2>/dev/null
-cat .planning/ROADMAP.md 2>/dev/null
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init phase-op "${target}")
 ```
 
-Parse current phase number from STATE.md "Current Position" section.
+Extract: `phase_found`, `phase_dir`, `phase_number`, `commit_docs`, `roadmap_exists`.
+
+Also read STATE.md and ROADMAP.md content for parsing current position.
 </step>
 
 <step name="validate_phase_exists">
@@ -132,17 +133,19 @@ Wait for confirmation.
 </step>
 
 <step name="delete_phase_directory">
+Use the init context from earlier. The `phase_dir` from `init phase-op` provides the path.
+
 Delete the target phase directory if it exists:
 
 ```bash
-TARGET_PHASE_EXISTS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify-path-exists ".planning/phases/{target}-{slug}" --raw)
-if [ "$TARGET_PHASE_EXISTS" = "true" ]; then
-  rm -rf ".planning/phases/{target}-{slug}"
-  echo "Deleted: .planning/phases/{target}-{slug}/"
+# phase_dir from init phase-op contains the path if found
+if [ -n "$phase_dir" ]; then
+  rm -rf "$phase_dir"
+  echo "Deleted: $phase_dir/"
 fi
 ```
 
-If directory doesn't exist, note: "No directory to delete (phase not yet created)"
+If directory doesn't exist (`phase_found=false` from init), note: "No directory to delete (phase not yet created)"
 </step>
 
 <step name="renumber_directories">

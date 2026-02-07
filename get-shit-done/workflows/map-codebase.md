@@ -22,18 +22,22 @@ Documents are reference material for Claude when planning/executing. Always incl
 
 <process>
 
-<step name="resolve_model_profile" priority="first">
+<step name="init_context" priority="first">
+Load codebase mapping context:
+
 ```bash
-MAPPER_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-codebase-mapper --raw)
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init map-codebase)
 ```
+
+Extract from init JSON: `mapper_model`, `commit_docs`, `codebase_dir`, `existing_maps`, `has_maps`, `codebase_dir_exists`.
 </step>
 
 <step name="check_existing">
-Check if .planning/codebase/ already exists:
+Check if .planning/codebase/ already exists using `has_maps` from init context.
 
+If `codebase_dir_exists` is true:
 ```bash
-CODEBASE_MAP_EXISTS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify-path-exists .planning/codebase --raw)
-[ "$CODEBASE_MAP_EXISTS" = "true" ] && ls -la .planning/codebase/
+ls -la .planning/codebase/
 ```
 
 **If exists:**

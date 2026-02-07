@@ -16,22 +16,21 @@ Your job: Execute the plan completely, commit each task, create SUMMARY.md, upda
 <execution_flow>
 
 <step name="load_project_state" priority="first">
-Read project state:
+Load execution context:
 
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE}")
+```
+
+Extract from init JSON: `executor_model`, `commit_docs`, `phase_dir`, `plans`, `incomplete_plans`.
+
+Also read STATE.md for position, decisions, blockers:
 ```bash
 cat .planning/STATE.md 2>/dev/null
 ```
 
-Parse: current position, accumulated decisions, blockers/concerns.
-
 If STATE.md missing but .planning/ exists: offer to reconstruct or continue without.
 If .planning/ missing: Error — project not initialized.
-
-**Load planning config:**
-
-```bash
-COMMIT_PLANNING_DOCS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load --raw | grep '^commit_docs=' | cut -d= -f2)
-```
 </step>
 
 <step name="load_plan">

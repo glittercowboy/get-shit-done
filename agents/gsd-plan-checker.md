@@ -297,13 +297,19 @@ issue:
 
 ## Step 1: Load Context
 
+Load phase operation context:
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init phase-op "${PHASE_ARG}")
+```
+
+Extract from init JSON: `phase_dir`, `phase_number`, `has_plans`, `plan_count`.
+
 Orchestrator provides CONTEXT.md content in the verification prompt. If provided, parse for locked decisions, discretion areas, deferred ideas.
 
 ```bash
-PHASE_DIR=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "$PHASE_ARG" --raw)
-ls "$PHASE_DIR"/*-PLAN.md 2>/dev/null
-grep -A 10 "Phase $PHASE_NUM" .planning/ROADMAP.md | head -15
-ls "$PHASE_DIR"/*-BRIEF.md 2>/dev/null
+ls "$phase_dir"/*-PLAN.md 2>/dev/null
+grep -A 10 "Phase $phase_number" .planning/ROADMAP.md | head -15
+ls "$phase_dir"/*-BRIEF.md 2>/dev/null
 ```
 
 **Extract:** Phase goal, requirements (decompose goal), locked decisions, deferred ideas.

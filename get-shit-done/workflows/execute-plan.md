@@ -11,22 +11,21 @@ Read config.json for planning behavior settings.
 
 <process>
 
-<step name="resolve_model_profile" priority="first">
-```bash
-EXECUTOR_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-executor --raw)
-```
-</step>
+<step name="init_context" priority="first">
+Load execution context (uses `init execute-phase` for full context):
 
-<step name="load_project_state">
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE}")
+```
+
+Extract from init JSON: `executor_model`, `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summaries`, `incomplete_plans`.
+
+Also read STATE.md for current position, decisions, blockers:
 ```bash
 cat .planning/STATE.md 2>/dev/null
 ```
 
-Parse current position, decisions, blockers, alignment. If missing but .planning/ exists: offer reconstruct or continue. If .planning/ missing: error.
-
-```bash
-COMMIT_PLANNING_DOCS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load --raw | grep '^commit_docs=' | cut -d= -f2)
-```
+If `.planning/` missing: error.
 </step>
 
 <step name="identify_plan">

@@ -8,18 +8,21 @@ Read all files referenced by the invoking prompt's execution_context before star
 
 <process>
 
-<step name="ensure_directory">
+<step name="init_context">
+Load todo context:
+
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init todos)
+```
+
+Extract from init JSON: `commit_docs`, `date`, `timestamp`, `todo_count`, `todos`, `pending_dir`, `todos_dir_exists`.
+
+Ensure directories exist:
 ```bash
 mkdir -p .planning/todos/pending .planning/todos/done
 ```
-</step>
 
-<step name="check_existing_areas">
-```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js list-todos | grep -oP '"area":\s*"\K[^"]+' | sort -u
-```
-
-Note existing areas for consistency in infer_area step.
+Note existing areas from the todos array for consistency in infer_area step.
 </step>
 
 <step name="extract_content">
@@ -76,13 +79,14 @@ If overlapping, use AskUserQuestion:
 </step>
 
 <step name="create_file">
+Use values from init context: `timestamp` and `date` are already available.
+
+Generate slug for the title:
 ```bash
-timestamp=$(node ~/.claude/get-shit-done/bin/gsd-tools.js current-timestamp full --raw)
-date_prefix=$(node ~/.claude/get-shit-done/bin/gsd-tools.js current-timestamp date --raw)
 slug=$(node ~/.claude/get-shit-done/bin/gsd-tools.js generate-slug "$title" --raw)
 ```
 
-Write to `.planning/todos/pending/${date_prefix}-${slug}.md`:
+Write to `.planning/todos/pending/${date}-${slug}.md`:
 
 ```markdown
 ---
@@ -106,7 +110,7 @@ files:
 <step name="update_state">
 If `.planning/STATE.md` exists:
 
-1. Count todos: `node ~/.claude/get-shit-done/bin/gsd-tools.js list-todos --raw`
+1. Use `todo_count` from init context (or re-run `init todos` if count changed)
 2. Update "### Pending Todos" under "## Accumulated Context"
 </step>
 

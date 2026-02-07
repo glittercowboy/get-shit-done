@@ -450,11 +450,11 @@ Archive requirements for next milestone.
 
 <step name="archive_audit">
 
-Move audit file to archive (if exists):
+Move audit file to archive (if exists). Use init context or check directly:
 
 ```bash
-AUDIT_EXISTS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify-path-exists .planning/v[X.Y]-MILESTONE-AUDIT.md --raw)
-[ "$AUDIT_EXISTS" = "true" ] && mv .planning/v[X.Y]-MILESTONE-AUDIT.md .planning/milestones/
+# Check if audit file exists
+[ -f ".planning/v[X.Y]-MILESTONE-AUDIT.md" ] && mv .planning/v[X.Y]-MILESTONE-AUDIT.md .planning/milestones/
 ```
 
 Confirm: `✅ Audit archived to milestones/v[X.Y]-MILESTONE-AUDIT.md`
@@ -500,12 +500,13 @@ Progress: [updated progress bar]
 
 Check branching strategy and offer merge options.
 
+Use `init milestone-op` for context, or load config directly:
+
 ```bash
-GSD_CONFIG=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load --raw)
-BRANCHING_STRATEGY=$(echo "$GSD_CONFIG" | grep '^branching_strategy=' | cut -d= -f2)
-PHASE_BRANCH_TEMPLATE=$(echo "$GSD_CONFIG" | grep '^phase_branch_template=' | cut -d= -f2)
-MILESTONE_BRANCH_TEMPLATE=$(echo "$GSD_CONFIG" | grep '^milestone_branch_template=' | cut -d= -f2)
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "1")
 ```
+
+Extract `branching_strategy`, `phase_branch_template`, `milestone_branch_template` from init JSON.
 
 **If "none":** Skip to git_tag.
 

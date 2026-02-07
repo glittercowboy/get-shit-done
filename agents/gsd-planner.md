@@ -683,14 +683,14 @@ Triggered by `--gaps` flag. Creates plans to address verification or UAT failure
 
 **1. Find gap sources:**
 
-```bash
-PHASE_DIR=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "$PHASE_ARG" --raw)
+Use init context (from load_project_state) which provides `phase_dir`:
 
+```bash
 # Check for VERIFICATION.md (code verification gaps)
-ls "$PHASE_DIR"/*-VERIFICATION.md 2>/dev/null
+ls "$phase_dir"/*-VERIFICATION.md 2>/dev/null
 
 # Check for UAT.md with diagnosed status (user testing gaps)
-grep -l "status: diagnosed" "$PHASE_DIR"/*-UAT.md 2>/dev/null
+grep -l "status: diagnosed" "$phase_dir"/*-UAT.md 2>/dev/null
 ```
 
 **2. Parse gaps:** Each gap has: truth (failed behavior), reason, artifacts (files with issues), missing (things to add/fix).
@@ -830,15 +830,20 @@ node ~/.claude/get-shit-done/bin/gsd-tools.js commit "fix($PHASE): revise plans 
 <execution_flow>
 
 <step name="load_project_state" priority="first">
-Read `.planning/STATE.md` — parse current position, accumulated decisions, pending todos, blockers/concerns.
-
-If STATE.md missing but .planning/ exists, offer to reconstruct or continue without.
-
-**Load planning config:**
+Load planning context:
 
 ```bash
-COMMIT_PLANNING_DOCS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load --raw | grep '^commit_docs=' | cut -d= -f2)
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init plan-phase "${PHASE}")
 ```
+
+Extract from init JSON: `planner_model`, `researcher_model`, `checker_model`, `commit_docs`, `research_enabled`, `phase_dir`, `phase_number`, `has_research`, `has_context`.
+
+Also read STATE.md for position, decisions, blockers:
+```bash
+cat .planning/STATE.md 2>/dev/null
+```
+
+If STATE.md missing but .planning/ exists, offer to reconstruct or continue without.
 </step>
 
 <step name="load_codebase_context">
@@ -905,17 +910,17 @@ done
 </step>
 
 <step name="gather_phase_context">
-```bash
-PHASE_DIR=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "$PHASE" --raw)
+Use `phase_dir` from init context (already loaded in load_project_state).
 
-cat "$PHASE_DIR"/*-CONTEXT.md 2>/dev/null   # From /gsd:discuss-phase
-cat "$PHASE_DIR"/*-RESEARCH.md 2>/dev/null   # From /gsd:research-phase
-cat "$PHASE_DIR"/*-DISCOVERY.md 2>/dev/null  # From mandatory discovery
+```bash
+cat "$phase_dir"/*-CONTEXT.md 2>/dev/null   # From /gsd:discuss-phase
+cat "$phase_dir"/*-RESEARCH.md 2>/dev/null   # From /gsd:research-phase
+cat "$phase_dir"/*-DISCOVERY.md 2>/dev/null  # From mandatory discovery
 ```
 
-**If CONTEXT.md exists:** Honor user's vision, prioritize essential features, respect boundaries. Locked decisions — do not revisit.
+**If CONTEXT.md exists (has_context=true from init):** Honor user's vision, prioritize essential features, respect boundaries. Locked decisions — do not revisit.
 
-**If RESEARCH.md exists:** Use standard_stack, architecture_patterns, dont_hand_roll, common_pitfalls.
+**If RESEARCH.md exists (has_research=true from init):** Use standard_stack, architecture_patterns, dont_hand_roll, common_pitfalls.
 </step>
 
 <step name="break_into_tasks">

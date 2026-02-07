@@ -42,8 +42,13 @@ Configuration options for `.planning/` directory behavior.
 # Commit with automatic commit_docs + gitignore checks:
 node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs: update state" --files .planning/STATE.md
 
-# Or read config manually:
-COMMIT_DOCS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load --raw | grep '^commit_docs=' | cut -d= -f2)
+# Load config via state load (returns JSON):
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
+# commit_docs is available in the JSON output
+
+# Or use init commands which include commit_docs:
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "1")
+# commit_docs is included in all init command outputs
 ```
 
 **Auto-detection:** If `.planning/` is gitignored, `commit_docs` is automatically `false` regardless of config.json. This prevents git errors when users have `.planning/` in `.gitignore`.
@@ -136,11 +141,16 @@ To use uncommitted mode:
 
 **Checking the config:**
 
+Use `init execute-phase` which returns all config as JSON:
 ```bash
-GSD_CONFIG=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load --raw)
-BRANCHING_STRATEGY=$(echo "$GSD_CONFIG" | grep '^branching_strategy=' | cut -d= -f2)
-PHASE_BRANCH_TEMPLATE=$(echo "$GSD_CONFIG" | grep '^phase_branch_template=' | cut -d= -f2)
-MILESTONE_BRANCH_TEMPLATE=$(echo "$GSD_CONFIG" | grep '^milestone_branch_template=' | cut -d= -f2)
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "1")
+# JSON output includes: branching_strategy, phase_branch_template, milestone_branch_template
+```
+
+Or use `state load` for the config values:
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
+# Parse branching_strategy, phase_branch_template, milestone_branch_template from JSON
 ```
 
 **Branch creation:**

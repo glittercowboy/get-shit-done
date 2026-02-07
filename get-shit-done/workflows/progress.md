@@ -8,16 +8,16 @@ Read all files referenced by the invoking prompt's execution_context before star
 
 <process>
 
-<step name="verify">
-**Verify planning structure exists:**
-
-Use Bash (not Glob) to check—Glob respects .gitignore but .planning/ is often gitignored:
+<step name="init_context">
+**Load progress context:**
 
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js verify-path-exists .planning --raw
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init progress)
 ```
 
-If no `.planning/` directory:
+Extract from init JSON: `project_exists`, `roadmap_exists`, `state_exists`, `phases`, `current_phase`, `next_phase`, `milestone_version`, `completed_count`, `phase_count`, `paused_at`.
+
+If `project_exists` is false (no `.planning/` directory):
 
 ```
 No planning structure found.
@@ -54,13 +54,13 @@ If missing both ROADMAP.md and PROJECT.md: suggest `/gsd:new-project`.
   </step>
 
 <step name="position">
-**Parse current position:**
+**Parse current position from init context:**
 
-- From STATE.md: current phase, plan number, status
-- Calculate: total plans, completed plans, remaining plans
-- Note any blockers or concerns
+- Use `current_phase` and `next_phase` from init for position
+- Use `phases` array for plan counts per phase
+- Note `paused_at` if work was paused
 - Check for CONTEXT.md: For phases without PLAN.md files, check if `{phase}-CONTEXT.md` exists in phase directory
-- Count pending todos: `node ~/.claude/get-shit-done/bin/gsd-tools.js list-todos --raw`
+- Count pending todos: use `init todos` or `list-todos`
 - Check for active debug sessions: `ls .planning/debug/*.md 2>/dev/null | grep -v resolved | wc -l`
   </step>
 

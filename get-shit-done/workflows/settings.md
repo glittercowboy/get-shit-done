@@ -8,12 +8,15 @@ Read all files referenced by the invoking prompt's execution_context before star
 
 <process>
 
-<step name="ensure_config">
+<step name="ensure_and_load_config">
+Ensure config exists and load current state:
+
 ```bash
 node ~/.claude/get-shit-done/bin/gsd-tools.js config-ensure-section
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
 ```
 
-Creates `.planning/config.json` with defaults if missing.
+Creates `.planning/config.json` with defaults if missing and loads current config values.
 </step>
 
 <step name="read_current">

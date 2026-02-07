@@ -19,19 +19,19 @@ if $ARGUMENTS.profile not in ["quality", "balanced", "budget"]:
 ```
 </step>
 
-<step name="ensure_config">
+<step name="ensure_and_load_config">
+Ensure config exists and load current state:
+
 ```bash
 node ~/.claude/get-shit-done/bin/gsd-tools.js config-ensure-section
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
 ```
 
-Creates `.planning/config.json` with defaults if missing.
+This creates `.planning/config.json` with defaults if missing and loads current config.
 </step>
 
 <step name="update_config">
-Read current config:
-```bash
-cat .planning/config.json
-```
+Read current config from state load or directly:
 
 Update `model_profile` field:
 ```json

@@ -8,13 +8,16 @@ Read all files referenced by the invoking prompt's execution_context before star
 
 <process>
 
-<step name="check_exist">
+<step name="init_context">
+Load todo context:
+
 ```bash
-TODO_COUNT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js list-todos --raw)
-echo "Pending todos: $TODO_COUNT"
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init todos)
 ```
 
-If count is 0:
+Extract from init JSON: `todo_count`, `todos`, `pending_dir`.
+
+If `todo_count` is 0:
 ```
 No pending todos.
 
@@ -38,12 +41,9 @@ Check for area filter in arguments:
 </step>
 
 <step name="list_todos">
-```bash
-# Get todos JSON
-node ~/.claude/get-shit-done/bin/gsd-tools.js list-todos [area]
-```
+Use the `todos` array from init context (already filtered by area if specified).
 
-Parse JSON output and display as numbered list:
+Parse and display as numbered list:
 
 ```
 Pending Todos:
@@ -90,11 +90,9 @@ If `files` field has entries, read and briefly summarize each.
 </step>
 
 <step name="check_roadmap">
-```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js verify-path-exists .planning/ROADMAP.md --raw
-```
+Check for roadmap (can use init progress or directly check file existence):
 
-If roadmap exists:
+If `.planning/ROADMAP.md` exists:
 1. Check if todo's area matches an upcoming phase
 2. Check if todo's files overlap with a phase's scope
 3. Note any match for action options
@@ -148,11 +146,7 @@ Return to list_todos step.
 <step name="update_state">
 After any action that changes todo count:
 
-```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js list-todos --raw
-```
-
-Update STATE.md "### Pending Todos" section if exists.
+Re-run `init todos` to get updated count, then update STATE.md "### Pending Todos" section if exists.
 </step>
 
 <step name="git_commit">

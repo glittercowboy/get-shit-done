@@ -25,6 +25,10 @@
  *   init resume                        All context for resume-project workflow
  *   init verify-work <phase>           All context for verify-work workflow
  *   init phase-op <phase>              Generic phase operation context
+ *   init todos [area]                  All context for todo workflows
+ *   init milestone-op                  All context for milestone operations
+ *   init map-codebase                  All context for map-codebase workflow
+ *   init progress                      All context for progress workflow
  */
 
 const fs = require('fs');
@@ -967,6 +971,253 @@ function cmdInitPhaseOp(cwd, phase, raw) {
   output(result, raw);
 }
 
+function cmdInitTodos(cwd, area, raw) {
+  const config = loadConfig(cwd);
+  const now = new Date();
+
+  // List todos (reuse existing logic)
+  const pendingDir = path.join(cwd, '.planning', 'todos', 'pending');
+  let count = 0;
+  const todos = [];
+
+  try {
+    const files = fs.readdirSync(pendingDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(pendingDir, file), 'utf-8');
+        const createdMatch = content.match(/^created:\s*(.+)$/m);
+        const titleMatch = content.match(/^title:\s*(.+)$/m);
+        const areaMatch = content.match(/^area:\s*(.+)$/m);
+        const todoArea = areaMatch ? areaMatch[1].trim() : 'general';
+
+        if (area && todoArea !== area) continue;
+
+        count++;
+        todos.push({
+          file,
+          created: createdMatch ? createdMatch[1].trim() : 'unknown',
+          title: titleMatch ? titleMatch[1].trim() : 'Untitled',
+          area: todoArea,
+          path: path.join('.planning', 'todos', 'pending', file),
+        });
+      } catch {}
+    }
+  } catch {}
+
+  const result = {
+    // Config
+    commit_docs: config.commit_docs,
+
+    // Timestamps
+    date: now.toISOString().split('T')[0],
+    timestamp: now.toISOString(),
+
+    // Todo inventory
+    todo_count: count,
+    todos,
+    area_filter: area || null,
+
+    // Paths
+    pending_dir: '.planning/todos/pending',
+    completed_dir: '.planning/todos/completed',
+
+    // File existence
+    planning_exists: pathExistsInternal(cwd, '.planning'),
+    todos_dir_exists: pathExistsInternal(cwd, '.planning/todos'),
+    pending_dir_exists: pathExistsInternal(cwd, '.planning/todos/pending'),
+  };
+
+  output(result, raw);
+}
+
+function cmdInitMilestoneOp(cwd, raw) {
+  const config = loadConfig(cwd);
+  const milestone = getMilestoneInfo(cwd);
+
+  // Count phases
+  let phaseCount = 0;
+  let completedPhases = 0;
+  const phasesDir = path.join(cwd, '.planning', 'phases');
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    phaseCount = dirs.length;
+
+    // Count phases with summaries (completed)
+    for (const dir of dirs) {
+      try {
+        const phaseFiles = fs.readdirSync(path.join(phasesDir, dir));
+        const hasSummary = phaseFiles.some(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+        if (hasSummary) completedPhases++;
+      } catch {}
+    }
+  } catch {}
+
+  // Check archive
+  const archiveDir = path.join(cwd, '.planning', 'archive');
+  let archivedMilestones = [];
+  try {
+    archivedMilestones = fs.readdirSync(archiveDir, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name);
+  } catch {}
+
+  const result = {
+    // Config
+    commit_docs: config.commit_docs,
+
+    // Current milestone
+    milestone_version: milestone.version,
+    milestone_name: milestone.name,
+    milestone_slug: generateSlugInternal(milestone.name),
+
+    // Phase counts
+    phase_count: phaseCount,
+    completed_phases: completedPhases,
+    all_phases_complete: phaseCount > 0 && phaseCount === completedPhases,
+
+    // Archive
+    archived_milestones: archivedMilestones,
+    archive_count: archivedMilestones.length,
+
+    // File existence
+    project_exists: pathExistsInternal(cwd, '.planning/PROJECT.md'),
+    roadmap_exists: pathExistsInternal(cwd, '.planning/ROADMAP.md'),
+    state_exists: pathExistsInternal(cwd, '.planning/STATE.md'),
+    archive_exists: pathExistsInternal(cwd, '.planning/archive'),
+    phases_dir_exists: pathExistsInternal(cwd, '.planning/phases'),
+  };
+
+  output(result, raw);
+}
+
+function cmdInitMapCodebase(cwd, raw) {
+  const config = loadConfig(cwd);
+
+  // Check for existing codebase maps
+  const codebaseDir = path.join(cwd, '.planning', 'codebase');
+  let existingMaps = [];
+  try {
+    existingMaps = fs.readdirSync(codebaseDir).filter(f => f.endsWith('.md'));
+  } catch {}
+
+  const result = {
+    // Models
+    mapper_model: resolveModelInternal(cwd, 'gsd-codebase-mapper'),
+
+    // Config
+    commit_docs: config.commit_docs,
+    search_gitignored: config.search_gitignored,
+    parallelization: config.parallelization,
+
+    // Paths
+    codebase_dir: '.planning/codebase',
+
+    // Existing maps
+    existing_maps: existingMaps,
+    has_maps: existingMaps.length > 0,
+
+    // File existence
+    planning_exists: pathExistsInternal(cwd, '.planning'),
+    codebase_dir_exists: pathExistsInternal(cwd, '.planning/codebase'),
+  };
+
+  output(result, raw);
+}
+
+function cmdInitProgress(cwd, raw) {
+  const config = loadConfig(cwd);
+  const milestone = getMilestoneInfo(cwd);
+
+  // Analyze phases
+  const phasesDir = path.join(cwd, '.planning', 'phases');
+  const phases = [];
+  let currentPhase = null;
+  let nextPhase = null;
+
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+
+    for (const dir of dirs) {
+      const match = dir.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      const phaseNumber = match ? match[1] : dir;
+      const phaseName = match && match[2] ? match[2] : null;
+
+      const phasePath = path.join(phasesDir, dir);
+      const phaseFiles = fs.readdirSync(phasePath);
+
+      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      const hasResearch = phaseFiles.some(f => f.endsWith('-RESEARCH.md') || f === 'RESEARCH.md');
+
+      const status = summaries.length >= plans.length && plans.length > 0 ? 'complete' :
+                     plans.length > 0 ? 'in_progress' :
+                     hasResearch ? 'researched' : 'pending';
+
+      const phaseInfo = {
+        number: phaseNumber,
+        name: phaseName,
+        directory: path.join('.planning', 'phases', dir),
+        status,
+        plan_count: plans.length,
+        summary_count: summaries.length,
+        has_research: hasResearch,
+      };
+
+      phases.push(phaseInfo);
+
+      // Find current (first incomplete with plans) and next (first pending)
+      if (!currentPhase && (status === 'in_progress' || status === 'researched')) {
+        currentPhase = phaseInfo;
+      }
+      if (!nextPhase && status === 'pending') {
+        nextPhase = phaseInfo;
+      }
+    }
+  } catch {}
+
+  // Check for paused work
+  let pausedAt = null;
+  try {
+    const state = fs.readFileSync(path.join(cwd, '.planning', 'STATE.md'), 'utf-8');
+    const pauseMatch = state.match(/\*\*Paused At:\*\*\s*(.+)/);
+    if (pauseMatch) pausedAt = pauseMatch[1].trim();
+  } catch {}
+
+  const result = {
+    // Models
+    executor_model: resolveModelInternal(cwd, 'gsd-executor'),
+    planner_model: resolveModelInternal(cwd, 'gsd-planner'),
+
+    // Config
+    commit_docs: config.commit_docs,
+
+    // Milestone
+    milestone_version: milestone.version,
+    milestone_name: milestone.name,
+
+    // Phase overview
+    phases,
+    phase_count: phases.length,
+    completed_count: phases.filter(p => p.status === 'complete').length,
+    in_progress_count: phases.filter(p => p.status === 'in_progress').length,
+
+    // Current state
+    current_phase: currentPhase,
+    next_phase: nextPhase,
+    paused_at: pausedAt,
+    has_work_in_progress: !!currentPhase,
+
+    // File existence
+    project_exists: pathExistsInternal(cwd, '.planning/PROJECT.md'),
+    roadmap_exists: pathExistsInternal(cwd, '.planning/ROADMAP.md'),
+    state_exists: pathExistsInternal(cwd, '.planning/STATE.md'),
+  };
+
+  output(result, raw);
+}
+
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
 function main() {
@@ -1072,8 +1323,20 @@ function main() {
         case 'phase-op':
           cmdInitPhaseOp(cwd, args[2], raw);
           break;
+        case 'todos':
+          cmdInitTodos(cwd, args[2], raw);
+          break;
+        case 'milestone-op':
+          cmdInitMilestoneOp(cwd, raw);
+          break;
+        case 'map-codebase':
+          cmdInitMapCodebase(cwd, raw);
+          break;
+        case 'progress':
+          cmdInitProgress(cwd, raw);
+          break;
         default:
-          error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, verify-work, phase-op`);
+          error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, verify-work, phase-op, todos, milestone-op, map-codebase, progress`);
       }
       break;
     }

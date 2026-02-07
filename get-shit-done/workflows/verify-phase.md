@@ -25,12 +25,19 @@ Then verify each level against the actual codebase.
 <process>
 
 <step name="load_context" priority="first">
-```bash
-PHASE_DIR=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "${PHASE_ARG}" --raw)
+Load phase operation context:
 
-grep -A 5 "Phase ${PHASE_NUM}" .planning/ROADMAP.md
-grep -E "^| ${PHASE_NUM}" .planning/REQUIREMENTS.md 2>/dev/null
-ls "$PHASE_DIR"/*-SUMMARY.md "$PHASE_DIR"/*-PLAN.md 2>/dev/null
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init phase-op "${PHASE_ARG}")
+```
+
+Extract from init JSON: `phase_dir`, `phase_number`, `phase_name`, `plans`, `summaries`.
+
+Then load phase details:
+```bash
+grep -A 5 "Phase ${phase_number}" .planning/ROADMAP.md
+grep -E "^| ${phase_number}" .planning/REQUIREMENTS.md 2>/dev/null
+ls "$phase_dir"/*-SUMMARY.md "$phase_dir"/*-PLAN.md 2>/dev/null
 ```
 
 Extract **phase goal** from ROADMAP.md (the outcome to verify, not tasks) and **requirements** from REQUIREMENTS.md if it exists.

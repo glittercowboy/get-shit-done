@@ -28,8 +28,13 @@ ls .planning/debug/*.md 2>/dev/null | grep -v resolved | head -5
 
 <process>
 
-## 0. Resolve Model Profile
+## 0. Initialize Context
 
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
+```
+
+Extract `commit_docs` from init JSON. Resolve debugger model:
 ```bash
 DEBUGGER_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-debugger --raw)
 ```

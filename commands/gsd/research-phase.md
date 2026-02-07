@@ -31,23 +31,26 @@ Normalize phase input in step 1 before any directory lookups.
 
 <process>
 
-## 0. Resolve Model Profile
+## 0. Initialize Context
 
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init phase-op "$ARGUMENTS")
+```
+
+Extract from init JSON: `phase_dir`, `phase_number`, `phase_name`, `phase_found`, `commit_docs`, `has_research`.
+
+Resolve researcher model:
 ```bash
 RESEARCHER_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-phase-researcher --raw)
 ```
 
-## 1. Normalize and Validate Phase
+## 1. Validate Phase
 
 ```bash
-PHASE_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "$ARGUMENTS")
-PHASE_DIR=$(echo "$PHASE_INFO" | grep -o '"directory":"[^"]*"' | cut -d'"' -f4)
-PHASE=$(echo "$PHASE_INFO" | grep -o '"phase_number":"[^"]*"' | cut -d'"' -f4)
-
-grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md 2>/dev/null
+grep -A5 "Phase ${phase_number}:" .planning/ROADMAP.md 2>/dev/null
 ```
 
-**If not found:** Error and exit. **If found:** Extract phase number, name, description.
+**If not found (phase_found=false):** Error and exit. **If found:** Extract phase number, name, description.
 
 ## 2. Check Existing Research
 
