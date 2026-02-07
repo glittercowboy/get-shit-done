@@ -168,6 +168,8 @@ function loadConfig(cwd) {
     verifier: true,
     parallelization: true,
     brave_search: false,
+    pr_branch_base: null,
+    pr_branch_filter_paths: ['.planning/'],
   };
 
   try {
@@ -201,10 +203,42 @@ function loadConfig(cwd) {
       verifier: get('verifier', { section: 'workflow', field: 'verifier' }) ?? defaults.verifier,
       parallelization,
       brave_search: get('brave_search') ?? defaults.brave_search,
+      pr_branch_base: get('pr_branch_base', { section: 'pr_branch', field: 'base_branch' }) ?? defaults.pr_branch_base,
+      pr_branch_filter_paths: get('pr_branch_filter_paths', { section: 'pr_branch', field: 'filter_paths' }) ?? defaults.pr_branch_filter_paths,
     };
   } catch {
     return defaults;
   }
+}
+
+function globToRegex(pattern) {
+  let p = pattern;
+  // Directory patterns (ending with /) match all contents
+  if (p.endsWith('/')) p = p + '**';
+
+  let regex = '';
+  let i = 0;
+  while (i < p.length) {
+    const ch = p[i];
+    if (ch === '*' && p[i + 1] === '*') {
+      // ** matches any path segments
+      regex += (p[i + 2] === '/') ? '(?:.*/)?' : '.*';
+      i += (p[i + 2] === '/') ? 3 : 2;
+    } else if (ch === '*') {
+      regex += '[^/]*';  // * matches within single path segment
+      i++;
+    } else if (ch === '?') {
+      regex += '[^/]';
+      i++;
+    } else if ('.+^${}()|[]\\'.includes(ch)) {
+      regex += '\\' + ch;
+      i++;
+    } else {
+      regex += ch;
+      i++;
+    }
+  }
+  return new RegExp('^' + regex + '$');
 }
 
 function isGitIgnored(cwd, targetPath) {
@@ -475,6 +509,24 @@ function output(result, raw, rawValue) {
 function error(message) {
   process.stderr.write('Error: ' + message + '\n');
   process.exit(1);
+}
+
+// ─── Color Utilities ──────────────────────────────────────────────────────────
+
+const COLORS = {
+  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
+  red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
+  cyan: '\x1b[36m', gray: '\x1b[90m',
+};
+
+function useColor() {
+  if (process.env.NO_COLOR !== undefined) return false;
+  if (process.env.FORCE_COLOR !== undefined) return true;
+  return process.stdout.isTTY === true;
+}
+
+function c(color, text) {
+  return useColor() ? COLORS[color] + text + COLORS.reset : text;
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
