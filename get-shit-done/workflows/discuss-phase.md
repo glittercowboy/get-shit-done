@@ -152,6 +152,10 @@ Exit workflow.
 **If phase found:** Continue to analyze_phase.
 </step>
 
+**References loaded by this workflow:**
+- `~/.claude/get-shit-done/references/adaptive-depth.md` — Depth protocol for input assessment
+- `~/.claude/get-shit-done/references/intent-fidelity.md` — Intent envelope definitions
+
 <step name="check_existing">
 Check if CONTEXT.md already exists:
 
@@ -179,6 +183,26 @@ If "Skip": Exit workflow
 
 <step name="analyze_phase">
 Analyze the phase to identify gray areas worth discussing.
+
+**Load prior intent context (before generating gray areas):**
+
+1. Read intent seed from ROADMAP.md for this phase (if exists):
+   ```bash
+   grep -A 10 "intent:" .planning/ROADMAP.md | head -15
+   ```
+   → If found, use motivation and success_looks_like to pre-inform gray areas
+
+2. Read previous phase's HANDOFF.md (if exists):
+   ```bash
+   PREV_PHASE=$((PHASE - 1))
+   PADDED_PREV=$(printf "%02d" $PREV_PHASE)
+   cat .planning/phases/${PADDED_PREV}-*/*-HANDOFF.md 2>/dev/null
+   ```
+   → If found, extract "Next Phase Must Know" and "Delta" sections to understand what was built/missed
+
+3. Read current phase's dependency chain from ROADMAP.md
+
+Gray areas now build ON existing context (seed + handoff) instead of starting from scratch.
 
 **Read the phase description from ROADMAP.md and determine:**
 
@@ -403,6 +427,15 @@ fi
 [If none: "None — discussion stayed within phase scope"]
 
 </deferred>
+
+<intent_chain>
+## Intent Chain
+
+- **Seed:** [motivation from ROADMAP intent seed, if exists]
+- **Previous Handoff:** [key points from previous phase HANDOFF.md, if exists — "None" if first phase]
+- **Discussion depth:** [N substantive inputs captured during this discussion]
+- **Richness:** context (upgraded from seed)
+</intent_chain>
 
 ---
 

@@ -417,11 +417,14 @@ Display:
 ◆ Spawning plan checker...
 ```
 
-Read plans for the checker:
+Read plans and intent map for the checker:
 
 ```bash
 # Read all plans in phase directory
 PLANS_CONTENT=$(cat "${PHASE_DIR}"/*-PLAN.md 2>/dev/null)
+
+# Load INTENT-MAP.md if exists
+INTENT_MAP_CONTENT=$(cat "${PHASE_DIR}"/*-INTENT-MAP.md 2>/dev/null)
 
 # CONTEXT_CONTENT already loaded in step 4
 # REQUIREMENTS_CONTENT already loaded in step 7
@@ -437,6 +440,9 @@ Fill checker prompt with inlined content and spawn:
 
 **Plans to verify:**
 {plans_content}
+
+**Intent Map (if exists):**
+{intent_map_content}
 
 **Requirements (if exists):**
 {requirements_content}
@@ -521,6 +527,11 @@ Spawn gsd-planner with revision prompt:
 
 **Checker issues:**
 {structured_issues_from_checker}
+
+**Intent Map (if exists):**
+{intent_map_content}
+
+If checker found intent map gaps, revise BOTH PLAN.md files AND INTENT-MAP.md.
 
 **Phase Context (if exists):**
 
@@ -648,6 +659,12 @@ Checker verification context includes:
 **Phase:** {phase_number}
 **Phase Goal:** {goal from ROADMAP}
 
+**Note:** After receiving ALL_PLANS_COMPLETE, also check for INTENT-MAP.md:
+```bash
+cat "${PHASE_DIR}"/*-INTENT-MAP.md 2>/dev/null
+```
+Include Dimension 8 (Intent Map Completeness) in cross-plan checks if INTENT-MAP.md exists.
+
 **Roadmap:**
 {roadmap_content}
 
@@ -751,5 +768,7 @@ Verification: {Passed | Passed with override | Skipped}
 - [ ] User sees status between agent spawns
 - [ ] Agent Teams detection (if enabled, streaming verification used)
 - [ ] Team cleanup after completion (if teams used)
+- [ ] INTENT-MAP.md passed to checker alongside plans (if CONTEXT.md exists)
+- [ ] If checker finds INTENT-MAP gaps, revision includes both PLAN and MAP
 - [ ] User knows next steps (execute or review)
 </success_criteria>

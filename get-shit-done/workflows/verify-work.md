@@ -122,6 +122,49 @@ Examples:
   → Expected: "Clicking Reply opens inline composer below comment. Submitting shows reply nested under parent with visual indentation."
 
 Skip internal/non-observable items (refactors, type changes, etc.).
+
+**Dual-source test extraction (if CONTEXT.md exists):**
+
+```bash
+# Check for CONTEXT.md
+CONTEXT_FILE=$(ls "$PHASE_DIR"/*-CONTEXT.md 2>/dev/null | head -1)
+```
+
+**Group 1: Plan-derived tests** (existing behavior)
+- Source: SUMMARY.md files
+- Tests what Claude claims it built
+- Focus on accomplishments and user-facing changes
+
+**Group 2: Intent-derived tests** (new — only if CONTEXT.md exists)
+- Source: CONTEXT.md Decisions section
+- Tests what user originally asked for
+- For each locked decision, create a test:
+  - Binary decision ("use cards") → Test: "Verify card layout is used, not tables"
+  - Quality constraint ("proportional output") → Test: "Verify output depth varies with input data"
+  - Anti-pattern ("not like NotebookLM") → Test: "Verify [anti-pattern] is NOT present"
+  - Core Principle → Test: "Verify [principle] is reflected in behavior"
+
+**Labeling in UAT.md:**
+```markdown
+## Tests
+
+### Plan-Derived Tests
+
+### 1. [Test from SUMMARY.md]
+expected: [observable behavior]
+result: [pending]
+source: plan
+
+### Intent-Derived Tests
+
+### 4. [Test from CONTEXT.md decision]
+expected: [what user's decision implies should be observable]
+result: [pending]
+source: intent
+decision: "[original decision from CONTEXT.md]"
+```
+
+If plan-tests pass but intent-tests fail, the gap between "what was built" and "what was intended" becomes visible to the user.
 </step>
 
 <step name="create_uat_file">
@@ -172,6 +215,11 @@ passed: 0
 issues: 0
 pending: [N]
 skipped: 0
+
+## Source Breakdown
+
+plan_derived: [N]
+intent_derived: [M]
 
 ## Gaps
 

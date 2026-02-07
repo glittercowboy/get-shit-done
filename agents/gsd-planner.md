@@ -1249,6 +1249,52 @@ Write to `.planning/phases/XX-name/{phase}-{NN}-PLAN.md` (e.g., `01-02-PLAN.md` 
 Include frontmatter (phase, plan, type, wave, depends_on, files_modified, autonomous, must_haves).
 </step>
 
+<step name="write_intent_map">
+**Produce INTENT-MAP.md (if CONTEXT.md exists):**
+
+After creating all PLAN.md files, if CONTEXT.md was provided in `<user_decisions>` or `<planning_context>`, produce `{phase_dir}/{phase}-INTENT-MAP.md`:
+
+```bash
+# Only create if CONTEXT.md exists for this phase
+if [ -n "$CONTEXT_CONTENT" ]; then
+  # Write INTENT-MAP.md
+fi
+```
+
+**INTENT-MAP.md format:**
+
+```markdown
+# Intent Map: Phase {X}
+
+Maps CONTEXT.md decisions to plan tasks. Ensures no user decision is lost in translation.
+
+| CONTEXT.md Decision | Plan Task | How Honored |
+|---------------------|-----------|-------------|
+| [Decision from Decisions section] | {phase}-{plan} Task N | [How the task implements this decision] |
+| [Core Principle: statement] | {phase}-{plan} objective | [How principle is reflected] |
+| [NOT: anti-pattern] | {phase}-{plan} Task N verify | [Negative check confirming absence] |
+| [Founder Term: "term"] | {phase}-{plan} Task N action | [Where term is preserved in task description] |
+
+**Coverage:** X/Y decisions mapped (Z missing)
+
+### Unmapped Decisions
+
+[List any CONTEXT.md decisions not covered by any task, with explanation]
+
+### Quality Constraints
+
+[List quality constraints from CONTEXT.md and their verification approach]
+```
+
+**Process:**
+1. Parse all decisions from CONTEXT.md (Decisions section, Core Principles, anti-patterns, specifics)
+2. For each decision, find the plan task(s) that honor it
+3. Document the mapping explicitly
+4. Flag any unmapped decisions
+
+This is structurally required — the plan-checker will reject plans without INTENT-MAP.md when CONTEXT.md exists.
+</step>
+
 <step name="update_roadmap">
 Update ROADMAP.md to finalize phase placeholders created by add-phase or insert-phase.
 
@@ -1284,7 +1330,7 @@ Commit phase plan(s) and updated roadmap:
 **If `COMMIT_PLANNING_DOCS=true` (default):**
 
 ```bash
-git add .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/ROADMAP.md
+git add .planning/phases/$PHASE-*/$PHASE-*-PLAN.md .planning/phases/$PHASE-*/$PHASE-*-INTENT-MAP.md .planning/ROADMAP.md
 git commit -m "docs($PHASE): create phase plan
 
 Phase $PHASE: $PHASE_NAME
@@ -1323,6 +1369,10 @@ Return structured planning outcome to orchestrator.
 |------|-----------|-------|-------|
 | {phase}-01 | [brief] | 2 | [files] |
 | {phase}-02 | [brief] | 3 | [files] |
+
+### Intent Map
+
+INTENT-MAP.md: {X}/{Y} decisions mapped ({Z missing if any})
 
 ### Next Steps
 
@@ -1442,6 +1492,7 @@ Phase planning complete when:
 - [ ] Each task: Type, Files (if auto), Action, Verify, Done
 - [ ] Checkpoints properly structured
 - [ ] Wave structure maximizes parallelism
+- [ ] INTENT-MAP.md created (if CONTEXT.md exists) with all decisions mapped
 - [ ] PLAN file(s) committed to git
 - [ ] User knows next steps and wave structure
 
