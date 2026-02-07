@@ -22,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const readline = require('readline');
+const os = require('os');
 
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
@@ -253,6 +254,41 @@ function classifyCommit(files, filterPatterns) {
     : planningFiles.length > 0 ? 'planning'
     : 'code';
   return { type, planningFiles, codeFiles };
+}
+
+function getPrBranchName(cwd) {
+  const r = execGit(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  if (r.exitCode !== 0 || r.stdout === 'HEAD') return null;
+  return r.stdout + '-pr';
+}
+
+function prBranchExists(cwd, branchName) {
+  return execGit(cwd, ['rev-parse', '--verify', branchName]).exitCode === 0;
+}
+
+function prBranchPushed(cwd, branchName) {
+  return execGit(cwd, ['rev-parse', '--verify', 'refs/remotes/origin/' + branchName]).exitCode === 0;
+}
+
+function createWorktree(cwd, branchName, startPoint) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsd-pr-'));
+  execGit(cwd, ['worktree', 'prune']);
+  const exists = execGit(cwd, ['rev-parse', '--verify', branchName]).exitCode === 0;
+  const result = exists
+    ? execGit(cwd, ['worktree', 'add', tmpDir, branchName])
+    : execGit(cwd, ['worktree', 'add', '-b', branchName, tmpDir, startPoint]);
+  if (result.exitCode !== 0) {
+    try { fs.rmdirSync(tmpDir); } catch {}
+    return null;
+  }
+  return tmpDir;
+}
+
+function removeWorktree(cwd, worktreePath) {
+  if (!worktreePath) return;
+  execGit(cwd, ['worktree', 'remove', '--force', worktreePath]);
+  try { fs.rmSync(worktreePath, { recursive: true, force: true }); } catch {}
+  execGit(cwd, ['worktree', 'prune']);
 }
 
 function promptForBranch() {
