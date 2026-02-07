@@ -58,6 +58,53 @@ Per-project default: Set in `.planning/config.json`:
 }
 ```
 
+## Agent Teams
+
+Controlled per-workflow in `.planning/config.json`:
+
+```json
+"agent_teams": {
+  "research": true,    // new-project, new-milestone research phases
+  "execution": false,  // execute-phase wave execution
+  "debug": true        // debug hypothesis investigation
+}
+```
+
+Template defaults: all `false`. Each workflow checks its own key.
+
+**Backward compatibility:** If `agent_teams` is `false` (boolean) or missing, all workflows default to disabled.
+
+**Agent teams vs subagents:**
+- Subagents: report results back to caller only, no cross-communication — faster, no overhead
+- Agent teams: teammates message each other, share task lists, self-coordinate — slower, better coordination
+
+Toggle via `/gsd:settings` or edit `.planning/config.json` directly.
+
+**When GSD uses agent teams (quality profile + workflow key is true):**
+
+| Workflow | Subagent Default | Agent Team Upgrade | Benefit |
+|----------|------------------|--------------------|---------|
+| `new-project` Phase 6 | 4 parallel Task() researchers | Team of 4 researcher teammates | Researchers challenge/build on each other's findings |
+| `new-milestone` research | 4 parallel Task() researchers | Team of 4 researcher teammates | Same as above |
+| `execute-phase` wave execution | Parallel Task() executors per wave | Team of executor teammates per wave | Executors coordinate on shared dependencies |
+| `debug` investigation | Single debugger subagent | Team of hypothesis investigators | Competing theories, adversarial debate |
+
+**When GSD still uses subagents (no agent team upgrade):**
+- Single-agent spawns (planner, verifier, plan-checker, roadmapper)
+- Sequential execution (one plan at a time)
+- Budget/balanced profiles (overhead not justified)
+- When the workflow's `agent_teams` key is `false` (default for templates)
+
+**Fallback:** If agent teams fail to spawn or are disabled in config, all orchestrators fall back to standard Task() subagent calls.
+
+**Recommended config for quality profile:**
+```json
+"agent_teams": { "research": true, "execution": false, "debug": true }
+```
+- Research: moderate benefit (cross-pollination between dimensions)
+- Debug: high benefit (adversarial hypothesis testing)
+- Execution: low benefit (plans designed to be independent)
+
 ## Design Rationale
 
 **Why Opus for gsd-planner?**

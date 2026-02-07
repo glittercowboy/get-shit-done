@@ -1,6 +1,11 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "agent_teams": {
+    "research": false,
+    "execution": false,
+    "debug": false
+  },
   "workflow": {
     "research": true,
     "plan_check": true,

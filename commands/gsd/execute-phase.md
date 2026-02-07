@@ -73,8 +73,25 @@ Phase: $ARGUMENTS
    - Report wave structure to user
 
 4. **Execute waves**
+
+   **Check for agent teams capability:**
+
+   Read `.planning/config.json` and check `agent_teams.execution`:
+   - If `agent_teams` is `false` (boolean) or missing → disabled
+   - If `agent_teams` is an object → check `agent_teams.execution` (default: `false`)
+
    For each wave in order:
+
+   **If agent_teams.execution is true AND model_profile is "quality" AND wave has 2+ plans:**
+   - Create an agent team of executor teammates for this wave
+   - Use executor model for each teammate
+   - Teammates can message each other to coordinate on shared dependencies
+   - Wait for team completion, then clean up team
+
+   **If agent_teams.execution is false OR profile is not "quality" OR wave has 1 plan:**
    - Spawn `gsd-executor` for each plan in wave (parallel Task calls)
+
+   After wave completes (either mode):
    - Wait for completion (Task blocks)
    - Verify SUMMARYs created and spot-check claims
    - Proceed to next wave
