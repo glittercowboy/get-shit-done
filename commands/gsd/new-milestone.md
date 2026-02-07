@@ -167,6 +167,31 @@ Create research directory:
 mkdir -p .planning/research
 ```
 
+**Check for agent teams capability:**
+
+Read `.planning/config.json` and check `agent_teams.research`:
+- If `agent_teams` is `false` (boolean) or missing → disabled
+- If `agent_teams` is an object → check `agent_teams.research` (default: `false`)
+
+**If agent_teams.research is true AND model_profile is "quality":**
+
+Display spawning indicator:
+```
+◆ Creating research team (agent teams mode)...
+  → Stack research (for new features)
+  → Features research
+  → Architecture research (integration)
+  → Pitfalls research
+```
+
+Create an agent team of 4 researcher teammates instead of independent subagents.
+Use researcher model for each teammate. Researchers can message each other to
+cross-pollinate findings — e.g., stack choices inform architecture, pitfalls
+challenge feature assumptions. Wait for team completion, then continue to
+synthesizer below.
+
+**If agent_teams.research is false OR profile is not "quality":**
+
 Display spawning indicator:
 ```
 ◆ Spawning 4 researchers in parallel...

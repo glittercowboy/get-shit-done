@@ -344,6 +344,11 @@ Create `.planning/config.json` with all settings:
   "parallelization": true|false,
   "commit_docs": true|false,
   "model_profile": "quality|balanced|budget",
+  "agent_teams": {
+    "research": false,
+    "execution": false,
+    "debug": false
+  },
   "workflow": {
     "research": true|false,
     "plan_check": true|false,
@@ -426,6 +431,31 @@ mkdir -p .planning/research
 Check if this is greenfield or subsequent milestone:
 - If no "Validated" requirements in PROJECT.md → Greenfield (building from scratch)
 - If "Validated" requirements exist → Subsequent milestone (adding to existing app)
+
+**Check for agent teams capability:**
+
+Read `.planning/config.json` and check `agent_teams.research`:
+- If `agent_teams` is `false` (boolean) or missing → disabled
+- If `agent_teams` is an object → check `agent_teams.research` (default: `false`)
+
+**If agent_teams.research is true AND model_profile is "quality":**
+
+Display spawning indicator:
+```
+◆ Creating research team (agent teams mode)...
+  → Stack research
+  → Features research
+  → Architecture research
+  → Pitfalls research
+```
+
+Create an agent team of 4 researcher teammates instead of independent subagents.
+Use researcher model for each teammate. Researchers can message each other to
+cross-pollinate findings — e.g., stack choices inform architecture, pitfalls
+challenge feature assumptions. Wait for team completion, then continue to
+synthesizer below.
+
+**If agent_teams.research is false OR profile is not "quality":**
 
 Display spawning indicator:
 ```

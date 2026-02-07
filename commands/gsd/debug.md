@@ -67,7 +67,53 @@ Use AskUserQuestion for each:
 
 After all gathered, confirm ready to investigate.
 
-## 3. Spawn gsd-debugger Agent
+## 3. Spawn Debugger (Agent Team or Subagent)
+
+**Check for agent teams capability:**
+
+Read `.planning/config.json` and check `agent_teams.debug`:
+- If `agent_teams` is `false` (boolean) or missing → disabled
+- If `agent_teams` is an object → check `agent_teams.debug` (default: `false`)
+
+**If agent_teams.debug is true AND model_profile is "quality":**
+
+Use agent teams for competing-hypothesis investigation — investigators challenge each other's theories:
+
+```
+◆ Creating debug team (agent teams mode)...
+
+Create an agent team with 3-5 investigator teammates for debugging {slug}.
+Use Opus for each teammate.
+
+Issue: {trigger}
+Symptoms:
+- Expected: {expected}
+- Actual: {actual}
+- Errors: {errors}
+- Reproduction: {reproduction}
+- Timeline: {timeline}
+
+Each teammate investigates a different hypothesis:
+1. "Hypothesis A" — [Most likely theory based on symptoms]
+2. "Hypothesis B" — [Second theory, different component/layer]
+3. "Hypothesis C" — [Third theory, environmental/config angle]
+
+Rules:
+- Each investigator writes findings to .planning/debug/{slug}-{hypothesis}.md
+- Investigators MUST message each other to share evidence and challenge theories
+- When one investigator finds evidence that disproves another's theory, message them
+- The team should converge on the most supported hypothesis
+- Lead synthesizes final root cause into .planning/debug/{slug}.md
+
+Wait for team consensus before presenting results.
+Clean up the team after investigation completes.
+```
+
+Handle agent team results same as step 4 below. Continue to step 4.
+
+**If agent_teams.debug is false OR profile is not "quality":**
+
+Fall back to single debugger subagent:
 
 Fill prompt and spawn:
 
