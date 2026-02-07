@@ -46,6 +46,19 @@ Default to "balanced" if not set.
 
 Store resolved model for use in Task calls below.
 
+## 0.5. Detect Agent Teams
+
+Check Agent Teams availability (both must be true):
+- Environment: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+- Config: `agent_teams: true` in config.json
+
+```bash
+AGENT_TEAMS_ENV=${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-0}
+AGENT_TEAMS_CONFIG=$(cat .planning/config.json 2>/dev/null | grep -o '"agent_teams"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+USE_AGENT_TEAMS=false
+[ "$AGENT_TEAMS_ENV" = "1" ] && [ "$AGENT_TEAMS_CONFIG" = "true" ] && USE_AGENT_TEAMS=true
+```
+
 ## 1. Check Active Sessions
 
 If active sessions exist AND no $ARGUMENTS:
@@ -67,7 +80,78 @@ Use AskUserQuestion for each:
 
 After all gathered, confirm ready to investigate.
 
-## 3. Spawn gsd-debugger Agent
+## 3. Spawn Debugger
+
+**If USE_AGENT_TEAMS = true:**
+
+### 3b. Spawn Adversarial Debug Team
+
+Display:
+```
+◆ Spawning adversarial debug team...
+  → Debugger Alpha (primary investigator)
+  → Debugger Beta (adversarial challenger)
+```
+
+Use spawnTeam to create a 2-agent team:
+
+**debugger-alpha** gets the standard gsd-debugger prompt below with an added `<team_protocol>`:
+
+```markdown
+<team_protocol>
+You are DEBUGGER ALPHA — PRIMARY INVESTIGATOR.
+
+Your teammate: debugger-beta (adversarial challenger)
+
+PROTOCOL (3 rounds max):
+Round 1 (INVESTIGATE): Investigate using scientific method. Share your top 3 hypotheses with Beta.
+Round 2 (DEFEND): When Beta challenges, provide evidence or concede and revise.
+Round 3 (CONVERGE): Present final hypothesis. If still disagreeing, return BOTH hypotheses to orchestrator.
+
+MESSAGE FORMATS:
+- HYPOTHESIS: [claim] | EVIDENCE: [support] | FALSIFIABLE BY: [disproof method]
+- When defending: EVIDENCE: [for which hypothesis] | DATA: [concrete proof]
+- When conceding: CONCEDE: [which] | REASON: [why wrong] | REVISED: [new hypothesis]
+
+RULES:
+1. MAX 3 message exchanges. After round 3, report results regardless of convergence.
+2. Convergence: root cause requires agreement from both agents
+3. You own the debug file creation and eventual fix
+4. goal: find_and_fix
+</team_protocol>
+```
+
+**debugger-beta** gets the same symptoms context with an added `<team_protocol>`:
+
+```markdown
+<team_protocol>
+You are DEBUGGER BETA — ADVERSARIAL CHALLENGER.
+
+Your teammate: debugger-alpha (primary investigator)
+
+PROTOCOL (3 rounds max):
+Round 1 (INDEPENDENT): Form hypotheses INDEPENDENTLY before reading Alpha's. Share competing hypotheses.
+Round 2 (CHALLENGE): Challenge Alpha's hypotheses with disconfirming evidence.
+Round 3 (CONVERGE): Present final hypothesis. If still disagreeing, return BOTH to orchestrator with evidence.
+
+MESSAGE FORMATS:
+- HYPOTHESIS: [claim] | EVIDENCE: [support] | FALSIFIABLE BY: [disproof method]
+- CHALLENGE: [which hypothesis] | COUNTER-EVIDENCE: [contradiction] | ALTERNATIVE: [competing explanation]
+- CONCEDE: [which] | REASON: [why wrong] | REVISED: [new hypothesis]
+
+RULES:
+1. MAX 3 message exchanges. After round 3, report results regardless of convergence.
+2. Convergence: only agree when evidence is unambiguous
+3. Read Alpha's debug file, append evidence prefixed with [BETA]
+4. goal: find_root_cause_only (no fix responsibility)
+</team_protocol>
+```
+
+After team completes, handle return per Step 4 below.
+
+**Else (USE_AGENT_TEAMS = false):**
+
+### 3a. Spawn Single gsd-debugger Agent
 
 Fill prompt and spawn:
 
@@ -106,6 +190,20 @@ Task(
 ```
 
 ## 4. Handle Agent Return
+
+**If Agent Teams was used:**
+
+When both agents agree on root cause:
+- Present as "confirmed root cause (adversarial validation)"
+- Display shared evidence from both agents
+- Offer options same as standard flow below
+
+When agents disagree:
+- Present BOTH hypotheses with supporting evidence
+- Display Alpha's hypothesis and Beta's competing hypothesis
+- Let user decide which to pursue, or spawn continuation
+
+**Standard return handling (all modes):**
 
 **If `## ROOT CAUSE FOUND`:**
 - Display root cause and evidence summary
