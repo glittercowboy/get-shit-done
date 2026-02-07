@@ -16,6 +16,8 @@ import { findStack } from './tools/stack.js';
 import { register, status as registerStatus, unregister } from './tools/register.js';
 import { index, indexAll } from './tools/index-tool.js';
 import { getStatus } from './tools/status.js';
+import { vectorAdd } from './tools/vector-add.js';
+import { vectorQuery } from './tools/vector-query.js';
 
 // Define available tools
 const tools: Tool[] = [
@@ -181,6 +183,71 @@ const tools: Tool[] = [
       type: 'object',
       properties: {}
     }
+  },
+  {
+    name: 'gsd_memory_vector_add',
+    description: 'Store knowledge with auto-generated embeddings in the vector database. Accepts text and metadata, generates 384-dim embedding, stores in per-project index.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Project identifier for index isolation'
+        },
+        text: {
+          type: 'string',
+          description: 'Text content to store'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: type of knowledge (e.g., "decision", "pattern", "pitfall")'
+        },
+        source: {
+          type: 'string',
+          description: 'Optional: source reference (file path, URL, etc.)'
+        },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional: tags for categorization'
+        },
+        metadata: {
+          type: 'object',
+          description: 'Optional: additional metadata'
+        }
+      },
+      required: ['project', 'text']
+    }
+  },
+  {
+    name: 'gsd_memory_vector_query',
+    description: 'Search for semantically similar knowledge using vector embeddings. Generates embedding from query and returns ranked results by similarity score.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Project identifier for index isolation'
+        },
+        query: {
+          type: 'string',
+          description: 'Query text to search for'
+        },
+        topK: {
+          type: 'number',
+          description: 'Number of results to return (default: 5)'
+        },
+        minScore: {
+          type: 'number',
+          description: 'Minimum similarity score threshold (default: 0.0)'
+        },
+        type: {
+          type: 'string',
+          description: 'Optional: filter by knowledge type'
+        }
+      },
+      required: ['project', 'query']
+    }
   }
 ];
 
@@ -273,6 +340,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'gsd_memory_status':
         result = await getStatus();
+        break;
+
+      case 'gsd_memory_vector_add':
+        result = await vectorAdd({
+          project: args?.project as string,
+          text: args?.text as string,
+          type: args?.type as string | undefined,
+          source: args?.source as string | undefined,
+          tags: args?.tags as string[] | undefined,
+          metadata: args?.metadata as Record<string, unknown> | undefined
+        });
+        break;
+
+      case 'gsd_memory_vector_query':
+        result = await vectorQuery({
+          project: args?.project as string,
+          query: args?.query as string,
+          topK: args?.topK as number | undefined,
+          minScore: args?.minScore as number | undefined,
+          type: args?.type as string | undefined
+        });
         break;
 
       default:
