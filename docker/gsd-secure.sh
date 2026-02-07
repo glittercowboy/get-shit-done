@@ -17,7 +17,8 @@ function gsd-secure() {
     # 1. Build Image (if missing)
     if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]]; then
         echo -e "\033[0;36mBuilding GSD Sandbox image... (First run only)\033[0m"
-        docker build -t $IMAGE_NAME "$DOCKER_DIR"
+        # Use Repo Root as context to include 'agents/' folder
+        docker build -t $IMAGE_NAME -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR/.."
     fi
 
     # 2. Get Context

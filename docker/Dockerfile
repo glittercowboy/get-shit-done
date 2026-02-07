@@ -16,7 +16,12 @@ RUN apt-get update && apt-get install -y \
 
 # Global GSD installation
 # We install the package from npm (as per standard usage)
+# Global GSD installation
+# We install the package from npm (as per standard usage)
 RUN npm install -g get-shit-done-cc
+
+# Overlay local agents (so we use YOUR modified version, not the npm one)
+COPY agents /usr/local/lib/node_modules/get-shit-done-cc/agents
 
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/
