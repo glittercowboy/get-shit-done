@@ -15,6 +15,7 @@
  *   find-phase <phase>                 Find phase directory by number
  *   commit <message> [--files f1 f2]   Commit planning docs
  *   verify-summary <path>              Verify a SUMMARY.md file
+ *   pr-branch [--dry-run] [--base b]   Classify commits for PR branch filtering
  */
 
 const fs = require('fs');
@@ -276,6 +277,139 @@ function promptForBranch() {
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
+
+async function cmdPrBranch(cwd, flags, raw) {
+  const config = loadConfig(cwd);
+
+  // Step A: Resolve base branch
+  let baseBranch = resolveBaseBranch(cwd, config, flags.base);
+  if (!baseBranch) {
+    try {
+      const prompted = await promptForBranch();
+      const verify = execGit(cwd, ['rev-parse', '--verify', prompted]);
+      if (verify.exitCode !== 0) {
+        error('Branch "' + prompted + '" does not exist');
+      }
+      baseBranch = prompted;
+    } catch (e) {
+      error(e.message);
+    }
+  }
+
+  // Step B: Find merge base
+  const mergeBase = getMergeBase(cwd, baseBranch);
+  if (!mergeBase) {
+    error('Could not find merge base between ' + baseBranch + ' and HEAD');
+  }
+  const shortMergeBase = execGit(cwd, ['rev-parse', '--short', mergeBase]).stdout;
+
+  // Step C: List and classify commits
+  const filterPatterns = config.pr_branch_filter_paths.map(p => globToRegex(p));
+  const commits = listCommits(cwd, mergeBase);
+
+  if (commits.length === 0) {
+    const msg = 'No commits found since divergence from ' + baseBranch + '. Are you on the right branch?';
+    if (raw) {
+      output({
+        baseBranch,
+        mergeBase: shortMergeBase,
+        filterPaths: config.pr_branch_filter_paths,
+        commits: [],
+        summary: { planning: 0, code: 0, mixed: 0 },
+      }, raw, JSON.stringify({ planning: 0, code: 0, mixed: 0 }));
+    }
+    process.stdout.write(msg + '\n');
+    process.exit(0);
+  }
+
+  const classifiedCommits = [];
+  for (const commit of commits) {
+    const files = getCommitFiles(cwd, commit.hash, commit.isMerge);
+    const classification = classifyCommit(files, filterPatterns);
+    classifiedCommits.push({ ...commit, ...classification });
+  }
+
+  // Count categories
+  let planCount = 0, codeCount = 0, mixedCount = 0;
+  for (const cc of classifiedCommits) {
+    if (cc.type === 'planning') planCount++;
+    else if (cc.type === 'code') codeCount++;
+    else mixedCount++;
+  }
+
+  // Step E: Raw mode
+  if (raw) {
+    output({
+      baseBranch,
+      mergeBase: shortMergeBase,
+      filterPaths: config.pr_branch_filter_paths,
+      commits: classifiedCommits.map(cc => ({
+        hash: cc.hash,
+        subject: cc.subject,
+        type: cc.type,
+        isMerge: cc.isMerge,
+        planningFiles: cc.planningFiles,
+        codeFiles: cc.codeFiles,
+      })),
+      summary: { planning: planCount, code: codeCount, mixed: mixedCount },
+    }, raw, JSON.stringify({ planning: planCount, code: codeCount, mixed: mixedCount }));
+  }
+
+  // Step D: Build human-readable report
+  const rule = '\u2500'.repeat(50);
+  const warn = '\u26A0';
+  const lines = [];
+
+  lines.push('Dry-run: pr-branch');
+  lines.push(c('dim', rule));
+
+  // Header
+  const headerParts = ['Base branch: ' + c('bold', baseBranch) + '  Merge base: ' + c('bold', shortMergeBase)];
+  lines.push(headerParts[0]);
+
+  // Show filter paths only if customized beyond default
+  const defaultPaths = ['.planning/'];
+  const isCustomized = config.pr_branch_filter_paths.length !== defaultPaths.length ||
+    config.pr_branch_filter_paths.some((p, i) => p !== defaultPaths[i]);
+  if (isCustomized) {
+    lines.push('Filter paths: ' + config.pr_branch_filter_paths.join(', '));
+  }
+
+  lines.push('');
+
+  // Timeline
+  for (const cc of classifiedCommits) {
+    if (cc.type === 'planning') {
+      lines.push(' ' + c('dim', 'PLAN') + '  ' + cc.hash + ' ' + cc.subject);
+    } else if (cc.type === 'code') {
+      lines.push(' ' + c('green', 'CODE') + '  ' + cc.hash + ' ' + cc.subject);
+    } else {
+      lines.push(c('yellow', warn) + ' ' + c('yellow', 'MIX') + '   ' + cc.hash + ' ' + cc.subject);
+      lines.push('       Planning: ' + cc.planningFiles.join(', '));
+      lines.push('       Code:     ' + cc.codeFiles.join(', '));
+      lines.push('       Tip: Split this commit to rescue code changes');
+    }
+  }
+
+  lines.push('');
+  lines.push(c('dim', rule));
+  lines.push('Summary: ' + planCount + ' planning \u00B7 ' + codeCount + ' code \u00B7 ' + mixedCount + ' mixed');
+
+  // Next-action recommendation
+  if (mixedCount > 0) {
+    lines.push('');
+    lines.push(c('yellow', warn + ' ' + mixedCount + ' mixed commit(s) need splitting before creating PR branch'));
+  } else if (codeCount > 0) {
+    lines.push('');
+    lines.push(c('green', 'Run without --dry-run to create PR branch'));
+  } else if (planCount > 0 && codeCount === 0 && mixedCount === 0) {
+    lines.push('');
+    lines.push('No code commits to include in PR branch \u2014 all commits are planning-only');
+  }
+
+  process.stdout.write(lines.join('\n') + '\n');
+  process.exit(0);
+}
 
 function cmdGenerateSlug(text, raw) {
   if (!text) {
@@ -697,7 +831,7 @@ function main() {
   const cwd = process.cwd();
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw]\nCommands: state, resolve-model, find-phase, commit, verify-summary, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section');
+    error('Usage: gsd-tools <command> [args] [--raw]\nCommands: state, resolve-model, find-phase, commit, verify-summary, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, pr-branch');
   }
 
   switch (command) {
@@ -760,6 +894,20 @@ function main() {
 
     case 'config-ensure-section': {
       cmdConfigEnsureSection(cwd, raw);
+      break;
+    }
+
+    case 'pr-branch': {
+      const flags = {};
+      let i = 1;
+      while (i < args.length) {
+        if (args[i] === '--dry-run') { flags.dryRun = true; i++; }
+        else if (args[i] === '--base' && args[i + 1]) { flags.base = args[i + 1]; i += 2; }
+        else { error('Unknown flag: ' + args[i]); }
+      }
+      // Phase 1: always dry-run regardless of flag
+      flags.dryRun = true;
+      cmdPrBranch(cwd, flags, raw).catch(e => { error(e.message); });
       break;
     }
 
