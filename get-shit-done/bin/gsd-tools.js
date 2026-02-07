@@ -336,6 +336,60 @@ function cherryPickCommits(cwd, wtCwd, commitsToCherry) {
   return { picked, failed, skippedMerges, skippedEmpty };
 }
 
+function buildPatchIdMap(cwd, commitSHAs) {
+  const map = new Map();
+  for (const sha of commitSHAs) {
+    const diff = execGit(cwd, ['diff-tree', '-p', sha]);
+    if (diff.exitCode !== 0 || !diff.stdout) continue;
+    try {
+      const out = execSync('git patch-id --stable', {
+        input: diff.stdout, cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      if (out) {
+        const patchId = out.split(' ')[0];
+        map.set(patchId, sha);
+      }
+    } catch {}
+  }
+  return map;
+}
+
+function findNewCodeCommits(cwd, baseBranch, prBranch, codeCommits) {
+  // Get PR branch commit SHAs
+  const prLog = execGit(cwd, ['rev-list', baseBranch + '..' + prBranch]);
+  const prSHAs = (prLog.exitCode === 0 && prLog.stdout) ? prLog.stdout.split('\n').filter(Boolean) : [];
+
+  // If PR branch is empty or fresh, all code commits are new
+  if (prSHAs.length === 0) {
+    return { newCommits: codeCommits, needsRebuild: false };
+  }
+
+  // Build patch-id maps for both sides
+  const prPatchIds = buildPatchIdMap(cwd, prSHAs);
+  const sourcePatchIds = buildPatchIdMap(cwd, codeCommits.map(c => c.hash));
+
+  // Filter: code commits whose patch-id is NOT already on PR branch
+  const newCommits = [];
+  let matchCount = 0;
+  for (const commit of codeCommits) {
+    // Find this commit's patch-id in the source map
+    let commitPatchId = null;
+    for (const [pid, sha] of sourcePatchIds) {
+      if (sha === commit.hash) { commitPatchId = pid; break; }
+    }
+    if (commitPatchId && prPatchIds.has(commitPatchId)) {
+      matchCount++;
+    } else {
+      newCommits.push(commit);
+    }
+  }
+
+  // Detect rebuild scenario: PR has commits but zero source patch-ids match
+  const needsRebuild = prSHAs.length > 0 && matchCount === 0;
+
+  return { newCommits, needsRebuild };
+}
+
 function promptForBranch() {
   return new Promise((resolve, reject) => {
     if (!process.stdin.isTTY) {
