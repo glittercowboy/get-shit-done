@@ -291,6 +291,51 @@ function removeWorktree(cwd, worktreePath) {
   execGit(cwd, ['worktree', 'prune']);
 }
 
+function cherryPickCommits(cwd, wtCwd, commitsToCherry) {
+  const picked = [];
+  let failed = null;
+  const skippedMerges = [];
+  const skippedEmpty = [];
+
+  for (const commit of commitsToCherry) {
+    if (commit.isMerge) {
+      skippedMerges.push({ hash: commit.hash, subject: commit.subject, reason: 'merge commit cannot be cherry-picked' });
+      continue;
+    }
+
+    const r = execGit(wtCwd, ['cherry-pick', commit.hash]);
+    if (r.exitCode === 0) {
+      picked.push({ hash: commit.hash, subject: commit.subject });
+      continue;
+    }
+
+    // Check for conflict files
+    const diffResult = execGit(wtCwd, ['diff', '--name-only', '--diff-filter=U']);
+    const conflictFiles = diffResult.stdout ? diffResult.stdout.split('\n').filter(Boolean) : [];
+
+    // Empty cherry-pick (already applied)
+    if (conflictFiles.length === 0 && (r.stderr.includes('nothing to commit') || r.stdout.includes('nothing to commit'))) {
+      skippedEmpty.push({ hash: commit.hash, subject: commit.subject, reason: 'already applied' });
+      execGit(wtCwd, ['cherry-pick', '--skip']);
+      continue;
+    }
+
+    // Real conflict — abort and break
+    if (conflictFiles.length > 0) {
+      execGit(wtCwd, ['cherry-pick', '--abort']);
+      failed = { hash: commit.hash, subject: commit.subject, conflictFiles };
+      break;
+    }
+
+    // Unknown failure — abort and break
+    execGit(wtCwd, ['cherry-pick', '--abort']);
+    failed = { hash: commit.hash, subject: commit.subject, conflictFiles: [], error: r.stderr };
+    break;
+  }
+
+  return { picked, failed, skippedMerges, skippedEmpty };
+}
+
 function promptForBranch() {
   return new Promise((resolve, reject) => {
     if (!process.stdin.isTTY) {
