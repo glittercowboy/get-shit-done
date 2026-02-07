@@ -66,6 +66,32 @@ For now, let's focus on [phase domain]."
 Capture the idea in a "Deferred Ideas" section. Don't lose it, don't act on it.
 </scope_guardrail>
 
+<depth_protocol>
+## Adaptive Discussion Depth
+
+The default "4 questions per area" is a MINIMUM, not a target. Adapt depth based on user response richness.
+
+**Depth signals (when to go deeper):**
+
+- **Long response:** User gives 3+ sentences → extract 2-3 threads, ask about each
+- **Specific terminology:** User uses a distinctive term (not generic language) → probe: "You said '[term]' — what does that mean for you in this context? What's the opposite of that?"
+- **Emotional emphasis:** User says "mega wichtig", "auf keinen Fall", "das Schlimmste" → this is a constraint with high weight. Probe the boundary: "When you say '[extreme phrase]', what would be the first sign that we've crossed that line?"
+- **Abstract concept:** User describes something philosophical or abstract → ground it: "Can you give me a concrete example of what that looks like in practice?"
+- **Anti-pattern named:** User says "not like X" or "never Y" → probe the spectrum: "Where's the line between acceptable and [anti-pattern]? What's a borderline case?"
+
+**Depth execution:**
+
+After each user response, evaluate:
+1. Does this response contain specific terminology I should probe? → Ask about it
+2. Does this response name an anti-pattern or constraint? → Probe the boundary
+3. Does this response contain 2+ distinct ideas? → Separate and explore each
+4. Is the user giving abstract philosophy? → Ground with concrete examples
+
+The 4-question check ("More questions?") still applies, but WITHIN those 4 questions, adaptively follow the depth signals above rather than moving to pre-planned questions.
+
+**The goal:** Every word the user speaks is essential to abstract, go deeper on, and ask more questions about. The discussion should feel like a thinking partner who genuinely understands the depth, not an interviewer checking boxes.
+</depth_protocol>
+
 <gray_area_identification>
 Gray areas are **implementation decisions the user cares about** — things that could go multiple ways and would change the result.
 
@@ -276,6 +302,41 @@ Back to [current area]: [return to current question]"
 Track deferred ideas internally.
 </step>
 
+<step name="verify_depth">
+Before writing CONTEXT.md, verify all substantive user inputs will be captured.
+
+**This step prevents the need for manual /verify-depth after discuss-phase.**
+
+**Process:**
+
+1. **Enumerate all substantive user inputs** from the discussion:
+   - Every AskUserQuestion response that is NOT a simple confirmation ("Ja", "Passt")
+   - Every "Other" text input where user typed custom response
+   - Every verbal input (voice transcription) the user provided
+   - Tag each with category: Architecture Decision, Philosophy/Principle, Constraint/Anti-Pattern, Reasoning, Terminology, Reference, Preference
+
+2. **Self-check against planned CONTEXT.md content:**
+   For each substantive input, verify:
+   - [ ] Will it appear in CONTEXT.md? (Which section?)
+   - [ ] Will the WHY/reasoning be preserved? (Not just the WHAT)
+   - [ ] Will the user's exact terminology be used? (Not paraphrased)
+   - [ ] Is it in the right section? (Decisions vs Specifics vs Deferred)
+
+3. **Identify gaps:**
+   - MISSING: Input that I'm about to NOT capture → must add
+   - SHALLOW: Input where I'd only capture the decision, not the reasoning → must deepen
+   - LOST_VOICE: Input where I'd paraphrase instead of preserving user's words → must fix
+
+4. **If critical gaps found (MISSING or SHALLOW):**
+   - Briefly note to user: "Before writing context, I noticed I should clarify [specific point]"
+   - Ask 1-2 targeted follow-up questions to fill the gap
+   - Then proceed to write_context
+
+5. **If no critical gaps:** Proceed directly to write_context
+
+**This step should take 10-30 seconds of analysis, not a lengthy process.** It's a quality gate, not a full audit.
+</step>
+
 <step name="write_context">
 Create CONTEXT.md capturing decisions made.
 
@@ -348,6 +409,16 @@ fi
 *Phase: XX-name*
 *Context gathered: [date]*
 ```
+
+**Quality criteria for CONTEXT.md (informed by verify_depth step):**
+
+- Every "Core Principle:" statement must carry the user's reasoning in their own words
+- Every anti-pattern must include the user's language about WHY it's bad
+- The `<specifics>` section must include:
+  - "Founder Terminology" subsection if the user used distinctive terms (with definitions)
+  - "Guiding Principles" subsection if cross-cutting principles emerged from discussion
+  - "Critical Analysis Mandate" subsection if the user requested infrastructure/capability evaluation
+- Deferred Ideas must capture enough context that a future phase can pick them up
 
 Write file.
 </step>
@@ -430,4 +501,7 @@ Confirm: "Committed: docs(${PADDED_PHASE}): capture phase context"
 - CONTEXT.md captures actual decisions, not vague vision
 - Deferred ideas preserved for future phases
 - User knows next steps
+- Depth signals detected and followed (rich responses explored, terminology probed)
+- Verify-depth self-check completed before writing CONTEXT.md
+- No substantive user input lost or shallow in final CONTEXT.md
 </success_criteria>

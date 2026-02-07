@@ -198,9 +198,10 @@ Answer: "What do I need to know to PLAN this phase well?"
 <phase_context>
 **IMPORTANT:** If CONTEXT.md exists below, it contains user decisions from /gsd:discuss-phase.
 
-- **Decisions section** = Locked choices — research THESE deeply, don't explore alternatives
-- **Claude's Discretion section** = Your freedom areas — research options, make recommendations
-- **Deferred Ideas section** = Out of scope — ignore completely
+- **`<decisions>` section** = Locked choices. Each "**Core Principle:**" statement is the WHY behind decisions in that area — use it to focus your research direction. Research THESE decisions deeply, don't explore alternatives. Quality constraints (e.g., "output must be proportional to data") need implementation research, not just library recommendations. Anti-patterns listed are hard constraints — research how to prevent them.
+- **`<specifics>` section** = Design-intent context that carries the user's voice. "Founder Terminology" terms carry design intent and must be understood by researchers (they inform WHAT to research). "Guiding Principles" are cross-cutting constraints. "Critical Analysis Mandate" (if present) means research must also evaluate whether current infrastructure can deliver what the phase demands.
+- **`<deferred>` section** = Out of scope — ignore completely
+- **"Claude's Discretion"** (within decisions) = Your freedom areas — research options, make recommendations
 
 {context_content}
 </phase_context>
@@ -299,9 +300,20 @@ Fill prompt with inlined content and spawn:
 **Phase Context (if exists):**
 
 IMPORTANT: If phase context exists below, it contains USER DECISIONS from /gsd:discuss-phase.
-- **Decisions** = LOCKED — honor these exactly, do not revisit or suggest alternatives
-- **Claude's Discretion** = Your freedom — make implementation choices here
-- **Deferred Ideas** = Out of scope — do NOT include in this phase
+
+**Section Guide for Planning:**
+
+- **`<decisions>` section** = LOCKED decisions. Honor these exactly, do not revisit or suggest alternatives.
+  - Each "**Core Principle:**" defines the WHY behind decisions in that area — preserve these in plan objectives so executors understand intent, not just tasks.
+  - **Binary decisions** (use X, not Y) → implement exactly as specified
+  - **Quality constraints** (output must be proportional, no hallucination) → encode as verification criteria in `<verify>` elements and as must_haves truths
+  - **Anti-patterns** (never do X) → encode as negative checks in `<verify>` elements (e.g., "grep for pattern X should return 0 matches")
+- **`<specifics>` section** = Design-intent context. This section is NOT just decoration — it informs task quality.
+  - "Founder Terminology" = terms that carry design intent. Preserve exact terms in task `<action>` descriptions so executors maintain the user's voice.
+  - "Guiding Principles" = cross-cutting constraints that apply to ALL tasks in this phase, not just specific decisions.
+  - "Critical Analysis Mandate" (if present) = requires dedicated analysis/audit tasks, not just implementation tasks.
+- **`<deferred>` section** = Out of scope — do NOT include in this phase
+- **"Claude's Discretion"** (within decisions) = Your freedom — make implementation choices here
 
 {context_content}
 
@@ -402,11 +414,21 @@ Fill checker prompt with inlined content and spawn:
 **Phase Context (if exists):**
 
 IMPORTANT: If phase context exists below, it contains USER DECISIONS from /gsd:discuss-phase.
-Plans MUST honor these decisions. Flag as issue if plans contradict user's stated vision.
+Plans MUST honor these decisions. Flag as issue if plans contradict OR fail to cover user's stated vision.
 
-- **Decisions** = LOCKED — plans must implement these exactly
-- **Claude's Discretion** = Freedom areas — plans can choose approach
-- **Deferred Ideas** = Out of scope — plans must NOT include these
+**Verification Guide:**
+
+- **`<decisions>` section** = LOCKED. Verify plans implement these exactly.
+  - Each "**Core Principle:**" is the WHY — verify it appears in the plan's objective or must_haves, not just implementation details.
+  - **Binary decisions** → check plan implements the chosen option, not an alternative
+  - **Quality constraints** → check plan has verification criteria that validate the constraint (not just tasks that attempt it)
+  - **Anti-patterns** → check plan has negative verification (checking the bad thing doesn't happen)
+- **`<specifics>` section** = Design-intent context. Verify plans propagate this:
+  - "Founder Terminology" → check key terms appear in task descriptions (not generic replacements)
+  - "Guiding Principles" → check plans address cross-cutting principles, not just isolated decisions
+  - "Critical Analysis Mandate" (if present) → check dedicated analysis tasks exist, not just implementation
+- **`<deferred>` section** = Out of scope — flag if ANY deferred item appears in plans
+- **"Claude's Discretion"** = Freedom areas — plans can choose approach, don't flag
 
 {context_content}
 
@@ -471,7 +493,8 @@ Spawn gsd-planner with revision prompt:
 
 **Phase Context (if exists):**
 
-IMPORTANT: If phase context exists, revisions MUST still honor user decisions.
+IMPORTANT: If phase context exists, revisions MUST still honor ALL user decisions.
+Pay special attention to: Core Principles (WHY behind decisions), quality constraints (must become verification criteria), anti-patterns (must have negative checks), and `<specifics>` section (terminology, principles, mandates must be propagated to task descriptions).
 
 {context_content}
 

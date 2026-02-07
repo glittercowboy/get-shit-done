@@ -294,6 +294,83 @@ issue:
   fix_hint: "Remove search task - belongs in future phase per user decision"
 ```
 
+### Extended Context Compliance (if CONTEXT.md has rich content)
+
+**When CONTEXT.md contains `<specifics>` section, "Core Principle:" statements, or quality constraints, check these additional dimensions:**
+
+**7a. Quality Constraint Verification**
+
+Quality constraints differ from binary decisions. A binary decision ("use cards") needs a task implementing it. A quality constraint ("output must be proportional to data") needs verification criteria.
+
+**Process:**
+1. Identify quality constraints in Decisions section (statements about what output MUST or MUST NOT do)
+2. For each, check: Does a plan have `<verify>` elements or `must_haves.truths` that validate this constraint?
+3. Flag quality constraints that only have implementation tasks but no verification
+
+**Red flags:**
+- Quality constraint has a task ("Create confidence gate") but no verification that the gate actually prevents the bad outcome
+- Anti-pattern listed but no negative check in any `<verify>` element
+- Proportionality constraint without data-driven verification
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: warning
+  sub_dimension: quality_constraint_verification
+  description: "Quality constraint 'output proportional to data' has implementation task but no verification criteria"
+  plan: "01"
+  constraint: "Output depth must be proportional to available data (from Decisions)"
+  fix_hint: "Add must_haves truth: 'Low-data queries produce short responses' and verify element testing this"
+```
+
+**7b. Core Principle Representation**
+
+Core Principles (marked with "**Core Principle:**" in CONTEXT.md) define the WHY behind decision areas. They should appear in plan objectives or must_haves, not be lost in translation.
+
+**Process:**
+1. Extract all "Core Principle:" statements from CONTEXT.md
+2. For each, check: Is the principle reflected in at least one plan's objective or must_haves.truths?
+3. Flag Core Principles with no representation in any plan
+
+**Red flags:**
+- Core Principle completely absent from all plan objectives and must_haves
+- Core Principle paraphrased so heavily that the original intent is lost
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: warning
+  sub_dimension: core_principle_representation
+  description: "Core Principle 'saubere Vermengung' (inseparable blend of qualities) not reflected in any plan objective"
+  fix_hint: "Add to plan objective or must_haves: the output must achieve an inseparable blend of personal closeness, warmth, and groundedness"
+```
+
+**7c. Specifics Propagation**
+
+The `<specifics>` section contains design-intent context: terminology, principles, mandates. These must flow through to task descriptions.
+
+**Process:**
+1. If CONTEXT.md has "Founder Terminology" subsection: check key terms appear in task `<action>` descriptions
+2. If CONTEXT.md has "Guiding Principles": check cross-cutting principles are addressed across plans
+3. If CONTEXT.md has "Critical Analysis Mandate": check dedicated analysis/audit tasks exist
+
+**Red flags:**
+- Founder terminology replaced with generic terms in all task descriptions
+- Guiding Principles not addressed by any task
+- Critical Analysis Mandate present but no analysis/audit task in any plan
+
+**Example issue:**
+```yaml
+issue:
+  dimension: context_compliance
+  severity: warning
+  sub_dimension: specifics_propagation
+  description: "Critical Analysis Mandate in specifics requires pipeline audit tasks, but no analysis tasks found in plans"
+  fix_hint: "Add a dedicated task for pipeline capability assessment with findings as deliverable"
+```
+
 </verification_dimensions>
 
 <verification_process>
@@ -805,6 +882,9 @@ Plan verification complete when:
   - [ ] Locked decisions have implementing tasks
   - [ ] No tasks contradict locked decisions
   - [ ] Deferred ideas not included in plans
+  - [ ] Quality constraints have verification criteria (not just implementation tasks)
+  - [ ] Core Principles represented in plan objectives or must_haves
+  - [ ] Specifics propagated to task descriptions
 - [ ] Overall status determined (passed | issues_found)
 - [ ] Structured issues returned (if any found)
 - [ ] Result returned to orchestrator

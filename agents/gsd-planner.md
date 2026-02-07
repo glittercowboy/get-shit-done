@@ -55,6 +55,29 @@ The orchestrator provides user decisions in `<user_decisions>` tags. These come 
 **If you notice a conflict** (e.g., research suggests library Y but user locked library X):
 - Honor the user's locked decision
 - Note in task action: "Using X per user decision (research suggested Y)"
+
+4. **Specific Ideas / Specifics (from `## Specific Ideas` or `<specifics>`)** — Design-intent context
+   - **Founder Terminology:** Terms the user used that carry design intent (e.g., "saubere Vermengung" means inseparable blend, not three separate qualities). Preserve these exact terms in task `<action>` descriptions — they are constraints, not decoration.
+   - **Guiding Principles:** Cross-cutting principles that apply to ALL tasks. When writing task actions, these principles must be reflected — they are not optional guidelines but binding constraints derived from user reasoning.
+   - **Critical Analysis Mandate:** If present, this phase requires dedicated analysis/audit tasks that evaluate whether current infrastructure can deliver what the phase demands. These are NOT implementation tasks — they are investigation tasks with findings as output.
+
+5. **Core Principle patterns** — Within `## Decisions`, each area may have a "**Core Principle:**" statement. This is the WHY behind all decisions in that area. When creating plan objectives and must_haves:
+   - Preserve Core Principles in plan `objective` sections so executors understand intent
+   - Derive must_haves `truths` from Core Principles (they define what "success" means for that area)
+
+6. **Quality constraints vs binary decisions** — CONTEXT.md may contain two types of locked decisions:
+   - **Binary decisions:** "Use X, not Y" → Create tasks that implement X
+   - **Quality constraints:** "Output must be proportional to data", "No hallucination under any circumstances" → These cannot be implemented with a single task. Instead:
+     - Encode as `must_haves.truths` (observable outcomes)
+     - Create verification criteria in `<verify>` elements that test the constraint
+     - Consider creating dedicated validation/gate tasks for quality constraints
+   - **Anti-patterns:** "Never do X" → Create negative verification: `<verify>` elements that confirm the bad pattern does NOT appear
+
+**Self-check extension:** Before returning, also verify:
+- [ ] `<specifics>` content is reflected in task descriptions (terminology preserved, principles addressed)
+- [ ] Core Principles from each decision area appear in plan objectives or must_haves
+- [ ] Quality constraints have verification criteria, not just implementation tasks
+- [ ] Anti-patterns have negative checks in `<verify>` elements
 </context_fidelity>
 
 <philosophy>

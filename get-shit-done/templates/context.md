@@ -1,14 +1,18 @@
 # Phase Context Template
 
-Template for `.planning/phases/XX-name/{phase}-CONTEXT.md` - captures implementation decisions for a phase.
+Template for `.planning/phases/XX-name/{phase}-CONTEXT.md` - captures implementation decisions AND their reasoning for a phase.
 
-**Purpose:** Document decisions that downstream agents need. Researcher uses this to know WHAT to investigate. Planner uses this to know WHAT choices are locked vs flexible.
+**Purpose:** Document decisions and the reasoning behind them for downstream agents. Researcher uses this to know WHAT to investigate and WHY the user cares about it. Planner uses this to know WHAT choices are locked, WHY they were made, and what constraints exist.
 
 **Key principle:** Categories are NOT predefined. They emerge from what was actually discussed for THIS phase. A CLI phase has CLI-relevant sections, a UI phase has UI-relevant sections.
 
+**Quality principle:** Each decision must carry its reasoning. The planner reads this file ONCE in a fresh context window — they were not in the discussion. A decision without its WHY forces the planner to guess intent or ask the user again, which defeats the purpose of this file.
+
+**Voice preservation:** When the user uses specific terminology, metaphors, or phrasing that carries design intent, preserve it in the context file. These are not decoration — they are constraints that downstream agents need to understand the spirit of the decision, not just the letter.
+
 **Downstream consumers:**
-- `gsd-phase-researcher` — Reads decisions to focus research (e.g., "card layout" → research card component patterns)
-- `gsd-planner` — Reads decisions to create specific tasks (e.g., "infinite scroll" → task includes virtualization)
+- `gsd-phase-researcher` — Reads decisions + reasoning to focus research (e.g., "card layout because contained units" → researcher investigates card patterns with isolation in mind)
+- `gsd-planner` — Reads decisions + reasoning + constraints to create specific tasks (e.g., "infinite scroll for uninterrupted flow" → planner includes virtualization + knows WHY)
 
 ---
 
@@ -31,14 +35,22 @@ Template for `.planning/phases/XX-name/{phase}-CONTEXT.md` - captures implementa
 ## Implementation Decisions
 
 ### [Area 1 that was discussed]
-- [Specific decision made]
-- [Another decision if applicable]
+
+**[Core principle — the north star for this area, in user's own words if they expressed one]**
+
+- **[Decision]:** [What was decided] — [Why, using user's reasoning. Include user's original phrasing when it carries design intent.]
+- **[Decision]:** [What was decided] — [Reasoning that led to this choice]
+- **Not:** [What was explicitly rejected] — [Why this was ruled out. If a scope discussion revealed why something doesn't belong here, capture the reasoning as a constraint.]
 
 ### [Area 2 that was discussed]
-- [Specific decision made]
+
+**[Core principle for this area]**
+
+- **[Decision]:** [What + Why]
+- **[Decision]:** [What + Why]
 
 ### [Area 3 that was discussed]
-- [Specific decision made]
+- **[Decision]:** [What + Why]
 
 ### Claude's Discretion
 [Areas where user explicitly said "you decide" — Claude has flexibility here during planning/implementation]
@@ -48,7 +60,7 @@ Template for `.planning/phases/XX-name/{phase}-CONTEXT.md` - captures implementa
 <specifics>
 ## Specific Ideas
 
-[Any particular references, examples, or "I want it like X" moments from discussion. Product references, specific behaviors, interaction patterns.]
+[Product references, anti-patterns, and "I want it like X" moments from discussion. Include enough context that the planner understands the reference without having been in the conversation.]
 
 [If none: "No specific requirements — open to standard approaches"]
 
@@ -71,7 +83,7 @@ Template for `.planning/phases/XX-name/{phase}-CONTEXT.md` - captures implementa
 
 <good_examples>
 
-**Example 1: Visual feature (Post Feed)**
+**Example 1: Visual feature (Post Feed) — showing decision + reasoning depth**
 
 ```markdown
 # Phase 3: Post Feed - Context
@@ -90,14 +102,22 @@ Display posts from followed users in a scrollable feed. Users can view posts and
 ## Implementation Decisions
 
 ### Layout style
-- Card-based layout, not timeline or list
+
+**Core principle: each post should feel like its own contained unit, not a stream of merged content.**
+
+- **Card-based layout**, not timeline or list — the user wants visual containment per post. Each card is a self-contained thought with clear boundaries. Reference: "like Linear's issue cards — clean, not cluttered"
 - Each card shows: author avatar, name, timestamp, full post content, reaction counts
-- Cards have subtle shadows, rounded corners — modern feel
+- Cards have subtle shadows, rounded corners — modern feel but not heavy
+- **Not:** Timeline layout (too dense, posts merge visually) or Grid layout (not enough content visible per item)
 
 ### Loading behavior
-- Infinite scroll, not pagination
+
+**Core principle: never interrupt the user's reading flow.**
+
+- **Infinite scroll**, not pagination — the user wants uninterrupted browsing without clicking "next page"
 - Pull-to-refresh on mobile
-- New posts indicator at top ("3 new posts") rather than auto-inserting
+- **New posts indicator** at top ("3 new posts") rather than auto-inserting — the user specifically referenced Twitter's approach: "I like how Twitter shows the new posts indicator without disrupting your scroll position." This means: never jump the user's scroll position, always let them opt in to new content.
+- **Not:** Auto-inserting new posts (disrupts reading position)
 
 ### Empty state
 - Friendly illustration + "Follow people to see posts here"
@@ -113,8 +133,8 @@ Display posts from followed users in a scrollable feed. Users can view posts and
 <specifics>
 ## Specific Ideas
 
-- "I like how Twitter shows the new posts indicator without disrupting your scroll position"
-- Cards should feel like Linear's issue cards — clean, not cluttered
+- **Linear's issue cards** as visual reference — clean, contained, not cluttered. The user values whitespace and clear boundaries over information density.
+- **Twitter's new-posts indicator** as interaction reference — non-disruptive, user-initiated content refresh. The scroll position is sacred.
 
 </specifics>
 
@@ -132,7 +152,7 @@ Display posts from followed users in a scrollable feed. Users can view posts and
 *Context gathered: 2025-01-20*
 ```
 
-**Example 2: CLI tool (Database backup)**
+**Example 2: CLI tool (Database backup) — showing constraints and reasoning**
 
 ```markdown
 # Phase 2: Backup Command - Context
@@ -151,9 +171,13 @@ CLI command to backup database to local file or S3. Supports full and incrementa
 ## Implementation Decisions
 
 ### Output format
-- JSON for programmatic use, table format for humans
-- Default to table, --json flag for JSON
-- Verbose mode (-v) shows progress, silent by default
+
+**Core principle: must work in both human-interactive and CI pipeline contexts without mode switching.**
+
+- JSON for programmatic use, table format for humans — the user needs this for CI pipeline integration where machines parse output
+- Default to table (human-first), --json flag for JSON — humans are the primary audience, machines opt in
+- Verbose mode (-v) shows progress, silent by default — CI pipelines need clean stdout, humans can opt into verbosity
+- "I want it to feel like pg_dump — familiar to database people" — the UX reference is pg_dump's straightforward, no-surprise interface
 
 ### Flag design
 - Short flags for common options: -o (output), -v (verbose), -f (force)
@@ -161,9 +185,13 @@ CLI command to backup database to local file or S3. Supports full and incrementa
 - Required: database connection string (positional or --db)
 
 ### Error recovery
-- Retry 3 times on network failure, then fail with clear message
-- --no-retry flag to fail fast
-- Partial backups are deleted on failure (no corrupt files)
+
+**Core principle: no human intervention needed in CI — fail cleanly or retry autonomously.**
+
+- Retry 3 times on network failure, then fail with clear message — the user needs unattended backup jobs that handle transient failures
+- --no-retry flag to fail fast — for debugging or when the user wants immediate failure
+- Partial backups are deleted on failure — no corrupt files left behind. The user was emphatic: "Should work in CI pipelines (exit codes, no interactive prompts)"
+- **Not:** Interactive prompts on failure (breaks CI), Silent failure (masks problems)
 
 ### Claude's Discretion
 - Exact progress bar implementation
@@ -175,8 +203,8 @@ CLI command to backup database to local file or S3. Supports full and incrementa
 <specifics>
 ## Specific Ideas
 
-- "I want it to feel like pg_dump — familiar to database people"
-- Should work in CI pipelines (exit codes, no interactive prompts)
+- **pg_dump as UX reference** — familiar, predictable, no surprises. The user values whitespace and clear boundaries over information density.
+- **CI-first mentality** — exit codes matter, stdout must be parseable, no interactive prompts ever. The user sees this as equally important as the backup functionality itself.
 
 </specifics>
 
@@ -194,7 +222,7 @@ CLI command to backup database to local file or S3. Supports full and incrementa
 *Context gathered: 2025-01-20*
 ```
 
-**Example 3: Organization task (Photo library)**
+**Example 3: Organization task (Photo library) — showing user philosophy**
 
 ```markdown
 # Phase 1: Photo Organization - Context
@@ -213,23 +241,30 @@ Organize existing photo library into structured folders. Handle duplicates and a
 ## Implementation Decisions
 
 ### Grouping criteria
-- Primary grouping by year, then by month
-- Events detected by time clustering (photos within 2 hours = same event)
-- Event folders named by date + location if available
+
+**Core principle: findability by approximate time — "I want to be able to find photos by roughly when they were taken."**
+
+- Primary grouping by year, then by month — the user thinks in calendar time, not events or people
+- Events detected by time clustering (photos within 2 hours = same event) — within a month, photos cluster naturally by activity
+- Event folders named by date + location if available — combines temporal and spatial context for recognition
 
 ### Duplicate handling
-- Keep highest resolution version
-- Move duplicates to _duplicates folder (don't delete)
-- Log all duplicate decisions for review
+
+**Core principle: never delete, always preserve the ability to review — "worst case, move to a review folder."**
+
+- Keep highest resolution version as the primary copy
+- Move duplicates to _duplicates folder (don't delete) — the user is risk-averse about data loss. Deletion is never automatic.
+- Log all duplicate decisions for review — the user wants to be able to audit what the system decided and override if needed
+- **Not:** Auto-delete duplicates (user doesn't trust automated deletion decisions on irreplaceable photos)
 
 ### Naming convention
 - Format: YYYY-MM-DD_HH-MM-SS_originalname.ext
-- Preserve original filename as suffix for searchability
+- Preserve original filename as suffix for searchability — the user may remember the original camera filename
 - Handle name collisions with incrementing suffix
 
 ### Claude's Discretion
-- Exact clustering algorithm
-- How to handle photos with no EXIF data
+- Exact clustering algorithm for event detection
+- How to handle photos with no EXIF data (likely move to "unsorted" folder)
 - Folder emoji usage
 
 </decisions>
@@ -237,8 +272,8 @@ Organize existing photo library into structured folders. Handle duplicates and a
 <specifics>
 ## Specific Ideas
 
-- "I want to be able to find photos by roughly when they were taken"
-- Don't delete anything — worst case, move to a review folder
+- **Safety-first philosophy** — the user repeatedly emphasized never deleting anything. Even duplicates get moved, not removed. The system should err on the side of preserving too much rather than too little.
+- **Calendar-based mental model** — the user navigates their memory by time ("roughly when they were taken"), not by content, people, or events. The folder structure should mirror this.
 
 </specifics>
 
@@ -259,15 +294,15 @@ Organize existing photo library into structured folders. Handle duplicates and a
 </good_examples>
 
 <guidelines>
-**This template captures DECISIONS for downstream agents.**
+**This template captures DECISIONS + REASONING for downstream agents.**
 
-The output should answer: "What does the researcher need to investigate? What choices are locked for the planner?"
+The output should answer: "What does the researcher need to investigate? What choices are locked for the planner? WHY were they made this way?"
 
-**Good content (concrete decisions):**
-- "Card-based layout, not timeline"
-- "Retry 3 times on network failure, then fail"
-- "Group by year, then by month"
-- "JSON for programmatic use, table for humans"
+**Good content (decision + reasoning):**
+- "Card-based layout, not timeline — user wants contained units, referenced Linear's cards"
+- "Retry 3 times on network failure, then fail — must work in CI pipelines without human intervention"
+- "Repetition allowed and valued — user called this a 'Hardening-Fact': re-retrieval IS the signal"
+- "Group by year, then by month — user thinks in calendar time, wants to find photos by 'roughly when'"
 
 **Bad content (too vague):**
 - "Should feel modern and clean"
@@ -275,9 +310,19 @@ The output should answer: "What does the researcher need to investigate? What ch
 - "Fast and responsive"
 - "Easy to use"
 
+**Also bad (decision without reasoning):**
+- "Card-based layout" (WHY? planner doesn't know the intent behind the choice)
+- "3-5 quotes per response" (WHY this density? what's the design goal?)
+- "Graph boost for citations" (what's the user's mental model here?)
+
+**Constraint vs Deferred — where reasoning lives:**
+- If a scope discussion revealed WHY something should NOT be built in this phase, that reasoning is a CONSTRAINT and belongs in the Decisions section: "Not: tap-to-source UI — single-source view is misleading when responses synthesize from multiple segments (NotebookLM anti-pattern)"
+- Deferred Ideas gets the slim backlog entry only: "Tap-to-source UI — future phase"
+- The reasoning stays where the planner needs it (Decisions). The backlog item goes where it won't be lost (Deferred).
+
 **After creation:**
 - File lives in phase directory: `.planning/phases/XX-name/{phase}-CONTEXT.md`
-- `gsd-phase-researcher` uses decisions to focus investigation
-- `gsd-planner` uses decisions + research to create executable tasks
+- `gsd-phase-researcher` uses decisions + reasoning to focus investigation
+- `gsd-planner` uses decisions + reasoning + constraints to create executable tasks
 - Downstream agents should NOT need to ask the user again about captured decisions
 </guidelines>
