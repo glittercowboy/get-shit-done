@@ -1,8 +1,15 @@
 #!/bin/bash
 set -e
 
-# Auto-Stack Logic (Single Source: STACK.md)
-STACK_FILE="/app/STACK.md"
+# Auto-Stack Logic (STACK.md can be in multiple locations)
+# Priority: root > .planning/research/
+if [ -f "/app/STACK.md" ]; then
+    STACK_FILE="/app/STACK.md"
+elif [ -f "/app/.planning/research/STACK.md" ]; then
+    STACK_FILE="/app/.planning/research/STACK.md"
+else
+    STACK_FILE=""
+fi
 
 # Helper function to extract code blocks
 extract_block() {
@@ -40,8 +47,8 @@ if [ -n "$CLI_PACKAGES" ]; then
     npm install -g --silent $CLI_PACKAGES
 fi
 
-if [ -f "$STACK_FILE" ]; then
-    echo -e "\033[0;35m[GSD-AutoStack] Reading STACK.md...\033[0m"
+if [ -n "$STACK_FILE" ]; then
+    echo -e "\033[0;35m[GSD-AutoStack] Found: $STACK_FILE\033[0m"
 
     # 1. System Dependencies (APT)
     # Block type: ```gsd-stack
