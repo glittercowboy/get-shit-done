@@ -16,8 +16,10 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "gray-matter": "^4.0.3",
+    "vectra": "^0.12.3",
     "yaml": "^2.3.0"
   },
   "devDependencies": {
@@ -26,6 +28,6 @@
     "vitest": "^1.0.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
