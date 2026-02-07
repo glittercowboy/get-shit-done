@@ -57,13 +57,7 @@ function gsd-secure {
         Write-Host " [Auth] OpenCode keys detected." -ForegroundColor DarkGray
     }
 
-    # 4. Amp (Legacy)
-    $AmpPath = "$HOME\.config\amp"
-    if (Test-Path $AmpPath) {
-        $MountArgs += "-v"
-        $MountArgs += "${AmpPath}:/root/.config/amp"
-        Write-Host " [Auth] Amp keys detected." -ForegroundColor DarkGray
-    }
+
 
     Write-Host "Entering GSD Secure Sandbox..." -ForegroundColor Green
     Write-Host "  Project: $CurrentDir" -ForegroundColor Gray
