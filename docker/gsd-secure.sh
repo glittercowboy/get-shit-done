@@ -54,11 +54,7 @@ function gsd-secure() {
         echo -e "\033[0;90m [Auth] OpenCode keys detected.\033[0m"
     fi
 
-    # 4. Amp (Legacy)
-    if [ -d "$HOME/.config/amp" ]; then
-        MOUNT_ARGS="$MOUNT_ARGS -v "$HOME/.config/amp:/root/.config/amp"
-        echo -e "\033[0;90m [Auth] Amp keys detected.\033[0m"
-    fi
+
 
     echo -e "\033[0;32mEntering GSD Secure Sandbox...\033[0m"
     echo -e "\033[0;37m  Project: $CURRENT_DIR\033[0m"
