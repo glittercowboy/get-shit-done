@@ -84,9 +84,11 @@ function gsd-secure {
             -e "GIT_COMMITTER_EMAIL=$GitEmail" `
             $ImageName
     } else {
-        # Default: Full network access (works with localhost)
+        # Default: Bridge network with port forwarding (Required for Windows)
+        # 'network host' is not supported on Windows Docker Desktop
         docker run --rm -it `
-            --network host `
+            -p 3000:3000 `
+            -p 5173:5173 `
             -v "${CurrentDir}:/app" `
             -v "gsd-npm-cache:/root/.npm" `
             $MountArgs `
