@@ -1063,7 +1063,7 @@ function configureOpencodePermissions() {
   const defaultConfigDir = path.join(os.homedir(), '.config', 'opencode');
   const gsdPath = opencodeConfigDir === defaultConfigDir
     ? '~/.config/opencode/get-shit-done/*'
-    : `${opencodeConfigDir}/get-shit-done/*`;
+    : `${opencodeConfigDir.replace(/\\/g, '/')}/get-shit-done/*`;
   
   let modified = false;
 
@@ -1150,7 +1150,7 @@ function install(isGlobal, runtime = 'claude') {
   // For global installs: use full path
   // For local installs: use relative
   const pathPrefix = isGlobal
-    ? `${targetDir}/`
+    ? `${targetDir.replace(/\\/g, '/')}/`
     : `./${dirName}/`;
 
   let runtimeLabel = 'Claude Code';
