@@ -128,12 +128,13 @@ Milestone Stats:
 
 <step name="extract_accomplishments">
 
-Read all phase SUMMARY.md files in milestone range:
+Extract one-liners from SUMMARY.md files using summary-extract:
 
 ```bash
-cat .planning/phases/01-*/01-*-SUMMARY.md
-cat .planning/phases/02-*/02-*-SUMMARY.md
-# ... for each phase in milestone
+# For each phase in milestone, extract one-liner
+for summary in .planning/phases/*-*/*-SUMMARY.md; do
+  node ~/.claude/get-shit-done/bin/gsd-tools.js summary-extract "$summary" --fields one_liner | jq -r '.one_liner'
+done
 ```
 
 Extract 4-6 key accomplishments. Present:

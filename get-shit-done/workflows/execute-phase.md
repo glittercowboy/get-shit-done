@@ -47,31 +47,16 @@ From init JSON: `phase_dir`, `plan_count`, `incomplete_count`.
 Report: "Found {plan_count} plans in {phase_dir} ({incomplete_count} incomplete)"
 </step>
 
-<step name="discover_plans">
+<step name="discover_and_group_plans">
+Load plan inventory with wave grouping in one call:
 
 ```bash
-ls -1 "$PHASE_DIR"/*-PLAN.md 2>/dev/null | sort
-ls -1 "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null | sort
+PLAN_INDEX=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase-plan-index "${PHASE_NUMBER}")
 ```
 
-For each plan, read frontmatter: `wave`, `autonomous`, `gap_closure`.
+Parse JSON for: `phase`, `plans[]` (each with `id`, `wave`, `autonomous`, `objective`, `files_modified`, `task_count`, `has_summary`), `waves` (map of wave number → plan IDs), `incomplete`, `has_checkpoints`.
 
-Build inventory: path, plan ID, wave, autonomous flag, gap_closure flag, completion (SUMMARY exists = complete).
-
-**Filtering:** Skip completed plans. If `--gaps-only`: also skip non-gap_closure plans. If all filtered: "No matching incomplete plans" → exit.
-</step>
-
-<step name="group_by_wave">
-
-```bash
-for plan in $PHASE_DIR/*-PLAN.md; do
-  wave=$(grep "^wave:" "$plan" | cut -d: -f2 | tr -d ' ')
-  autonomous=$(grep "^autonomous:" "$plan" | cut -d: -f2 | tr -d ' ')
-  echo "$plan:$wave:$autonomous"
-done
-```
-
-Group by wave number. **No dependency analysis needed** — waves pre-computed during `/gsd:plan-phase`.
+**Filtering:** Skip plans where `has_summary: true`. If `--gaps-only`: also skip non-gap_closure plans. If all filtered: "No matching incomplete plans" → exit.
 
 Report:
 ```

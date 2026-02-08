@@ -1038,6 +1038,270 @@ function cmdTemplateSelect(cwd, planPath, raw) {
   }
 }
 
+function cmdPhasePlanIndex(cwd, phase, raw) {
+  if (!phase) {
+    error('phase required for phase-plan-index');
+  }
+
+  const phasesDir = path.join(cwd, '.planning', 'phases');
+  const normalized = normalizePhaseName(phase);
+
+  // Find phase directory
+  let phaseDir = null;
+  let phaseDirName = null;
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+    const match = dirs.find(d => d.startsWith(normalized));
+    if (match) {
+      phaseDir = path.join(phasesDir, match);
+      phaseDirName = match;
+    }
+  } catch {
+    // phases dir doesn't exist
+  }
+
+  if (!phaseDir) {
+    output({ phase: normalized, error: 'Phase not found', plans: [], waves: {}, incomplete: [], has_checkpoints: false }, raw);
+    return;
+  }
+
+  // Get all files in phase directory
+  const phaseFiles = fs.readdirSync(phaseDir);
+  const planFiles = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md').sort();
+  const summaryFiles = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+
+  // Build set of plan IDs with summaries
+  const completedPlanIds = new Set(
+    summaryFiles.map(s => s.replace('-SUMMARY.md', '').replace('SUMMARY.md', ''))
+  );
+
+  const plans = [];
+  const waves = {};
+  const incomplete = [];
+  let hasCheckpoints = false;
+
+  for (const planFile of planFiles) {
+    const planId = planFile.replace('-PLAN.md', '').replace('PLAN.md', '');
+    const planPath = path.join(phaseDir, planFile);
+    const content = fs.readFileSync(planPath, 'utf-8');
+    const fm = extractFrontmatter(content);
+
+    // Count tasks (## Task N patterns)
+    const taskMatches = content.match(/##\s*Task\s*\d+/gi) || [];
+    const taskCount = taskMatches.length;
+
+    // Parse wave as integer
+    const wave = parseInt(fm.wave, 10) || 1;
+
+    // Parse autonomous (default true if not specified)
+    let autonomous = true;
+    if (fm.autonomous !== undefined) {
+      autonomous = fm.autonomous === 'true' || fm.autonomous === true;
+    }
+
+    if (!autonomous) {
+      hasCheckpoints = true;
+    }
+
+    // Parse files-modified
+    let filesModified = [];
+    if (fm['files-modified']) {
+      filesModified = Array.isArray(fm['files-modified']) ? fm['files-modified'] : [fm['files-modified']];
+    }
+
+    const hasSummary = completedPlanIds.has(planId);
+    if (!hasSummary) {
+      incomplete.push(planId);
+    }
+
+    const plan = {
+      id: planId,
+      wave,
+      autonomous,
+      objective: fm.objective || null,
+      files_modified: filesModified,
+      task_count: taskCount,
+      has_summary: hasSummary,
+    };
+
+    plans.push(plan);
+
+    // Group by wave
+    const waveKey = String(wave);
+    if (!waves[waveKey]) {
+      waves[waveKey] = [];
+    }
+    waves[waveKey].push(planId);
+  }
+
+  const result = {
+    phase: normalized,
+    plans,
+    waves,
+    incomplete,
+    has_checkpoints: hasCheckpoints,
+  };
+
+  output(result, raw);
+}
+
+function cmdStateSnapshot(cwd, raw) {
+  const statePath = path.join(cwd, '.planning', 'STATE.md');
+
+  if (!fs.existsSync(statePath)) {
+    output({ error: 'STATE.md not found' }, raw);
+    return;
+  }
+
+  const content = fs.readFileSync(statePath, 'utf-8');
+
+  // Helper to extract **Field:** value patterns
+  const extractField = (fieldName) => {
+    const pattern = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, 'i');
+    const match = content.match(pattern);
+    return match ? match[1].trim() : null;
+  };
+
+  // Extract basic fields
+  const currentPhase = extractField('Current Phase');
+  const currentPhaseName = extractField('Current Phase Name');
+  const totalPhasesRaw = extractField('Total Phases');
+  const currentPlan = extractField('Current Plan');
+  const totalPlansRaw = extractField('Total Plans in Phase');
+  const status = extractField('Status');
+  const progressRaw = extractField('Progress');
+  const lastActivity = extractField('Last Activity');
+  const lastActivityDesc = extractField('Last Activity Description');
+  const pausedAt = extractField('Paused At');
+
+  // Parse numeric fields
+  const totalPhases = totalPhasesRaw ? parseInt(totalPhasesRaw, 10) : null;
+  const totalPlansInPhase = totalPlansRaw ? parseInt(totalPlansRaw, 10) : null;
+  const progressPercent = progressRaw ? parseInt(progressRaw.replace('%', ''), 10) : null;
+
+  // Extract decisions table
+  const decisions = [];
+  const decisionsMatch = content.match(/##\s*Decisions Made[\s\S]*?\n\|[^\n]+\n\|[-|\s]+\n([\s\S]*?)(?=\n##|\n$|$)/i);
+  if (decisionsMatch) {
+    const tableBody = decisionsMatch[1];
+    const rows = tableBody.trim().split('\n').filter(r => r.includes('|'));
+    for (const row of rows) {
+      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+      if (cells.length >= 3) {
+        decisions.push({
+          phase: cells[0],
+          summary: cells[1],
+          rationale: cells[2],
+        });
+      }
+    }
+  }
+
+  // Extract blockers list
+  const blockers = [];
+  const blockersMatch = content.match(/##\s*Blockers\s*\n([\s\S]*?)(?=\n##|$)/i);
+  if (blockersMatch) {
+    const blockersSection = blockersMatch[1];
+    const items = blockersSection.match(/^-\s+(.+)$/gm) || [];
+    for (const item of items) {
+      blockers.push(item.replace(/^-\s+/, '').trim());
+    }
+  }
+
+  // Extract session info
+  const session = {
+    last_date: null,
+    stopped_at: null,
+    resume_file: null,
+  };
+
+  const sessionMatch = content.match(/##\s*Session\s*\n([\s\S]*?)(?=\n##|$)/i);
+  if (sessionMatch) {
+    const sessionSection = sessionMatch[1];
+    const lastDateMatch = sessionSection.match(/\*\*Last Date:\*\*\s*(.+)/i);
+    const stoppedAtMatch = sessionSection.match(/\*\*Stopped At:\*\*\s*(.+)/i);
+    const resumeFileMatch = sessionSection.match(/\*\*Resume File:\*\*\s*(.+)/i);
+
+    if (lastDateMatch) session.last_date = lastDateMatch[1].trim();
+    if (stoppedAtMatch) session.stopped_at = stoppedAtMatch[1].trim();
+    if (resumeFileMatch) session.resume_file = resumeFileMatch[1].trim();
+  }
+
+  const result = {
+    current_phase: currentPhase,
+    current_phase_name: currentPhaseName,
+    total_phases: totalPhases,
+    current_plan: currentPlan,
+    total_plans_in_phase: totalPlansInPhase,
+    status,
+    progress_percent: progressPercent,
+    last_activity: lastActivity,
+    last_activity_desc: lastActivityDesc,
+    decisions,
+    blockers,
+    paused_at: pausedAt,
+    session,
+  };
+
+  output(result, raw);
+}
+
+function cmdSummaryExtract(cwd, summaryPath, fields, raw) {
+  if (!summaryPath) {
+    error('summary-path required for summary-extract');
+  }
+
+  const fullPath = path.join(cwd, summaryPath);
+
+  if (!fs.existsSync(fullPath)) {
+    output({ error: 'File not found', path: summaryPath }, raw);
+    return;
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const fm = extractFrontmatter(content);
+
+  // Parse key-decisions into structured format
+  const parseDecisions = (decisionsList) => {
+    if (!decisionsList || !Array.isArray(decisionsList)) return [];
+    return decisionsList.map(d => {
+      const colonIdx = d.indexOf(':');
+      if (colonIdx > 0) {
+        return {
+          summary: d.substring(0, colonIdx).trim(),
+          rationale: d.substring(colonIdx + 1).trim(),
+        };
+      }
+      return { summary: d, rationale: null };
+    });
+  };
+
+  // Build full result
+  const fullResult = {
+    path: summaryPath,
+    one_liner: fm['one-liner'] || null,
+    key_files: fm['key-files'] || [],
+    tech_added: (fm['tech-stack'] && fm['tech-stack'].added) || [],
+    patterns: fm['patterns-established'] || [],
+    decisions: parseDecisions(fm['key-decisions']),
+  };
+
+  // If fields specified, filter to only those fields
+  if (fields && fields.length > 0) {
+    const filtered = { path: summaryPath };
+    for (const field of fields) {
+      if (fullResult[field] !== undefined) {
+        filtered[field] = fullResult[field];
+      }
+    }
+    output(filtered, raw);
+    return;
+  }
+
+  output(fullResult, raw);
+}
+
 // ─── Compound Commands ────────────────────────────────────────────────────────
 
 function resolveModelInternal(cwd, agentType) {
@@ -1867,6 +2131,24 @@ function main() {
         default:
           error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, verify-work, phase-op, todos, milestone-op, map-codebase, progress`);
       }
+      break;
+    }
+
+    case 'phase-plan-index': {
+      cmdPhasePlanIndex(cwd, args[1], raw);
+      break;
+    }
+
+    case 'state-snapshot': {
+      cmdStateSnapshot(cwd, raw);
+      break;
+    }
+
+    case 'summary-extract': {
+      const summaryPath = args[1];
+      const fieldsIndex = args.indexOf('--fields');
+      const fields = fieldsIndex !== -1 ? args[fieldsIndex + 1].split(',') : null;
+      cmdSummaryExtract(cwd, summaryPath, fields, raw);
       break;
     }
 

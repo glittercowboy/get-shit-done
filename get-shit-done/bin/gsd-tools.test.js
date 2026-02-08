@@ -597,3 +597,458 @@ describe('phase next-decimal command', () => {
     assert.strictEqual(output.next, '06.1', 'should still suggest 06.1');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// phase-plan-index command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('phase-plan-index command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('empty phase directory returns empty plans array', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-api'), { recursive: true });
+
+    const result = runGsdTools('phase-plan-index 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.phase, '03', 'phase number correct');
+    assert.deepStrictEqual(output.plans, [], 'plans should be empty');
+    assert.deepStrictEqual(output.waves, {}, 'waves should be empty');
+    assert.deepStrictEqual(output.incomplete, [], 'incomplete should be empty');
+    assert.strictEqual(output.has_checkpoints, false, 'no checkpoints');
+  });
+
+  test('extracts single plan with frontmatter', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '03-01-PLAN.md'),
+      `---
+wave: 1
+autonomous: true
+objective: Set up database schema
+files-modified: [prisma/schema.prisma, src/lib/db.ts]
+---
+
+## Task 1: Create schema
+## Task 2: Generate client
+`
+    );
+
+    const result = runGsdTools('phase-plan-index 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.plans.length, 1, 'should have 1 plan');
+    assert.strictEqual(output.plans[0].id, '03-01', 'plan id correct');
+    assert.strictEqual(output.plans[0].wave, 1, 'wave extracted');
+    assert.strictEqual(output.plans[0].autonomous, true, 'autonomous extracted');
+    assert.strictEqual(output.plans[0].objective, 'Set up database schema', 'objective extracted');
+    assert.deepStrictEqual(output.plans[0].files_modified, ['prisma/schema.prisma', 'src/lib/db.ts'], 'files extracted');
+    assert.strictEqual(output.plans[0].task_count, 2, 'task count correct');
+    assert.strictEqual(output.plans[0].has_summary, false, 'no summary yet');
+  });
+
+  test('groups multiple plans by wave', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '03-01-PLAN.md'),
+      `---
+wave: 1
+autonomous: true
+objective: Database setup
+---
+
+## Task 1: Schema
+`
+    );
+
+    fs.writeFileSync(
+      path.join(phaseDir, '03-02-PLAN.md'),
+      `---
+wave: 1
+autonomous: true
+objective: Auth setup
+---
+
+## Task 1: JWT
+`
+    );
+
+    fs.writeFileSync(
+      path.join(phaseDir, '03-03-PLAN.md'),
+      `---
+wave: 2
+autonomous: false
+objective: API routes
+---
+
+## Task 1: Routes
+`
+    );
+
+    const result = runGsdTools('phase-plan-index 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.plans.length, 3, 'should have 3 plans');
+    assert.deepStrictEqual(output.waves['1'], ['03-01', '03-02'], 'wave 1 has 2 plans');
+    assert.deepStrictEqual(output.waves['2'], ['03-03'], 'wave 2 has 1 plan');
+  });
+
+  test('detects incomplete plans (no matching summary)', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    // Plan with summary
+    fs.writeFileSync(path.join(phaseDir, '03-01-PLAN.md'), `---\nwave: 1\n---\n## Task 1`);
+    fs.writeFileSync(path.join(phaseDir, '03-01-SUMMARY.md'), `# Summary`);
+
+    // Plan without summary
+    fs.writeFileSync(path.join(phaseDir, '03-02-PLAN.md'), `---\nwave: 2\n---\n## Task 1`);
+
+    const result = runGsdTools('phase-plan-index 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.plans[0].has_summary, true, 'first plan has summary');
+    assert.strictEqual(output.plans[1].has_summary, false, 'second plan has no summary');
+    assert.deepStrictEqual(output.incomplete, ['03-02'], 'incomplete list correct');
+  });
+
+  test('detects checkpoints (autonomous: false)', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '03-01-PLAN.md'),
+      `---
+wave: 1
+autonomous: false
+objective: Manual review needed
+---
+
+## Task 1: Review
+`
+    );
+
+    const result = runGsdTools('phase-plan-index 03', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.has_checkpoints, true, 'should detect checkpoint');
+    assert.strictEqual(output.plans[0].autonomous, false, 'plan marked non-autonomous');
+  });
+
+  test('phase not found returns error', () => {
+    const result = runGsdTools('phase-plan-index 99', tmpDir);
+    assert.ok(result.success, `Command should succeed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.error, 'Phase not found', 'should report phase not found');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// state-snapshot command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('state-snapshot command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('missing STATE.md returns error', () => {
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command should succeed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.error, 'STATE.md not found', 'should report missing file');
+  });
+
+  test('extracts basic fields from STATE.md', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 03
+**Current Phase Name:** API Layer
+**Total Phases:** 6
+**Current Plan:** 03-02
+**Total Plans in Phase:** 3
+**Status:** In progress
+**Progress:** 45%
+**Last Activity:** 2024-01-15
+**Last Activity Description:** Completed 03-01-PLAN.md
+`
+    );
+
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.current_phase, '03', 'current phase extracted');
+    assert.strictEqual(output.current_phase_name, 'API Layer', 'phase name extracted');
+    assert.strictEqual(output.total_phases, 6, 'total phases extracted');
+    assert.strictEqual(output.current_plan, '03-02', 'current plan extracted');
+    assert.strictEqual(output.total_plans_in_phase, 3, 'total plans extracted');
+    assert.strictEqual(output.status, 'In progress', 'status extracted');
+    assert.strictEqual(output.progress_percent, 45, 'progress extracted');
+    assert.strictEqual(output.last_activity, '2024-01-15', 'last activity date extracted');
+  });
+
+  test('extracts decisions table', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 01
+
+## Decisions Made
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| 01 | Use Prisma | Better DX than raw SQL |
+| 02 | JWT auth | Stateless authentication |
+`
+    );
+
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.decisions.length, 2, 'should have 2 decisions');
+    assert.strictEqual(output.decisions[0].phase, '01', 'first decision phase');
+    assert.strictEqual(output.decisions[0].summary, 'Use Prisma', 'first decision summary');
+    assert.strictEqual(output.decisions[0].rationale, 'Better DX than raw SQL', 'first decision rationale');
+  });
+
+  test('extracts blockers list', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 03
+
+## Blockers
+
+- Waiting for API credentials
+- Need design review for dashboard
+`
+    );
+
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(output.blockers, [
+      'Waiting for API credentials',
+      'Need design review for dashboard',
+    ], 'blockers extracted');
+  });
+
+  test('extracts session continuity info', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 03
+
+## Session
+
+**Last Date:** 2024-01-15
+**Stopped At:** Phase 3, Plan 2, Task 1
+**Resume File:** .planning/phases/03-api/03-02-PLAN.md
+`
+    );
+
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.session.last_date, '2024-01-15', 'session date extracted');
+    assert.strictEqual(output.session.stopped_at, 'Phase 3, Plan 2, Task 1', 'stopped at extracted');
+    assert.strictEqual(output.session.resume_file, '.planning/phases/03-api/03-02-PLAN.md', 'resume file extracted');
+  });
+
+  test('handles paused_at field', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Project State
+
+**Current Phase:** 03
+**Paused At:** Phase 3, Plan 1, Task 2 - mid-implementation
+`
+    );
+
+    const result = runGsdTools('state-snapshot', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.paused_at, 'Phase 3, Plan 1, Task 2 - mid-implementation', 'paused_at extracted');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// summary-extract command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('summary-extract command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('missing file returns error', () => {
+    const result = runGsdTools('summary-extract .planning/phases/01-test/01-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command should succeed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.error, 'File not found', 'should report missing file');
+  });
+
+  test('extracts all fields from SUMMARY.md', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '01-01-SUMMARY.md'),
+      `---
+one-liner: Set up Prisma with User and Project models
+key-files:
+  - prisma/schema.prisma
+  - src/lib/db.ts
+tech-stack:
+  added:
+    - prisma
+    - zod
+patterns-established:
+  - Repository pattern
+  - Dependency injection
+key-decisions:
+  - Use Prisma over Drizzle: Better DX and ecosystem
+  - Single database: Start simple, shard later
+---
+
+# Summary
+
+Full summary content here.
+`
+    );
+
+    const result = runGsdTools('summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.path, '.planning/phases/01-foundation/01-01-SUMMARY.md', 'path correct');
+    assert.strictEqual(output.one_liner, 'Set up Prisma with User and Project models', 'one-liner extracted');
+    assert.deepStrictEqual(output.key_files, ['prisma/schema.prisma', 'src/lib/db.ts'], 'key files extracted');
+    assert.deepStrictEqual(output.tech_added, ['prisma', 'zod'], 'tech added extracted');
+    assert.deepStrictEqual(output.patterns, ['Repository pattern', 'Dependency injection'], 'patterns extracted');
+    assert.strictEqual(output.decisions.length, 2, 'decisions extracted');
+  });
+
+  test('selective extraction with --fields', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '01-01-SUMMARY.md'),
+      `---
+one-liner: Set up database
+key-files:
+  - prisma/schema.prisma
+tech-stack:
+  added:
+    - prisma
+patterns-established:
+  - Repository pattern
+key-decisions:
+  - Use Prisma: Better DX
+---
+`
+    );
+
+    const result = runGsdTools('summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md --fields one_liner,key_files', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.one_liner, 'Set up database', 'one_liner included');
+    assert.deepStrictEqual(output.key_files, ['prisma/schema.prisma'], 'key_files included');
+    assert.strictEqual(output.tech_added, undefined, 'tech_added excluded');
+    assert.strictEqual(output.patterns, undefined, 'patterns excluded');
+    assert.strictEqual(output.decisions, undefined, 'decisions excluded');
+  });
+
+  test('handles missing frontmatter fields gracefully', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '01-01-SUMMARY.md'),
+      `---
+one-liner: Minimal summary
+---
+
+# Summary
+`
+    );
+
+    const result = runGsdTools('summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.one_liner, 'Minimal summary', 'one-liner extracted');
+    assert.deepStrictEqual(output.key_files, [], 'key_files defaults to empty');
+    assert.deepStrictEqual(output.tech_added, [], 'tech_added defaults to empty');
+    assert.deepStrictEqual(output.patterns, [], 'patterns defaults to empty');
+    assert.deepStrictEqual(output.decisions, [], 'decisions defaults to empty');
+  });
+
+  test('parses key-decisions with rationale', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(phaseDir, '01-01-SUMMARY.md'),
+      `---
+key-decisions:
+  - Use Prisma: Better DX than alternatives
+  - JWT tokens: Stateless auth for scalability
+---
+`
+    );
+
+    const result = runGsdTools('summary-extract .planning/phases/01-foundation/01-01-SUMMARY.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.decisions[0].summary, 'Use Prisma', 'decision summary parsed');
+    assert.strictEqual(output.decisions[0].rationale, 'Better DX than alternatives', 'decision rationale parsed');
+    assert.strictEqual(output.decisions[1].summary, 'JWT tokens', 'second decision summary');
+    assert.strictEqual(output.decisions[1].rationale, 'Stateless auth for scalability', 'second decision rationale');
+  });
+});
