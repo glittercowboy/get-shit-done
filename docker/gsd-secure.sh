@@ -31,7 +31,8 @@ function gsd-secure() {
     if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]]; then
         echo -e "\033[0;36mBuilding GSD Sandbox image... (First run only)\033[0m"
         # Use Repo Root as context to include 'agents/' folder
-        docker build -t $IMAGE_NAME -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR/.."
+        # --no-cache ensures updates are always picked up
+        docker build --no-cache -t $IMAGE_NAME -f "$DOCKER_DIR/Dockerfile" "$DOCKER_DIR/.."
     fi
 
     # 2. Get Context
@@ -63,7 +64,7 @@ function gsd-secure() {
 
     # 3. OpenCode
     if [ -d "$HOME/.config/opencode" ]; then
-        MOUNT_ARGS="$MOUNT_ARGS -v "$HOME/.config/opencode:/root/.config/opencode"
+        MOUNT_ARGS="$MOUNT_ARGS -v \"$HOME/.config/opencode:/root/.config/opencode\""
         echo -e "\033[0;90m [Auth] OpenCode keys detected.\033[0m"
     fi
 

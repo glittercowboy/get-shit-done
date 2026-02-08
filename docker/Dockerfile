@@ -23,7 +23,8 @@ RUN npm pack && npm install -g get-shit-done-cc-*.tgz && rm -rf /tmp/gsd-source
 
 # Copy entrypoint script (path relative to repo root context)
 COPY docker/entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Fix Windows CRLF line endings if present, then make executable
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
 
 # Set working directory to /app
 # This is where the user's project will be mounted
