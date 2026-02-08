@@ -153,28 +153,68 @@ function extractFrontmatter(content) {
 
   const yaml = match[1];
   const lines = yaml.split('\n');
-  let currentKey = null;
-  let currentArray = null;
+
+  // Stack to track nested objects: [{obj, key, indent}]
+  // obj = object to write to, key = current key collecting array items, indent = indentation level
+  let stack = [{ obj: frontmatter, key: null, indent: -1 }];
 
   for (const line of lines) {
-    const keyMatch = line.match(/^([a-zA-Z0-9_-]+):\s*(.*)/);
+    // Skip empty lines
+    if (line.trim() === '') continue;
+
+    // Calculate indentation (number of leading spaces)
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1].length : 0;
+
+    // Pop stack back to appropriate level
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
+
+    const current = stack[stack.length - 1];
+
+    // Check for key: value pattern
+    const keyMatch = line.match(/^(\s*)([a-zA-Z0-9_-]+):\s*(.*)/);
     if (keyMatch) {
-      const key = keyMatch[1];
-      const value = keyMatch[2].trim();
-      
-      if (value === '[' || value === '') {
-        currentKey = key;
-        currentArray = [];
-        frontmatter[key] = currentArray;
+      const key = keyMatch[2];
+      const value = keyMatch[3].trim();
+
+      if (value === '' || value === '[') {
+        // Key with no value or opening bracket — could be nested object or array
+        // We'll determine based on next lines, for now create placeholder
+        current.obj[key] = value === '[' ? [] : {};
+        current.key = null;
+        // Push new context for potential nested content
+        stack.push({ obj: current.obj[key], key: null, indent });
       } else if (value.startsWith('[') && value.endsWith(']')) {
-        frontmatter[key] = value.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-        currentKey = null;
+        // Inline array: key: [a, b, c]
+        current.obj[key] = value.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+        current.key = null;
       } else {
-        frontmatter[key] = value.replace(/^["']|["']$/g, '');
-        currentKey = null;
+        // Simple key: value
+        current.obj[key] = value.replace(/^["']|["']$/g, '');
+        current.key = null;
       }
-    } else if (line.trim().startsWith('- ') && currentArray) {
-      currentArray.push(line.trim().slice(2).replace(/^["']|["']$/g, ''));
+    } else if (line.trim().startsWith('- ')) {
+      // Array item
+      const itemValue = line.trim().slice(2).replace(/^["']|["']$/g, '');
+
+      // If current context is an empty object, convert to array
+      if (typeof current.obj === 'object' && !Array.isArray(current.obj) && Object.keys(current.obj).length === 0) {
+        // Find the key in parent that points to this object and convert it
+        const parent = stack.length > 1 ? stack[stack.length - 2] : null;
+        if (parent) {
+          for (const k of Object.keys(parent.obj)) {
+            if (parent.obj[k] === current.obj) {
+              parent.obj[k] = [itemValue];
+              current.obj = parent.obj[k];
+              break;
+            }
+          }
+        }
+      } else if (Array.isArray(current.obj)) {
+        current.obj.push(itemValue);
+      }
     }
   }
 
@@ -336,6 +376,7 @@ function cmdHistoryDigest(cwd, raw) {
   const digest = { phases: {}, decisions: [], tech_stack: new Set() };
 
   if (!fs.existsSync(phasesDir)) {
+    digest.tech_stack = [];
     output(digest, raw);
     return;
   }

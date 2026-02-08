@@ -885,26 +885,27 @@ Apply discovery level protocol (see discovery_levels section).
 </step>
 
 <step name="read_project_history">
-**Intelligent context assembly from frontmatter dependency graph:**
+**Extract context from history digest (not full SUMMARYs):**
 
-1. Scan all summary frontmatter:
+1. Generate history digest:
 ```bash
-for f in .planning/phases/*/*-SUMMARY.md; do
-  sed -n '1,/^---$/p; /^---$/q' "$f" | head -30
-done
+node ~/.claude/get-shit-done/bin/gsd-tools.js history-digest
 ```
 
-2. Build dependency graph for current phase:
+2. From digest extract:
+- `phases[X].provides`: What each phase created
+- `phases[X].affects`: What subsystems each phase touched
+- `phases[X].patterns`: Conventions to follow
+- `digest.decisions`: Prior decisions constraining approach
+- `digest.tech_stack`: Available libraries
+
+3. Build dependency graph for current phase:
 - `affects` field: Which prior phases affect current?
 - `subsystem`: Which prior phases share same subsystem?
 - `requires` chains: Transitive dependencies
 - Roadmap: Any phases marked as dependencies?
 
-3. Select relevant summaries (typically 2-4 prior phases)
-
-4. Extract from frontmatter: tech available, patterns established, key files, decisions.
-
-5. Read FULL summaries only for selected relevant phases.
+4. Use digest fields directly — only read full SUMMARY if digest missing critical implementation detail (rare).
 
 **From STATE.md:** Decisions → constrain approach. Pending todos → candidates.
 </step>
