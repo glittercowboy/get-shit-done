@@ -288,3 +288,312 @@ patterns-established: ["Pattern X", "Pattern Y"]
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// phases list command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('phases list command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('empty phases directory returns empty array', () => {
+    const result = runGsdTools('phases list', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(output.directories, [], 'directories should be empty');
+    assert.strictEqual(output.count, 0, 'count should be 0');
+  });
+
+  test('lists phase directories sorted numerically', () => {
+    // Create out-of-order directories
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '10-final'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-foundation'), { recursive: true });
+
+    const result = runGsdTools('phases list', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.count, 3, 'should have 3 directories');
+    assert.deepStrictEqual(
+      output.directories,
+      ['01-foundation', '02-api', '10-final'],
+      'should be sorted numerically'
+    );
+  });
+
+  test('handles decimal phases in sort order', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02.1-hotfix'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02.2-patch'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-ui'), { recursive: true });
+
+    const result = runGsdTools('phases list', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(
+      output.directories,
+      ['02-api', '02.1-hotfix', '02.2-patch', '03-ui'],
+      'decimal phases should sort correctly between whole numbers'
+    );
+  });
+
+  test('--type plans lists only PLAN.md files', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan 1');
+    fs.writeFileSync(path.join(phaseDir, '01-02-PLAN.md'), '# Plan 2');
+    fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary');
+    fs.writeFileSync(path.join(phaseDir, 'RESEARCH.md'), '# Research');
+
+    const result = runGsdTools('phases list --type plans', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(
+      output.files.sort(),
+      ['01-01-PLAN.md', '01-02-PLAN.md'],
+      'should list only PLAN files'
+    );
+  });
+
+  test('--type summaries lists only SUMMARY.md files', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan');
+    fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary 1');
+    fs.writeFileSync(path.join(phaseDir, '01-02-SUMMARY.md'), '# Summary 2');
+
+    const result = runGsdTools('phases list --type summaries', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(
+      output.files.sort(),
+      ['01-01-SUMMARY.md', '01-02-SUMMARY.md'],
+      'should list only SUMMARY files'
+    );
+  });
+
+  test('--phase filters to specific phase directory', () => {
+    const phase01 = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    const phase02 = path.join(tmpDir, '.planning', 'phases', '02-api');
+    fs.mkdirSync(phase01, { recursive: true });
+    fs.mkdirSync(phase02, { recursive: true });
+    fs.writeFileSync(path.join(phase01, '01-01-PLAN.md'), '# Plan');
+    fs.writeFileSync(path.join(phase02, '02-01-PLAN.md'), '# Plan');
+
+    const result = runGsdTools('phases list --type plans --phase 01', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.deepStrictEqual(output.files, ['01-01-PLAN.md'], 'should only list phase 01 plans');
+    assert.strictEqual(output.phase_dir, 'foundation', 'should report phase name without number prefix');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// roadmap get-phase command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('roadmap get-phase command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('extracts phase section from ROADMAP.md', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap v1.0
+
+## Phases
+
+### Phase 1: Foundation
+**Goal:** Set up project infrastructure
+**Plans:** 2 plans
+
+Some description here.
+
+### Phase 2: API
+**Goal:** Build REST API
+**Plans:** 3 plans
+`
+    );
+
+    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, true, 'phase should be found');
+    assert.strictEqual(output.phase_number, '1', 'phase number correct');
+    assert.strictEqual(output.phase_name, 'Foundation', 'phase name extracted');
+    assert.strictEqual(output.goal, 'Set up project infrastructure', 'goal extracted');
+  });
+
+  test('returns not found for missing phase', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap v1.0
+
+### Phase 1: Foundation
+**Goal:** Set up project
+`
+    );
+
+    const result = runGsdTools('roadmap get-phase 5', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, false, 'phase should not be found');
+  });
+
+  test('handles decimal phase numbers', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+### Phase 2: Main
+**Goal:** Main work
+
+### Phase 2.1: Hotfix
+**Goal:** Emergency fix
+`
+    );
+
+    const result = runGsdTools('roadmap get-phase 2.1', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, true, 'decimal phase should be found');
+    assert.strictEqual(output.phase_name, 'Hotfix', 'phase name correct');
+    assert.strictEqual(output.goal, 'Emergency fix', 'goal extracted');
+  });
+
+  test('extracts full section content', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap
+
+### Phase 1: Setup
+**Goal:** Initialize everything
+
+This phase covers:
+- Database setup
+- Auth configuration
+- CI/CD pipeline
+
+### Phase 2: Build
+**Goal:** Build features
+`
+    );
+
+    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.ok(output.section.includes('Database setup'), 'section includes description');
+    assert.ok(output.section.includes('CI/CD pipeline'), 'section includes all bullets');
+    assert.ok(!output.section.includes('Phase 2'), 'section does not include next phase');
+  });
+
+  test('handles missing ROADMAP.md gracefully', () => {
+    const result = runGsdTools('roadmap get-phase 1', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, false, 'should return not found');
+    assert.strictEqual(output.error, 'ROADMAP.md not found', 'should explain why');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// phase next-decimal command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('phase next-decimal command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('returns X.1 when no decimal phases exist', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06-feature'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '07-next'), { recursive: true });
+
+    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.next, '06.1', 'should return 06.1');
+    assert.deepStrictEqual(output.existing, [], 'no existing decimals');
+  });
+
+  test('increments from existing decimal phases', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06-feature'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.1-hotfix'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.2-patch'), { recursive: true });
+
+    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.next, '06.3', 'should return 06.3');
+    assert.deepStrictEqual(output.existing, ['06.1', '06.2'], 'lists existing decimals');
+  });
+
+  test('handles gaps in decimal sequence', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06-feature'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.1-first'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06.3-third'), { recursive: true });
+
+    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    // Should take next after highest, not fill gap
+    assert.strictEqual(output.next, '06.4', 'should return 06.4, not fill gap at 06.2');
+  });
+
+  test('handles single-digit phase input', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '06-feature'), { recursive: true });
+
+    const result = runGsdTools('phase next-decimal 6', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.next, '06.1', 'should normalize to 06.1');
+    assert.strictEqual(output.base_phase, '06', 'base phase should be padded');
+  });
+
+  test('returns error if base phase does not exist', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-start'), { recursive: true });
+
+    const result = runGsdTools('phase next-decimal 06', tmpDir);
+    assert.ok(result.success, `Command should succeed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.found, false, 'base phase not found');
+    assert.strictEqual(output.next, '06.1', 'should still suggest 06.1');
+  });
+});

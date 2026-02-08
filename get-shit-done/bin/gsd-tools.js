@@ -456,6 +456,205 @@ function cmdHistoryDigest(cwd, raw) {
   }
 }
 
+function cmdPhasesList(cwd, options, raw) {
+  const phasesDir = path.join(cwd, '.planning', 'phases');
+  const { type, phase } = options;
+
+  // If no phases directory, return empty
+  if (!fs.existsSync(phasesDir)) {
+    if (type) {
+      output({ files: [], count: 0 }, raw, '');
+    } else {
+      output({ directories: [], count: 0 }, raw, '');
+    }
+    return;
+  }
+
+  try {
+    // Get all phase directories
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    let dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+    // Sort numerically (handles decimals: 01, 02, 02.1, 02.2, 03)
+    dirs.sort((a, b) => {
+      const aNum = parseFloat(a.match(/^(\d+(?:\.\d+)?)/)?.[1] || '0');
+      const bNum = parseFloat(b.match(/^(\d+(?:\.\d+)?)/)?.[1] || '0');
+      return aNum - bNum;
+    });
+
+    // If filtering by phase number
+    if (phase) {
+      const normalized = normalizePhaseName(phase);
+      const match = dirs.find(d => d.startsWith(normalized));
+      if (!match) {
+        output({ files: [], count: 0, phase_dir: null, error: 'Phase not found' }, raw, '');
+        return;
+      }
+      dirs = [match];
+    }
+
+    // If listing files of a specific type
+    if (type) {
+      const files = [];
+      for (const dir of dirs) {
+        const dirPath = path.join(phasesDir, dir);
+        const dirFiles = fs.readdirSync(dirPath);
+
+        let filtered;
+        if (type === 'plans') {
+          filtered = dirFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+        } else if (type === 'summaries') {
+          filtered = dirFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+        } else {
+          filtered = dirFiles;
+        }
+
+        files.push(...filtered.sort());
+      }
+
+      const result = {
+        files,
+        count: files.length,
+        phase_dir: phase ? dirs[0].replace(/^\d+(?:\.\d+)?-?/, '') : null,
+      };
+      output(result, raw, files.join('\n'));
+      return;
+    }
+
+    // Default: list directories
+    output({ directories: dirs, count: dirs.length }, raw, dirs.join('\n'));
+  } catch (e) {
+    error('Failed to list phases: ' + e.message);
+  }
+}
+
+function cmdRoadmapGetPhase(cwd, phaseNum, raw) {
+  const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
+
+  if (!fs.existsSync(roadmapPath)) {
+    output({ found: false, error: 'ROADMAP.md not found' }, raw, '');
+    return;
+  }
+
+  try {
+    const content = fs.readFileSync(roadmapPath, 'utf-8');
+
+    // Escape special regex chars in phase number, handle decimal
+    const escapedPhase = phaseNum.replace(/\./g, '\\.');
+
+    // Match "### Phase X:" or "### Phase X.Y:" with optional name
+    const phasePattern = new RegExp(
+      `###\\s*Phase\\s+${escapedPhase}:\\s*([^\\n]+)`,
+      'i'
+    );
+    const headerMatch = content.match(phasePattern);
+
+    if (!headerMatch) {
+      output({ found: false, phase_number: phaseNum }, raw, '');
+      return;
+    }
+
+    const phaseName = headerMatch[1].trim();
+    const headerIndex = headerMatch.index;
+
+    // Find the end of this section (next ### or end of file)
+    const restOfContent = content.slice(headerIndex);
+    const nextHeaderMatch = restOfContent.match(/\n###\s+Phase\s+\d/i);
+    const sectionEnd = nextHeaderMatch
+      ? headerIndex + nextHeaderMatch.index
+      : content.length;
+
+    const section = content.slice(headerIndex, sectionEnd).trim();
+
+    // Extract goal if present
+    const goalMatch = section.match(/\*\*Goal:\*\*\s*([^\n]+)/i);
+    const goal = goalMatch ? goalMatch[1].trim() : null;
+
+    output(
+      {
+        found: true,
+        phase_number: phaseNum,
+        phase_name: phaseName,
+        goal,
+        section,
+      },
+      raw,
+      section
+    );
+  } catch (e) {
+    error('Failed to read ROADMAP.md: ' + e.message);
+  }
+}
+
+function cmdPhaseNextDecimal(cwd, basePhase, raw) {
+  const phasesDir = path.join(cwd, '.planning', 'phases');
+  const normalized = normalizePhaseName(basePhase);
+
+  // Check if phases directory exists
+  if (!fs.existsSync(phasesDir)) {
+    output(
+      {
+        found: false,
+        base_phase: normalized,
+        next: `${normalized}.1`,
+        existing: [],
+      },
+      raw,
+      `${normalized}.1`
+    );
+    return;
+  }
+
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+
+    // Check if base phase exists
+    const baseExists = dirs.some(d => d.startsWith(normalized + '-') || d === normalized);
+
+    // Find existing decimal phases for this base
+    const decimalPattern = new RegExp(`^${normalized}\\.(\\d+)`);
+    const existingDecimals = [];
+
+    for (const dir of dirs) {
+      const match = dir.match(decimalPattern);
+      if (match) {
+        existingDecimals.push(`${normalized}.${match[1]}`);
+      }
+    }
+
+    // Sort numerically
+    existingDecimals.sort((a, b) => {
+      const aNum = parseFloat(a);
+      const bNum = parseFloat(b);
+      return aNum - bNum;
+    });
+
+    // Calculate next decimal
+    let nextDecimal;
+    if (existingDecimals.length === 0) {
+      nextDecimal = `${normalized}.1`;
+    } else {
+      const lastDecimal = existingDecimals[existingDecimals.length - 1];
+      const lastNum = parseInt(lastDecimal.split('.')[1], 10);
+      nextDecimal = `${normalized}.${lastNum + 1}`;
+    }
+
+    output(
+      {
+        found: baseExists,
+        base_phase: normalized,
+        next: nextDecimal,
+        existing: existingDecimals,
+      },
+      raw,
+      nextDecimal
+    );
+  } catch (e) {
+    error('Failed to calculate next decimal phase: ' + e.message);
+  }
+}
+
 function cmdStateLoad(cwd, raw) {
   const config = loadConfig(cwd);
   const planningDir = path.join(cwd, '.planning');
@@ -1587,6 +1786,42 @@ function main() {
 
     case 'history-digest': {
       cmdHistoryDigest(cwd, raw);
+      break;
+    }
+
+    case 'phases': {
+      const subcommand = args[1];
+      if (subcommand === 'list') {
+        const typeIndex = args.indexOf('--type');
+        const phaseIndex = args.indexOf('--phase');
+        const options = {
+          type: typeIndex !== -1 ? args[typeIndex + 1] : null,
+          phase: phaseIndex !== -1 ? args[phaseIndex + 1] : null,
+        };
+        cmdPhasesList(cwd, options, raw);
+      } else {
+        error('Unknown phases subcommand. Available: list');
+      }
+      break;
+    }
+
+    case 'roadmap': {
+      const subcommand = args[1];
+      if (subcommand === 'get-phase') {
+        cmdRoadmapGetPhase(cwd, args[2], raw);
+      } else {
+        error('Unknown roadmap subcommand. Available: get-phase');
+      }
+      break;
+    }
+
+    case 'phase': {
+      const subcommand = args[1];
+      if (subcommand === 'next-decimal') {
+        cmdPhaseNextDecimal(cwd, args[2], raw);
+      } else {
+        error('Unknown phase subcommand. Available: next-decimal');
+      }
       break;
     }
 
