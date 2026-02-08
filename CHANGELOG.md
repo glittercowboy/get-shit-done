@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **PR branch filtering** — `node gsd-tools.js pr-branch` creates clean branches without `.planning/` files for pull requests
+  - Commit classification engine: categorizes commits as code-only, planning-only, or mixed
+  - Cherry-pick engine with conflict detection and abort-on-failure safety
+  - Incremental updates via patch-id matching — no force-push needed
+  - Worktree-based operation — never modifies your working branch
+  - `/gsd:pr-branch` slash command for AI agent invocation
+  - Auto-sync post-commit hook (`pr_branch.auto_sync` config option) updates PR branch after every commit
+  - Configurable filter paths and base branch via `.planning/config.json`
+
 ## [1.12.0] - 2026-02-07
 
 ### Changed
