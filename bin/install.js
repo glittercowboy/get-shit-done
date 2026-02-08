@@ -175,6 +175,67 @@ function buildHookCommand(configDir, hookName) {
 }
 
 /**
+ * Install GSD auto-sync git post-commit hook.
+ * Uses marker-based append to preserve existing user hooks.
+ * @param {string} configDir - GSD config directory (e.g., ~/.claude)
+ * @param {boolean} isGlobal - Whether this is a global install
+ */
+function installGitPostCommitHook(configDir, isGlobal) {
+  // Only install for projects that have a .git directory in cwd
+  const cwd = process.cwd();
+  const gitDir = path.join(cwd, '.git');
+  if (!fs.existsSync(gitDir) || !fs.statSync(gitDir).isDirectory()) return;
+
+  // Respect core.hooksPath if set
+  let hooksDir;
+  try {
+    const { execSync } = require('child_process');
+    const hooksPath = execSync('git config core.hooksPath', { encoding: 'utf8', cwd }).trim();
+    hooksDir = path.isAbsolute(hooksPath) ? hooksPath : path.resolve(cwd, hooksPath);
+  } catch {
+    hooksDir = path.join(gitDir, 'hooks');
+  }
+
+  if (!fs.existsSync(hooksDir)) {
+    fs.mkdirSync(hooksDir, { recursive: true });
+  }
+
+  const postCommitPath = path.join(hooksDir, 'post-commit');
+  const hookScriptPath = isGlobal
+    ? buildHookCommand(configDir, 'gsd-pr-sync.js')
+    : 'node ' + path.basename(configDir) + '/hooks/gsd-pr-sync.js';
+
+  const gsdMarker = '# GSD-PR-SYNC-START';
+  const gsdEndMarker = '# GSD-PR-SYNC-END';
+  const hookCall = gsdMarker + '\n' + hookScriptPath + ' 2>/dev/null || true\n' + gsdEndMarker;
+
+  if (fs.existsSync(postCommitPath)) {
+    const existing = fs.readFileSync(postCommitPath, 'utf-8');
+    if (existing.includes(gsdMarker)) {
+      // Replace existing GSD section
+      const replaced = existing.replace(
+        new RegExp(gsdMarker + '[\\s\\S]*?' + gsdEndMarker),
+        hookCall
+      );
+      fs.writeFileSync(postCommitPath, replaced);
+    } else {
+      // Append to existing post-commit hook
+      fs.appendFileSync(postCommitPath, '\n' + hookCall + '\n');
+    }
+  } else {
+    // Create new post-commit hook
+    fs.writeFileSync(postCommitPath, '#!/bin/sh\n' + hookCall + '\n');
+  }
+
+  // Ensure executable (POSIX only)
+  try {
+    fs.chmodSync(postCommitPath, '755');
+  } catch {}
+
+  console.log('  ' + green + '✓' + reset + ' Configured git post-commit hook for PR auto-sync');
+}
+
+/**
  * Read and parse settings.json, returning empty object if it doesn't exist
  */
 function readSettings(settingsPath) {
@@ -852,7 +913,7 @@ function uninstall(isGlobal, runtime = 'claude') {
   // 4. Remove GSD hooks
   const hooksDir = path.join(targetDir, 'hooks');
   if (fs.existsSync(hooksDir)) {
-    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh'];
+    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh', 'gsd-pr-sync.js'];
     let hookCount = 0;
     for (const hook of gsdHooks) {
       const hookPath = path.join(hooksDir, hook);
@@ -914,7 +975,26 @@ function uninstall(isGlobal, runtime = 'claude') {
     }
   }
 
-  // 6. For OpenCode, clean up permissions from opencode.json
+  // 6. Remove GSD post-commit hook section from git hooks
+  const cwd = process.cwd();
+  const gitHooksDir = path.join(cwd, '.git', 'hooks');
+  const postCommitPath = path.join(gitHooksDir, 'post-commit');
+  if (fs.existsSync(postCommitPath)) {
+    const content = fs.readFileSync(postCommitPath, 'utf-8');
+    if (content.includes('# GSD-PR-SYNC-START')) {
+      const cleaned = content.replace(/\n?# GSD-PR-SYNC-START[\s\S]*?# GSD-PR-SYNC-END\n?/g, '');
+      if (cleaned.trim() === '#!/bin/sh' || cleaned.trim() === '') {
+        fs.unlinkSync(postCommitPath);
+        console.log(`  ${green}✓${reset} Removed git post-commit hook`);
+      } else {
+        fs.writeFileSync(postCommitPath, cleaned);
+        console.log(`  ${green}✓${reset} Removed GSD section from git post-commit hook`);
+      }
+      removedCount++;
+    }
+  }
+
+  // 7. For OpenCode, clean up permissions from opencode.json
   if (isOpencode) {
     const opencodeConfigDir = getOpencodeGlobalDir();
     const configPath = path.join(opencodeConfigDir, 'opencode.json');
@@ -1477,6 +1557,9 @@ function install(isGlobal, runtime = 'claude') {
       console.log(`  ${green}✓${reset} Configured update check hook`);
     }
   }
+
+  // Install git post-commit hook for PR auto-sync
+  installGitPostCommitHook(targetDir, isGlobal);
 
   // Write file manifest for future modification detection
   writeManifest(targetDir);
