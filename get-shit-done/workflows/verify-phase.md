@@ -31,9 +31,9 @@ Load phase operation context:
 INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init phase-op "${PHASE_ARG}")
 ```
 
-Extract from init JSON: `phase_dir`, `phase_number`, `phase_name`, `plans`, `summaries`.
+Extract from init JSON: `phase_dir`, `phase_number`, `phase_name`, `has_plans`, `plan_count`.
 
-Then load phase details:
+Then load phase details and list plans/summaries:
 ```bash
 grep -A 5 "Phase ${phase_number}" .planning/ROADMAP.md
 grep -E "^| ${phase_number}" .planning/REQUIREMENTS.md 2>/dev/null
