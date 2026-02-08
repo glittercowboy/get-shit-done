@@ -1,123 +1,76 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-05
+**Analysis Date:** 2026-02-08
 
 ## Languages
 
 **Primary:**
-- JavaScript (Node.js) - All runtime code (`bin/install.js`, `hooks/*.js`, `scripts/*.js`)
+- JavaScript (Node.js) - All codebase files (`bin/install.js`, `hooks/*.js`, `scripts/*.js`)
 
-**Secondary:**
-- Markdown - Commands, agents, workflows, templates, and documentation
-- PowerShell/Bash - Installation scripts for Cursor IDE (`cursor-gsd/scripts/`)
-- JSON - Configuration files (`package.json`, `config.json`)
-- YAML - Agent frontmatter definitions
-- TOML - Gemini CLI command format (generated during install)
+**Configuration:**
+- JSON - Package manifests, settings files (`package.json`, `package-lock.json`)
+- Markdown - Documentation, commands, agents, templates (`.md` files throughout)
+- YAML - Frontmatter in markdown files (agent/command definitions)
 
 ## Runtime
 
 **Environment:**
-- Node.js >= 16.7.0 (specified in `package.json` engines field)
+- Node.js >= 16.7.0
+- Specified in `package.json` engines field
 
 **Package Manager:**
-- npm
-- Lockfile: `package-lock.json` (present, lockfileVersion 3)
+- npm (latest)
+- Lockfile: `package-lock.json` (lockfileVersion 3, present)
 
 ## Frameworks
 
 **Core:**
-- None - Pure Node.js with built-in modules only
+- None - Pure Node.js with standard library only
 
 **Testing:**
-- None detected - No test framework configured
+- Not detected - No test framework or test files found
 
 **Build/Dev:**
-- esbuild ^0.24.0 - Used for bundling hooks (`scripts/build-hooks.js`)
+- esbuild ^0.24.0 - Build tool for bundling hooks (dev dependency only)
+  - Used in `scripts/build-hooks.js` to copy hooks to `hooks/dist/` directory
+  - Build command: `npm run build:hooks`
 
 ## Key Dependencies
 
-**Runtime Dependencies:**
-- None - Zero runtime dependencies (`"dependencies": {}` in package.json)
+**Critical:**
+- None - Zero production dependencies (`dependencies: {}` in `package.json`)
 
-**Dev Dependencies:**
-- esbuild ^0.24.2 - JavaScript bundler for hooks distribution
-
-**Built-in Node.js Modules Used:**
-- `fs` - File system operations
-- `path` - Path manipulation
-- `os` - System information (homedir)
-- `readline` - Interactive prompts
-- `child_process` (spawn, execSync) - Background processes and npm commands
+**Infrastructure:**
+- esbuild ^0.24.0 (dev only) - Used for build process, not runtime
 
 ## Configuration
 
-**Environment Variables:**
-- `CLAUDE_CONFIG_DIR` - Custom Claude Code config directory
-- `OPENCODE_CONFIG_DIR` - Custom OpenCode config directory
-- `OPENCODE_CONFIG` - OpenCode config file path
-- `GEMINI_CONFIG_DIR` - Custom Gemini config directory
-- `XDG_CONFIG_HOME` - XDG base directory (for OpenCode)
+**Environment:**
+- No `.env` files required
+- Runtime detection via environment variables:
+  - `CLAUDE_CONFIG_DIR` - Overrides default `~/.claude` location
+  - `GEMINI_CONFIG_DIR` - Overrides default `~/.gemini` location
+  - `CURSOR_CONFIG_DIR` - Overrides default `~/.cursor` location
+  - `OPENCODE_CONFIG_DIR` - Overrides default `~/.config/opencode` location
+  - `XDG_CONFIG_HOME` - Used for OpenCode XDG Base Directory spec compliance
 
-**Project Configuration:**
-- `.planning/config.json` - GSD project settings (mode, depth, workflow, parallelization, gates, safety)
-
-**Build Configuration:**
-- `package.json` - npm package definition
-- `scripts/build-hooks.js` - Hook bundling script
+**Build:**
+- Build config: `scripts/build-hooks.js` - Simple file copy script
+- Pre-publish hook: `prepublishOnly` runs `npm run build:hooks` before npm publish
 
 ## Platform Requirements
 
 **Development:**
 - Node.js >= 16.7.0
-- npm (for dependency management)
+- npm (for package management)
 - Git (for version control)
+- Cross-platform: Windows, macOS, Linux (uses Node.js path/os modules for compatibility)
 
-**Production/Distribution:**
-- Published to npm as `get-shit-done-cc`
-- Installed via `npx get-shit-done-cc`
-- Supports Mac, Windows, and Linux
-
-**Target Runtimes:**
-- Claude Code - Installs to `~/.claude/` (global) or `./.claude/` (local)
-- OpenCode - Installs to `~/.config/opencode/` (XDG compliant)
-- Gemini CLI - Installs to `~/.gemini/`
-- Cursor IDE - Installs to `~/.cursor/` (separate distribution in `cursor-gsd/`)
-
-## Package Distribution
-
-**npm Package:**
-- Name: `get-shit-done-cc`
-- Version: 1.11.1
-- License: MIT
-- Binary: `get-shit-done-cc` → `bin/install.js`
-
-**Published Files:**
-- `bin/` - Installer script
-- `commands/` - Slash commands
-- `get-shit-done/` - Templates, workflows, references
-- `agents/` - Agent definitions
-- `hooks/dist/` - Bundled hooks
-- `scripts/` - Build scripts
-
-## File Organization
-
-**Source Structure:**
-```
-bin/install.js          # Main installer (1500+ lines)
-hooks/                   # Hook source files
-  gsd-check-update.js   # Update checker
-  gsd-statusline.js     # Status bar display
-scripts/
-  build-hooks.js        # Copies hooks to dist/
-agents/*.md             # Agent definitions
-commands/gsd/*.md       # Slash commands
-get-shit-done/          # Core system files
-  templates/            # Planning templates
-  workflows/            # Workflow definitions
-  references/           # Reference documentation
-cursor-gsd/             # Cursor IDE variant (separate distribution)
-```
+**Production:**
+- Distribution: npm registry (`get-shit-done-cc` package)
+- Installation: Via `npx get-shit-done-cc` (no build step required for end users)
+- Target platforms: Claude Code, OpenCode, Gemini CLI, Cursor IDE config directories
 
 ---
 
-*Stack analysis: 2026-02-05*
+*Stack analysis: 2026-02-08*

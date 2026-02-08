@@ -1,205 +1,187 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-05
-
-## Project Nature
-
-GSD is a **meta-prompting system** — primarily markdown documentation (196 .md files) with minimal JavaScript (6 files). Conventions apply to both content authoring and code.
+**Analysis Date:** 2026-02-08
 
 ## Naming Patterns
 
 **Files:**
-- `kebab-case.md` for all markdown documents (`execute-phase.md`, `gsd-executor.md`)
-- `kebab-case.js` for JavaScript files (`gsd-statusline.js`, `install.js`)
-- `UPPERCASE.md` for important project files (`README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`)
-- No TypeScript — pure JavaScript
+- kebab-case for all files (`gsd-statusline.js`, `gsd-check-update.js`, `build-hooks.js`)
+- Executable scripts use shebang: `#!/usr/bin/env node`
+- No test files detected in codebase
 
-**Markdown Documents:**
-- Commands: `{command-name}.md` in `commands/gsd/`
-- Workflows: `{workflow-name}.md` in `get-shit-done/workflows/`
-- Templates: `{template-name}.md` in `get-shit-done/templates/`
-- Agents: `gsd-{role}.md` in `agents/`
-
-**Functions (JavaScript):**
-- camelCase for all functions (`copyWithPathReplacement`, `readSettings`, `getGlobalDir`)
-- No async prefix — async functions use same naming
-- Handler pattern: `handleX` not used; imperative names preferred
+**Functions:**
+- camelCase for all functions (`getGlobalDir`, `readSettings`, `writeSettings`, `expandTilde`)
+- No special prefix for async functions
+- Descriptive names indicating purpose (`processAttribution`, `convertClaudeToOpencodeFrontmatter`)
 
 **Variables:**
-- camelCase for variables (`targetDir`, `configPath`, `selectedRuntimes`)
+- camelCase for variables (`hasGlobal`, `selectedRuntimes`, `explicitConfigDir`)
 - UPPER_SNAKE_CASE for constants (`HOOKS_DIR`, `DIST_DIR`, `HOOKS_TO_COPY`)
-- No underscore prefix for private members
+- Single-letter variables for common values (`e` for error in catch blocks)
 
-**XML Tags (in Markdown):**
-- `kebab-case` for tag names (`<execution_context>`, `<success_criteria>`)
-- `snake_case` for `name` attributes (`name="load_project_state"`)
-- Semantic containers only — no generic `<section>`, `<item>`, `<content>`
+**Types:**
+- Not applicable (JavaScript codebase, no TypeScript)
 
 ## Code Style
 
 **Formatting:**
-- No Prettier configured
-- No ESLint configured
-- 2-space indentation (observed in JavaScript files)
-- Single quotes for strings in JavaScript
-- Semicolons required
+- No Prettier or formatting config detected
+- 2 space indentation observed
+- Semicolons used consistently
+- No enforced line length limit (some lines exceed 100 characters)
 
-**JavaScript Patterns:**
-- CommonJS modules (`require`/`module.exports`)
-- Node.js standard library only (fs, path, os, readline, child_process)
-- No external runtime dependencies (devDependencies only: esbuild)
-
-**Markdown Style (from GSD-STYLE.md):**
-- XML for semantic structure, Markdown headers for hierarchy within
-- Imperative voice: "Execute tasks", "Create file" (not "Tasks are executed")
-- No filler words: absent are "Let me", "Just", "Simply", "Basically"
-- No sycophancy: absent are "Great!", "Awesome!", "I'd love to help"
-- Brevity with substance: "JWT auth with refresh rotation using jose library" (not "Authentication implemented")
+**Linting:**
+- No ESLint configuration detected
+- No linting scripts in `package.json`
 
 ## Import Organization
 
-**JavaScript (CommonJS):**
+**Order:**
+1. Node.js built-in modules (`fs`, `path`, `os`, `readline`, `child_process`)
+2. Local requires (relative paths) - not observed in this codebase
+
+**Pattern:**
+- CommonJS `require()` syntax throughout
+- Imports at top of file
+- No path aliases used
+
+**Example from `bin/install.js`:**
 ```javascript
-// 1. Node.js built-in modules
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const readline = require('readline');
-const { spawn } = require('child_process');
-
-// 2. Local modules (rare)
-const pkg = require('../package.json');
 ```
-
-**No Path Aliases:** Direct relative paths used throughout.
 
 ## Error Handling
 
-**JavaScript Patterns:**
-- Try/catch with silent failures for non-critical operations
-- Graceful degradation preferred over error propagation
-- User-facing errors printed to console with color codes
+**Patterns:**
+- Try-catch blocks for error handling
+- Silent failures in non-critical paths (statusline, update checks)
+- Error messages logged to console.error with colored output
+- Process exits with status codes (process.exit(1) on errors)
 
-**Examples from `bin/install.js`:**
+**Error Types:**
+- File system operations wrapped in try-catch (`hooks/gsd-statusline.js:51-66`)
+- JSON parsing wrapped in try-catch (`hooks/gsd-statusline.js:58-62`)
+- Background processes use silent error handling (`hooks/gsd-check-update.js:41-46`)
+
+**Example from `hooks/gsd-statusline.js`:**
 ```javascript
-// Silent fail pattern (non-critical)
 try {
-  return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  const files = fs.readdirSync(todosDir)
+    .filter(f => f.startsWith(session) && f.includes('-agent-') && f.endsWith('.json'))
+    .map(f => ({ name: f, mtime: fs.statSync(path.join(todosDir, f)).mtime }))
+    .sort((a, b) => b.mtime - a.mtime);
+  // ... rest of logic
 } catch (e) {
-  return {};  // Graceful default
-}
-
-// User-facing error with exit
-if (!nextArg || nextArg.startsWith('-')) {
-  console.error(`  ${yellow}--config-dir requires a path argument${reset}`);
-  process.exit(1);
+  // Silently fail on file system errors - don't break statusline
 }
 ```
 
-**Hooks:**
-- Silent fail on all errors — never break statusline or session
-- No error output to stderr
+**Example from `bin/install.js`:**
+```javascript
+try {
+  return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+} catch (e) {
+  return {};
+}
+```
 
 ## Logging
 
-**Framework:** Console only (no logging library)
+**Framework:**
+- `console.log` for normal output
+- `console.error` for errors
+- `console.warn` for warnings (used in `scripts/build-hooks.js`)
 
 **Patterns:**
-- ANSI color codes for terminal output
-- Color constants defined at top of file:
-  ```javascript
-  const cyan = '\x1b[36m';
-  const green = '\x1b[32m';
-  const yellow = '\x1b[33m';
-  const dim = '\x1b[2m';
-  const reset = '\x1b[0m';
-  ```
-- Status format: `${green}✓${reset} Action completed`
-- Warning format: `${yellow}⚠${reset} Warning message`
-- No debug logging
+- Colored output using ANSI escape codes (`\x1b[36m` for cyan, `\x1b[32m` for green, etc.)
+- Structured messages with emoji indicators (`✓` for success, `⚠` for warnings, `✗` for failures)
+- No structured logging framework
+- Logging used extensively in CLI output (`bin/install.js`)
+
+**Example from `bin/install.js`:**
+```javascript
+const cyan = '\x1b[36m';
+const green = '\x1b[32m';
+const yellow = '\x1b[33m';
+const reset = '\x1b[0m';
+
+console.log(`  ${green}✓${reset} Installed commands/gsd`);
+console.error(`  ${yellow}✗${reset} Failed to install ${description}: ${e.message}`);
+```
 
 ## Comments
 
 **When to Comment:**
-- Function purpose via JSDoc-style comments
-- Complex logic sections (e.g., color conversion, frontmatter parsing)
-- Not for obvious operations
+- JSDoc-style comments for function documentation (`bin/install.js`)
+- Inline comments explain complex logic or non-obvious behavior
+- Comments explain "why" not "what" in some cases
 
-**JSDoc Style:**
+**JSDoc/TSDoc:**
+- Used for function documentation with `@param` and `@returns` tags
+- Example from `bin/install.js`:
 ```javascript
 /**
- * Convert Claude Code frontmatter to opencode format
- * - Converts 'allowed-tools:' array to 'permission:' object
- * @param {string} content - Markdown file content with YAML frontmatter
- * @returns {string} - Content with converted frontmatter
+ * Get the global config directory for a runtime
+ * @param {string} runtime - 'claude', 'opencode', or 'gemini'
+ * @param {string|null} explicitDir - Explicit directory from --config-dir flag
  */
+function getGlobalDir(runtime, explicitDir = null) {
+  // ...
+}
 ```
 
 **TODO Comments:**
-- Format: `// TODO: description` or `// FIXME: description`
-- Not heavily used in codebase
+- Not observed in source code (only in markdown documentation files)
 
 ## Function Design
 
 **Size:**
-- Functions kept reasonably short (< 100 lines typical)
-- Helper functions extracted for reuse
+- Functions vary in length (some exceed 100 lines, e.g., `install()` in `bin/install.js`)
+- Complex functions broken into helper functions (`convertClaudeToOpencodeFrontmatter`, `convertClaudeToGeminiToml`)
 
 **Parameters:**
-- Positional for 1-2 parameters
-- Named parameters not used (no TypeScript)
-- Defaults via `|| 'default'` or `?? 'default'`
+- Functions accept multiple parameters (up to 3-4 observed)
+- Optional parameters use default values (`explicitDir = null`)
+- Some functions use object destructuring in body, not parameters
 
 **Return Values:**
-- Explicit returns
+- Explicit return statements
 - Early returns for guard clauses
-- Functions return meaningful values or void
+- Some functions return objects with multiple properties (`install()` returns `{ settingsPath, settings, statuslineCommand, runtime }`)
 
 ## Module Design
 
 **Exports:**
-- Single-file scripts (no module exports needed)
-- `bin/install.js` is entry point via package.json `bin` field
+- CommonJS module.exports pattern (not observed - files are scripts, not modules)
+- No default exports observed
+- Functions are defined and called within same file
 
-**Structure:**
-- Constants at top
-- Helper functions in middle
-- Main logic at bottom
-- Interactive prompts use readline with callback pattern
+**Barrel Files:**
+- Not applicable (no module system, files are standalone scripts)
 
-## Markdown Document Structure
+## Special Patterns
 
-**Slash Commands (`commands/gsd/*.md`):**
-```yaml
----
-name: gsd:command-name
-description: One-line description
-argument-hint: "<required>" or "[optional]"
-allowed-tools: [Read, Write, Bash, Glob, Grep, AskUserQuestion]
----
-```
+**Shebang:**
+- Executable Node.js scripts start with `#!/usr/bin/env node`
+- Examples: `bin/install.js`, `hooks/gsd-statusline.js`, `hooks/gsd-check-update.js`, `scripts/build-hooks.js`
 
-Section order:
-1. `<objective>` — What/why/when
-2. `<execution_context>` — @-references to workflows
-3. `<context>` — Dynamic content
-4. `<process>` or `<step>` elements
-5. `<success_criteria>` — Checklist
+**Color Output:**
+- ANSI escape codes for terminal colors
+- Constants defined at top of file for reuse
+- Reset code (`\x1b[0m`) used to restore default styling
 
-**Agents (`agents/gsd-*.md`):**
-```yaml
----
-name: gsd-agent-name
-description: Purpose
-tools: Read, Write, Edit, Bash, Grep, Glob
-color: yellow
----
-```
+**Path Handling:**
+- Use `path.join()` for cross-platform compatibility
+- Tilde expansion handled manually (`expandTilde()` function)
+- Forward slashes used in hook commands for cross-platform compatibility (`buildHookCommand()`)
 
-**Character Preservation:**
-- Always preserve diacritics: ą, ę, ć, ź, ż, ó, ł, ń, ś (Polish), ü, ö, ä, ß (German), é, è, ê, ç (French)
+**Background Processes:**
+- Use `spawn()` with `stdio: 'ignore'` and `windowsHide: true` for background tasks
+- `child.unref()` used to allow parent process to exit independently
 
 ---
 
-*Convention analysis: 2026-02-05*
-*Update when patterns change*
+*Convention analysis: 2026-02-08*

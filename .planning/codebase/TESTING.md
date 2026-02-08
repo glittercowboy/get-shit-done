@@ -1,153 +1,154 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-05
+**Analysis Date:** 2026-02-08
 
 ## Test Framework
 
 **Runner:**
-- Not configured
-- No test framework installed
+- Not detected - no test framework configured
+- No test files found (`*.test.js`, `*.spec.js`)
 
 **Assertion Library:**
-- Not configured
+- Not applicable
 
 **Run Commands:**
-```bash
-npm test                    # Not configured (no test script in package.json)
-```
+- No test scripts in `package.json`
+- No test commands available
 
 ## Test File Organization
 
 **Location:**
-- No test files exist in the codebase
-- No `*.test.js`, `*.spec.js`, or `__tests__/` directories found
+- No test files detected in codebase
+- No test directory structure observed
 
 **Naming:**
-- Not established
+- Not applicable
 
 **Structure:**
 - Not applicable
 
-## Current Test Status
+## Test Structure
 
-**Test Files Found:** 0
+**Suite Organization:**
+- Not applicable - no tests exist
 
-**Test Configuration Files Found:** 0
-- No `jest.config.js`
-- No `vitest.config.js`
-- No `mocha.rc`
-- No test-related entries in `package.json`
+**Patterns:**
+- Not applicable
 
-## Why No Tests
+## Mocking
 
-This project is primarily a **meta-prompting system** consisting of:
-- 196 markdown files (commands, workflows, templates, references, agents)
-- 6 JavaScript files (installer, hooks, build script)
+**Framework:**
+- Not applicable
 
-**Testing approach for markdown documentation:**
-- Manual validation via Claude Code execution
-- User feedback via GitHub issues
-- No automated testing framework for prompt engineering
+**Patterns:**
+- Not applicable
 
-**JavaScript code testing status:**
-- `bin/install.js` (1529 lines) - Untested, integration tested manually via `npx get-shit-done-cc`
-- `hooks/gsd-statusline.js` (92 lines) - Untested, tested manually in Claude Code
-- `hooks/gsd-check-update.js` (62 lines) - Untested, tested manually
-- `scripts/build-hooks.js` (43 lines) - Untested, build script
+**What to Mock:**
+- Not applicable
 
-## Recommended Testing Approach
+**What NOT to Mock:**
+- Not applicable
 
-**If tests are added, recommended framework:**
-- Vitest (modern, fast, ESM-compatible)
-- Or Jest (widely adopted, CommonJS-friendly)
+## Fixtures and Factories
 
-**Priority areas for testing:**
-1. `bin/install.js` - Path handling, frontmatter conversion, file copying
-2. `hooks/gsd-statusline.js` - JSON parsing, output formatting
-3. `hooks/gsd-check-update.js` - Version comparison, cache handling
+**Test Data:**
+- Not applicable
 
-**Suggested test structure:**
-```
-tests/
-├── install.test.js
-│   ├── copyWithPathReplacement
-│   ├── convertClaudeToOpencodeFrontmatter
-│   ├── convertClaudeToGeminiToml
-│   └── processAttribution
-├── hooks/
-│   ├── statusline.test.js
-│   └── check-update.test.js
-└── fixtures/
-    └── sample-commands/
-```
-
-## Mocking Considerations
-
-**What would need mocking:**
-- File system operations (`fs.readFileSync`, `fs.writeFileSync`, `fs.existsSync`)
-- Process environment (`process.env`, `process.cwd()`, `os.homedir()`)
-- Child process (`spawn`, `execSync`)
-- stdin/stdout for interactive prompts
-
-**Mock patterns (if tests added):**
-```javascript
-import { vi } from 'vitest';
-import * as fs from 'fs';
-
-vi.mock('fs');
-
-it('reads settings file', () => {
-  vi.mocked(fs.existsSync).mockReturnValue(true);
-  vi.mocked(fs.readFileSync).mockReturnValue('{"key": "value"}');
-  
-  const result = readSettings('/path/to/settings.json');
-  expect(result).toEqual({ key: 'value' });
-});
-```
+**Location:**
+- Not applicable
 
 ## Coverage
 
 **Requirements:**
-- Not enforced
-- Not tracked
+- No coverage requirements enforced
+- No coverage tooling configured
 
-**If implemented:**
-- Target: 70%+ for JavaScript utilities
-- Focus: Path handling, conversion logic, error cases
+**View Coverage:**
+- Not applicable
 
-## Test Types (If Implemented)
+## Test Types
 
 **Unit Tests:**
-- Test individual functions in `bin/install.js`
-- Mock file system and environment
+- Not implemented
 
 **Integration Tests:**
-- Test full installation flow with temporary directories
-- Verify file copying, path replacement, settings updates
+- Not implemented
 
-**Manual Testing:**
-- Current approach: run `npx get-shit-done-cc` in test directories
-- Verify commands work in Claude Code, OpenCode, Gemini
+**E2E Tests:**
+- Not implemented
 
-## Verification Approach
+## Testing Approach
 
-**Current verification method (manual):**
-1. Run `npx get-shit-done-cc` locally
-2. Verify files copied to correct locations
-3. Launch Claude Code and test `/gsd:help`
-4. Test on Windows, macOS, Linux
+**Current State:**
+- Codebase has no automated tests
+- Manual testing appears to be the primary validation method
+- Bug fixes documented in `BUG_REPORT.md` and `FIXES_APPLIED.md` suggest manual verification
 
-**From CONTRIBUTING.md:**
+**Verification Methods:**
+- Manual testing documented in bug reports
+- Example from `FIXES_APPLIED.md`:
 ```bash
-# Test locally
-npm link
-npx get-shit-done-cc
+# Terminal 1: Watch statusline
+while true; do node hooks/gsd-statusline.js; sleep 1; done
 
-# Run tests (not currently implemented)
-npm test
+# Terminal 2: Create and delete files rapidly
+mkdir -p ~/.claude/todos
+while true; do
+  touch ~/.claude/todos/test-file.json
+  sleep 0.1
+  rm ~/.claude/todos/test-file.json
+  sleep 0.1
+done
+```
+
+**Known Testing Gaps:**
+- No automated tests for installation logic (`bin/install.js`)
+- No automated tests for hook scripts (`hooks/gsd-statusline.js`, `hooks/gsd-check-update.js`)
+- No automated tests for build scripts (`scripts/build-hooks.js`)
+- No validation of cross-platform path handling
+- No validation of runtime conversion logic (Claude → OpenCode → Gemini → Cursor)
+
+## Recommendations
+
+**For Future Testing:**
+
+1. **Unit Tests:**
+   - Test path manipulation functions (`expandTilde`, `getGlobalDir`)
+   - Test frontmatter conversion functions (`convertClaudeToOpencodeFrontmatter`, `convertClaudeToGeminiToml`)
+   - Test attribution processing (`processAttribution`)
+
+2. **Integration Tests:**
+   - Test installation flow end-to-end
+   - Test uninstallation flow
+   - Test hook registration in settings.json
+   - Test cross-platform path handling (Windows, macOS, Linux)
+
+3. **Test Framework Options:**
+   - Consider Jest or Node.js built-in test runner
+   - Use `fs.mkdtempSync()` for temporary directories
+   - Mock file system operations for isolated tests
+
+4. **Test Structure:**
+   - Co-locate tests with source files (`bin/install.test.js`)
+   - Or use `__tests__` directories
+   - Test hooks in `hooks/__tests__/`
+
+**Example Test Structure (Proposed):**
+```
+bin/
+  install.js
+  install.test.js
+hooks/
+  gsd-statusline.js
+  gsd-check-update.js
+  __tests__/
+    gsd-statusline.test.js
+    gsd-check-update.test.js
+scripts/
+  build-hooks.js
+  build-hooks.test.js
 ```
 
 ---
 
-*Testing analysis: 2026-02-05*
-*Update when test infrastructure is added*
+*Testing analysis: 2026-02-08*

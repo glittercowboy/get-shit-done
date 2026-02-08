@@ -1,172 +1,120 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-05
+**Analysis Date:** 2026-02-08
 
 ## APIs & External Services
 
-**npm Registry:**
-- Purpose: Package distribution and version checking
-- Usage: `npm view get-shit-done-cc version` in `hooks/gsd-check-update.js`
-- Auth: None (public package)
+**Package Registry:**
+- npm registry - Version checking for updates
+  - Integration method: `npm view get-shit-done-cc version` command executed via `child_process.execSync`
+  - Location: `hooks/gsd-check-update.js` (line 45)
+  - Purpose: Check for newer versions of GSD package
+  - Auth: None required (public npm registry)
+  - Timeout: 10 seconds
+  - Caching: Results cached to `~/.claude/cache/gsd-update-check.json`
 
-**Discord Community:**
-- URL: `https://discord.gg/5JJgD5svVS`
-- Purpose: User community and support
-- Integration: Link printed after installation
-
-**GitHub:**
-- Repository: `https://github.com/glittercowboy/get-shit-done`
-- Purpose: Source code hosting, issue tracking
-- Integration: Referenced in `package.json` (repository, homepage, bugs fields)
-
-## Target Runtime Integrations
-
-**Claude Code:**
-- Config location: `~/.claude/` or `CLAUDE_CONFIG_DIR`
-- Settings file: `settings.json`
-- Hooks: SessionStart event, statusLine configuration
-- Commands: Nested structure in `commands/gsd/*.md`
-- Agents: Markdown with YAML frontmatter
-
-**OpenCode:**
-- Config location: `~/.config/opencode/` (XDG compliant) or `OPENCODE_CONFIG_DIR`
-- Settings file: `opencode.json`
-- Commands: Flat structure in `command/gsd-*.md`
-- Permissions: Configured in `opencode.json` for GSD directory access
-- Tool name mapping: Different tool names (e.g., `AskUserQuestion` → `question`)
-- No statusline support (uses themes instead)
-
-**Gemini CLI:**
-- Config location: `~/.gemini/` or `GEMINI_CONFIG_DIR`
-- Settings file: `settings.json`
-- Commands: TOML format (`.toml` extension)
-- Experimental: `enableAgents` flag required
-- Tool name mapping: Different tool names (e.g., `Read` → `read_file`, `Bash` → `run_shell_command`)
-- Hooks: Same as Claude Code
-
-**Cursor IDE:**
-- Config location: `~/.cursor/`
-- Settings file: `settings.json`
-- Separate distribution: `cursor-gsd/` directory
-- Install scripts: PowerShell (`install.ps1`) and Bash (`install.sh`)
+**External APIs:**
+- None - No REST APIs, GraphQL, or HTTP clients used
 
 ## Data Storage
 
 **Databases:**
-- None - File-based storage only
+- None - No database connections or ORMs
 
 **File Storage:**
-- Local filesystem only
-- Project files in `.planning/` directory
-- Global config in runtime-specific directories (`~/.claude/`, `~/.config/opencode/`, `~/.gemini/`, `~/.cursor/`)
-- Todos stored in `~/.claude/todos/` (or equivalent)
-- Update cache in `~/.claude/cache/gsd-update-check.json`
+- Local filesystem only - All data stored in:
+  - AI IDE config directories (`~/.claude/`, `~/.gemini/`, `~/.cursor/`, `~/.config/opencode/`)
+  - Project-local directories (`.claude/`, `.gemini/`, `.cursor/`)
+  - Cache directory: `~/.claude/cache/` for update check results
+  - Todo storage: `~/.claude/todos/` (session-based JSON files)
 
 **Caching:**
-- File-based cache for update checking: `~/.claude/cache/gsd-update-check.json`
-- Structure: `{ update_available, installed, latest, checked }`
+- File-based cache - Update check results stored in JSON file
+  - Location: `~/.claude/cache/gsd-update-check.json`
+  - Format: `{ update_available: boolean, installed: string, latest: string, checked: number }`
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- None - No authentication required
-- Inherits authentication from target runtime (Claude Code, OpenCode, Gemini)
+- None - No authentication or identity services
+
+**OAuth Integrations:**
+- None
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None - Errors logged to console/stdout
+- None - Errors handled silently in hooks (fail gracefully to avoid breaking statusline)
+
+**Analytics:**
+- None
 
 **Logs:**
-- Console output during installation
-- Silent failure in hooks to avoid breaking statusline
+- Console output only - Installation script uses `console.log`/`console.error`
+- No structured logging or log aggregation
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- npm registry (npmjs.com)
-- GitHub for source code
+- npm registry - Package distribution via npm
+  - Package name: `get-shit-done-cc`
+  - Repository: GitHub (`git+https://github.com/glittercowboy/get-shit-done.git`)
+  - Deployment: Manual via `npm publish` (after `prepublishOnly` hook runs build)
 
 **CI Pipeline:**
-- None detected in main repository
-- Manual publish via `npm publish`
-- Prepublish hook: `npm run build:hooks`
-
-**Release Process:**
-- Version in `package.json`
-- VERSION file written to installation directory
-- CHANGELOG.md for release notes
+- Not detected - No CI configuration files (`.github/workflows/`, `.gitlab-ci.yml`, etc.) found in root
+- Note: GitHub repository exists but CI workflows not present in this codebase
 
 ## Environment Configuration
 
 **Required env vars:**
-- None required
+- None required - All environment variables are optional overrides for config directory paths
 
 **Optional env vars:**
-- `CLAUDE_CONFIG_DIR` - Override Claude config location
-- `OPENCODE_CONFIG_DIR` - Override OpenCode config location
-- `OPENCODE_CONFIG` - OpenCode config file path
-- `GEMINI_CONFIG_DIR` - Override Gemini config location
-- `XDG_CONFIG_HOME` - XDG base directory for OpenCode
-- `USERPROFILE` - Windows user profile (for Cursor installer)
-- `HOME` - Unix home directory fallback
+- `CLAUDE_CONFIG_DIR` - Custom Claude Code config directory
+- `GEMINI_CONFIG_DIR` - Custom Gemini CLI config directory
+- `CURSOR_CONFIG_DIR` - Custom Cursor IDE config directory
+- `OPENCODE_CONFIG_DIR` - Custom OpenCode config directory
+- `XDG_CONFIG_HOME` - XDG Base Directory config home (affects OpenCode default location)
 
 **Secrets location:**
-- None - No secrets required by GSD itself
-- Target runtimes manage their own API keys
+- No secrets required - All operations use public npm registry and local filesystem
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None
+- None - No webhook endpoints or HTTP servers
 
 **Outgoing:**
-- None
+- None - No outgoing webhooks or callbacks
 
-## Hooks System
+## Runtime-Specific Integrations
 
-**Claude Code / Gemini Hooks:**
-- SessionStart: `gsd-check-update.js` - Checks npm for updates
-- statusLine: `gsd-statusline.js` - Displays model, task, directory, context usage
+**Claude Code:**
+- Config directory: `~/.claude/` (or `CLAUDE_CONFIG_DIR`)
+- Settings file: `settings.json` (hooks, statusline configuration)
+- Commands: `commands/gsd/` directory
+- Agents: `agents/gsd-*.md` files
 
-**Hook Configuration (settings.json):**
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ~/.claude/hooks/gsd-check-update.js"
-          }
-        ]
-      }
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "node ~/.claude/hooks/gsd-statusline.js"
-  }
-}
-```
+**OpenCode:**
+- Config directory: `~/.config/opencode/` (or `OPENCODE_CONFIG_DIR` / `XDG_CONFIG_HOME/opencode`)
+- Config file: `opencode.json` (permissions configuration)
+- Commands: `command/gsd-*.md` files (flat structure)
+- Uses XDG Base Directory specification
 
-**Hook Behavior:**
-- `gsd-check-update.js`: Spawns background process, writes to cache file, exits immediately
-- `gsd-statusline.js`: Reads JSON from stdin, outputs formatted status line
+**Gemini CLI:**
+- Config directory: `~/.gemini/` (or `GEMINI_CONFIG_DIR`)
+- Settings file: `settings.json` (hooks, experimental agents config)
+- Commands: `commands/gsd/` directory (TOML format)
+- Agents: `agents/gsd-*.md` files (converted frontmatter format)
 
-## Git Integration
-
-**Commit Attribution:**
-- Configurable via settings (`settings.attribution.commit`)
-- Options: Keep default, remove, or custom attribution
-- Processed during file installation
-
-**Git Operations (in workflows):**
-- Atomic commits per task
-- Commit message format: `type(phase-plan): description`
-- Optional branching strategies: none, phase, milestone
+**Cursor IDE:**
+- Config directory: `~/.cursor/` (or `CURSOR_CONFIG_DIR`)
+- Settings file: `settings.json` (minimal hook support)
+- Commands: `commands/gsd/` directory
+- Agents: `agents/gsd-*.md` files (simplified frontmatter)
+- No statusline support
 
 ---
 
-*Integration audit: 2026-02-05*
+*Integration audit: 2026-02-08*

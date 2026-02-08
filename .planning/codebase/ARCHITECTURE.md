@@ -1,194 +1,209 @@
 # Architecture
 
-**Analysis Date:** 2026-02-05
+**Analysis Date:** 2026-02-08
 
 ## Pattern Overview
 
-**Overall:** Meta-Prompting CLI System with Markdown-Defined Commands and Subagent Orchestration
+**Overall:** Command-driven agent orchestration framework
 
 **Key Characteristics:**
-- Installer (`bin/install.js`) copies markdown resources to runtime config directories
-- Commands, workflows, agents, and templates are all markdown-based (no compiled code)
-- Subagent orchestration pattern — thin orchestrators spawn specialized agents
-- File-based state management (`.planning/` directory in user projects)
-- Multi-runtime support (Claude Code, OpenCode, Gemini CLI)
+- Markdown-based command and agent definitions (no compiled code)
+- Orchestrator pattern with subagent spawning for parallel execution
+- Template-driven document generation for project planning artifacts
+- Multi-runtime adaptation layer (Claude Code, OpenCode, Gemini, Cursor)
+- Wave-based execution model for dependency management
 
 ## Layers
 
-**Install Layer:**
-- Purpose: Deploy GSD resources to runtime config directories
-- Location: `bin/install.js`
-- Contains: File copying, path replacement, runtime detection, settings configuration
-- Depends on: Node.js built-ins (fs, path, os, readline)
-- Used by: npx invocation (`npx get-shit-done-cc`)
-
 **Command Layer:**
-- Purpose: Define slash commands that users invoke in Claude Code/OpenCode/Gemini
+- Purpose: User-facing slash commands (`/gsd:new-project`, `/gsd:execute-phase`)
 - Location: `commands/gsd/*.md`
-- Contains: Command definitions with YAML frontmatter (name, description, allowed-tools) and execution instructions
-- Depends on: Workflows layer, references layer
-- Used by: AI runtime (Claude Code, OpenCode, Gemini CLI)
+- Contains: Command definitions with frontmatter, objective, process steps, success criteria
+- Depends on: Workflows, templates, references
+- Used by: Claude Code runtime (invoked via slash command)
 
 **Agent Layer:**
-- Purpose: Specialized subagents with defined roles and tool permissions
-- Location: `agents/*.md`
-- Contains: Agent definitions (gsd-executor, gsd-planner, gsd-verifier, gsd-debugger, etc.)
-- Depends on: Workflows layer, templates layer
-- Used by: Command layer (spawned via Task tool)
+- Purpose: Specialized subagents for specific tasks (planner, executor, verifier, mapper)
+- Location: `agents/gsd-*.md`
+- Contains: Agent role definitions, execution flows, tool permissions
+- Depends on: Workflows, templates, references
+- Used by: Orchestrator commands via Task tool spawning
 
 **Workflow Layer:**
-- Purpose: Reusable multi-step procedures called by commands
+- Purpose: Reusable multi-step procedures shared across commands
 - Location: `get-shit-done/workflows/*.md`
-- Contains: Detailed process steps, structured returns, success criteria
-- Depends on: Templates layer, references layer
-- Used by: Commands and agents via `@` file references
+- Contains: Step-by-step workflows (execute-phase, map-codebase, verify-phase)
+- Depends on: Templates, references
+- Used by: Commands and agents via `@~/.claude/get-shit-done/workflows/{name}.md` references
 
 **Template Layer:**
-- Purpose: File templates for planning artifacts created in user projects
-- Location: `get-shit-done/templates/*.md`, `get-shit-done/templates/codebase/*.md`
-- Contains: Document structures with placeholder variables
-- Depends on: None
-- Used by: Agents when creating `.planning/` files
+- Purpose: Document templates for generated planning artifacts
+- Location: `get-shit-done/templates/*.md`
+- Contains: Markdown templates with placeholders for PROJECT.md, ROADMAP.md, PLAN.md, etc.
+- Depends on: Reference documents for guidance
+- Used by: Agents writing planning documents
 
 **Reference Layer:**
-- Purpose: Principle documents and configuration guides
+- Purpose: Core principles and guidance documents
 - Location: `get-shit-done/references/*.md`
-- Contains: Guidelines (checkpoints, model-profiles, verification-patterns, etc.)
-- Depends on: None
-- Used by: Commands, workflows, agents as context
+- Contains: Questioning techniques, TDD patterns, checkpoint protocols, git integration
+- Depends on: None (foundational knowledge)
+- Used by: Commands, agents, workflows
 
-**Hooks Layer:**
-- Purpose: Runtime hooks for statusline and update checking
+**Installation Layer:**
+- Purpose: Runtime adaptation and file installation
+- Location: `bin/install.js`
+- Contains: Runtime detection, path replacement, frontmatter conversion, hook registration
+- Depends on: File system operations, JSON parsing
+- Used by: npx installation process
+
+**Hook Layer:**
+- Purpose: Runtime integration (statusline, update checking)
 - Location: `hooks/*.js`
-- Contains: gsd-statusline.js (context display), gsd-check-update.js (version checking)
-- Depends on: Node.js, runtime session data
-- Used by: Claude Code/Gemini settings.json hook configuration
+- Contains: Node.js scripts for statusline display and update detection
+- Depends on: File system, npm registry access
+- Used by: Runtime via settings.json hook configuration
 
 ## Data Flow
 
-**Command Invocation Flow:**
+**Command Execution Flow:**
 
-1. User types `/gsd:command` in Claude Code (or `/gsd-command` in OpenCode)
-2. Runtime loads command markdown from `~/.claude/commands/gsd/` (or equivalent)
-3. Command markdown parsed, `@` file references resolved
-4. Execution context established from `<execution_context>` section
-5. Process follows `<process>` section steps
-6. If orchestrator pattern: Task tool spawns subagent with agent definition
-7. Subagent executes with fresh context window, returns structured result
-8. Orchestrator collects results, updates state, routes to next step
+1. User invokes slash command (`/gsd:new-project`)
+2. Runtime loads command definition from `commands/gsd/new-project.md`
+3. Command orchestrator reads workflow from `get-shit-done/workflows/discovery-phase.md`
+4. Orchestrator spawns subagents via Task tool (e.g., `gsd-project-researcher`, `gsd-roadmapper`)
+5. Subagents read templates and references, generate documents
+6. Documents written to `.planning/` directory
+7. Git commits created atomically per artifact
+8. Results aggregated and presented to user
+
+**Phase Execution Flow:**
+
+1. User invokes `/gsd:execute-phase 3`
+2. Orchestrator reads `get-shit-done/workflows/execute-phase.md`
+3. Discovers plans in `.planning/phases/03-*/` directory
+4. Groups plans by wave number (from plan frontmatter)
+5. For each wave:
+   - Reads plan files and STATE.md
+   - Spawns parallel `gsd-executor` agents (if `PARALLELIZATION=true`)
+   - Each executor loads full workflow context independently
+   - Executors commit tasks atomically
+   - Orchestrator waits for all agents in wave to complete
+6. After all waves: spawns `gsd-verifier` to check phase goal
+7. Updates ROADMAP.md, STATE.md, REQUIREMENTS.md
+8. Presents results and next steps
 
 **Installation Flow:**
 
-1. User runs `npx get-shit-done-cc`
-2. `bin/install.js` executes
-3. Interactive prompts select runtime (Claude/OpenCode/Gemini) and location (global/local)
-4. Files copied from source directories to target config directory
-5. Path references replaced (`~/.claude/` → actual path)
-6. Frontmatter converted for runtime compatibility (Claude → OpenCode/Gemini)
-7. Settings.json updated with hooks and statusline
-8. Success message with next steps
-
-**Subagent Execution Pattern:**
-
-1. Orchestrator (command) analyzes task requirements
-2. Spawns specialized agent via Task tool with prompt containing:
-   - Objective
-   - Execution context (`@workflow.md`, `@template.md`)
-   - Inlined file contents (plans, state)
-   - Success criteria
-3. Agent executes in fresh 200k context window
-4. Agent returns structured result (PLAN COMPLETE, CHECKPOINT REACHED, etc.)
-5. Orchestrator parses result, routes accordingly
+1. User runs `npx get-shit-done-cc --claude --global`
+2. `bin/install.js` detects runtime (Claude Code)
+3. Determines target directory (`~/.claude/` or custom)
+4. Copies `commands/gsd/` → `{target}/commands/gsd/`
+5. Copies `get-shit-done/` → `{target}/get-shit-done/`
+6. Copies `agents/gsd-*.md` → `{target}/agents/`
+7. Converts frontmatter for runtime compatibility:
+   - Tool names (PascalCase → snake_case for Cursor/Gemini)
+   - Path references (`~/.claude/` → `~/.cursor/` for Cursor)
+   - Command format (`/gsd:` → `/gsd-` for OpenCode)
+8. Registers hooks in `settings.json` (statusline, update check)
+9. Writes VERSION file for update detection
 
 **State Management:**
-- All project state lives in `.planning/` directory (user's project)
-- STATE.md tracks position, decisions, blockers, session continuity
-- ROADMAP.md tracks phases and completion status
-- REQUIREMENTS.md tracks requirement traceability
-- Each command reads state, performs operations, updates state
-- No persistent in-memory state between commands
+- Project state: `.planning/STATE.md` (current position, decisions, blockers)
+- Configuration: `.planning/config.json` (workflow mode, model profile, agent toggles)
+- Planning artifacts: `.planning/phases/*/` (PLAN.md, SUMMARY.md, VERIFICATION.md)
+- Roadmap: `.planning/ROADMAP.md` (phase structure, requirement mappings)
+- Requirements: `.planning/REQUIREMENTS.md` (scoped requirements with traceability)
 
 ## Key Abstractions
 
-**Command:**
-- Purpose: User-facing action triggered by slash command
-- Examples: `commands/gsd/new-project.md`, `commands/gsd/execute-phase.md`, `commands/gsd/plan-phase.md`
-- Pattern: Markdown file with YAML frontmatter defining name, description, allowed-tools
+**Command Definition:**
+- Purpose: Declarative command specification
+- Examples: `commands/gsd/new-project.md`, `commands/gsd/execute-phase.md`
+- Pattern: YAML frontmatter (name, description, allowed-tools) + markdown process steps
 
-**Agent:**
-- Purpose: Specialized subagent with defined role and tool permissions
-- Examples: `agents/gsd-executor.md`, `agents/gsd-planner.md`, `agents/gsd-verifier.md`
-- Pattern: Spawned by orchestrators via Task tool, returns structured results
+**Agent Definition:**
+- Purpose: Subagent role and behavior specification
+- Examples: `agents/gsd-planner.md`, `agents/gsd-executor.md`
+- Pattern: YAML frontmatter (name, description, tools) + role definition + execution flow
 
 **Workflow:**
-- Purpose: Reusable multi-step procedure
-- Examples: `get-shit-done/workflows/execute-phase.md`, `get-shit-done/workflows/verify-work.md`
-- Pattern: Loaded via `@` reference, provides process steps and structured returns
+- Purpose: Reusable procedure steps
+- Examples: `get-shit-done/workflows/execute-phase.md`, `get-shit-done/workflows/map-codebase.md`
+- Pattern: Step-by-step process with bash commands, file operations, agent spawning
 
 **Template:**
-- Purpose: Document structure for planning artifacts
-- Examples: `get-shit-done/templates/project.md`, `get-shit-done/templates/summary.md`, `get-shit-done/templates/codebase/architecture.md`
-- Pattern: Markdown with variable placeholders, guidelines section
+- Purpose: Document structure for generated artifacts
+- Examples: `get-shit-done/templates/project.md`, `get-shit-done/templates/plan.md`
+- Pattern: Markdown with placeholder sections and guidance comments
 
-**Planning Artifact:**
-- Purpose: Project state files created in user's `.planning/` directory
-- Examples: PROJECT.md, ROADMAP.md, STATE.md, *-PLAN.md, *-SUMMARY.md
-- Pattern: Created from templates, tracked in git (by default)
+**Wave:**
+- Purpose: Dependency grouping for parallel execution
+- Examples: Plans with `wave: 1` execute before `wave: 2`
+- Pattern: Pre-computed during planning, stored in plan frontmatter
+
+**Checkpoint:**
+- Purpose: Human interaction point in autonomous execution
+- Examples: Plans with `autonomous: false` pause for user approval
+- Pattern: Executor returns structured checkpoint state, orchestrator presents to user, spawns continuation agent
 
 ## Entry Points
 
-**NPX Installation:**
+**CLI Installation:**
 - Location: `bin/install.js`
-- Triggers: `npx get-shit-done-cc` or `npx get-shit-done-cc@latest`
-- Responsibilities: Interactive prompts, file deployment, settings configuration
+- Triggers: `npx get-shit-done-cc` or direct execution
+- Responsibilities: Runtime detection, file copying, path replacement, hook registration, settings configuration
 
-**Slash Commands (post-install):**
-- Location: `~/.claude/commands/gsd/*.md` (or equivalent for OpenCode/Gemini)
-- Triggers: User types `/gsd:command` in AI runtime
-- Responsibilities: Execute specific GSD workflow (new-project, plan-phase, execute-phase, etc.)
+**Slash Commands:**
+- Location: `commands/gsd/*.md`
+- Triggers: User invokes `/gsd:{command-name}` in Claude Code
+- Responsibilities: Orchestrate workflow, spawn agents, present results
 
 **Hooks:**
-- Location: `~/.claude/hooks/gsd-statusline.js`, `~/.claude/hooks/gsd-check-update.js`
-- Triggers: Claude Code session events (statusline refresh, session start)
-- Responsibilities: Display context usage, check for updates
+- Location: `hooks/gsd-statusline.js`, `hooks/gsd-check-update.js`
+- Triggers: Runtime events (SessionStart, statusline refresh)
+- Responsibilities: Display statusline, check for updates, write cache files
 
 ## Error Handling
 
-**Strategy:** Errors propagate to user with actionable guidance; subagents return structured error states
+**Strategy:** Fail gracefully with user guidance
 
 **Patterns:**
-- Installation errors: Console output with specific error and remediation steps
-- Command execution errors: Present to user with options (retry, skip, manual intervention)
-- Subagent failures: Orchestrator detects missing artifacts, offers recovery options
-- Checkpoint blocking: User feedback loop until resolved or skipped
-- Deviation rules: Auto-fix bugs/blockers, ask about architectural changes
+- File operations: Check existence before read, handle missing gracefully
+- JSON parsing: Try-catch with fallback to defaults
+- Agent failures: Report which plan failed, offer continue/stop options
+- Checkpoint failures: Ask user to skip plan or abort phase
+- Installation failures: Verify each step, report specific failures
+
+**Error Recovery:**
+- Resumable execution: Re-run command to skip completed plans
+- State persistence: STATE.md tracks position for resumption
+- Atomic commits: Each task commits independently, partial progress preserved
 
 ## Cross-Cutting Concerns
 
-**Git Integration:**
-- Atomic commits per task (not per plan)
-- Commit format: `{type}({phase}-{plan}): {description}`
-- Never use `git add .` — stage files individually
-- Branching strategy configurable (none/phase/milestone)
+**Logging:** No formal logging framework. Commands output progress inline. Hooks write to stdout/stderr.
 
-**Context Engineering:**
-- Plans target ~50% context budget (stay in Claude's quality zone)
-- Fresh context per subagent (200k tokens each)
-- Orchestrator stays lean (~10-15% context)
-- Wave-based parallel execution maximizes throughput
+**Validation:** Bash-based validation in workflows (file existence, JSON parsing, git status). No schema validation for config.json.
 
-**Verification:**
-- Must-haves derived via goal-backward methodology
-- Automated verification checks codebase, not SUMMARY claims
-- Human verification for visual/functional items
-- Gap closure loop until all must-haves pass
+**Authentication:** Not applicable (local CLI tool, no auth required)
 
-**Model Profiles:**
-- Three profiles: quality, balanced, budget
-- Different models for planning vs execution vs verification
-- Configurable in `.planning/config.json`
+**Configuration Management:**
+- Runtime config: `settings.json` in runtime config directory (managed by installer)
+- Project config: `.planning/config.json` (user-editable, committed to git)
+- Model profile: Resolved from config.json, determines which AI model each agent uses
+
+**Path Management:**
+- Source paths: Hardcoded as `~/.claude/` in repository files
+- Runtime adaptation: Installer replaces paths based on target runtime
+- Cross-platform: Uses forward slashes in hook commands for Windows compatibility
+
+**Multi-Runtime Support:**
+- Tool name mapping: PascalCase (Claude) → snake_case (Cursor/Gemini) → lowercase (OpenCode)
+- Frontmatter conversion: Strips unsupported fields, converts formats
+- Command structure: Nested (`commands/gsd/help.md`) vs flat (`command/gsd-help.md` for OpenCode)
+- Hook support: Cursor has no statusline, OpenCode uses themes instead
 
 ---
 
-*Architecture analysis: 2026-02-05*
-*Update when major patterns change*
+*Architecture analysis: 2026-02-08*
