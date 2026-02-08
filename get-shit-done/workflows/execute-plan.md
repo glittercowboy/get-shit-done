@@ -111,6 +111,12 @@ Pattern B only (verify-only checkpoints). Skip for A/C.
    - Verify key-files.created exist on disk with `[ -f ]`
    - Check `git log --oneline --all --grep="{phase}-{plan}"` returns ≥1 commit
    - Append `## Self-Check: PASSED` or `## Self-Check: FAILED` to SUMMARY
+
+   **Known Claude Code bug (classifyHandoffIfNeeded):** If any segment agent reports "failed" with `classifyHandoffIfNeeded is not defined`, this is a Claude Code runtime bug — not a real failure. Run spot-checks; if they pass, treat as successful.
+
+
+
+
 </step>
 
 <step name="load_prompt">
@@ -327,15 +333,45 @@ Next: more plans → "Ready for {next-plan}" | last → "Phase complete, ready f
 </step>
 
 <step name="update_current_position">
-Update STATE.md: Phase [current]/[total] ([name]) | Plan [completed]/[total] | Status | Last activity: [today] - Completed {phase}-{plan} | Progress bar (█/░). Calculate: (total SUMMARYs / total PLANs) × 100%.
+Update STATE.md using gsd-tools:
+
+```bash
+# Advance plan counter (handles last-plan edge case)
+node ~/.claude/get-shit-done/bin/gsd-tools.js state advance-plan
+
+# Recalculate progress bar from disk state
+node ~/.claude/get-shit-done/bin/gsd-tools.js state update-progress
+
+# Record execution metrics
+node ~/.claude/get-shit-done/bin/gsd-tools.js state record-metric \
+  --phase "${PHASE}" --plan "${PLAN}" --duration "${DURATION}" \
+  --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
+```
 </step>
 
 <step name="extract_decisions_and_issues">
-From SUMMARY: "Decisions Made" (if not "None") → STATE.md Decisions: `| [phase] | [summary] | [rationale] |`. "Next Phase Readiness" blockers → STATE.md "Blockers/Concerns Carried Forward".
+From SUMMARY: Extract decisions and add to STATE.md:
+
+```bash
+# Add each decision from SUMMARY key-decisions
+node ~/.claude/get-shit-done/bin/gsd-tools.js state add-decision \
+  --phase "${PHASE}" --summary "${DECISION_TEXT}" --rationale "${RATIONALE}"
+
+# Add blockers if any found
+node ~/.claude/get-shit-done/bin/gsd-tools.js state add-blocker "Blocker description"
+```
 </step>
 
 <step name="update_session_continuity">
-STATE.md Session: Last session [date/time] | Stopped at: Completed {phase}-{plan} | Resume file: [path or "None"]. Keep STATE.md under 150 lines.
+Update session info using gsd-tools:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.js state record-session \
+  --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md" \
+  --resume-file "None"
+```
+
+Keep STATE.md under 150 lines.
 </step>
 
 <step name="issues_review_gate">
@@ -365,7 +401,7 @@ git diff --name-only ${FIRST_TASK}^..HEAD 2>/dev/null
 Update only structural changes: new src/ dir → STRUCTURE.md | deps → STACK.md | file pattern → CONVENTIONS.md | API client → INTEGRATIONS.md | config → STACK.md | renamed → update paths. Skip code-only/bugfix/content changes.
 
 ```bash
-git add .planning/codebase/*.md && git commit --amend --no-edit
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "" --files .planning/codebase/*.md --amend
 ```
 </step>
 

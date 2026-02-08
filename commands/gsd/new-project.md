@@ -1,6 +1,7 @@
 ---
 name: gsd:new-project
 description: Initialize a new project with deep context gathering and PROJECT.md
+argument-hint: "[--auto]"
 allowed-tools:
   - Read
   - Bash
@@ -8,6 +9,11 @@ allowed-tools:
   - Task
   - AskUserQuestion
 ---
+<context>
+**Flags:**
+- `--auto` — Automatic mode. After config questions, runs research → requirements → roadmap without further interaction. Expects idea document via @ reference.
+</context>
+
 <objective>
 Initialize a new project through unified flow: questioning → research (optional) → requirements → roadmap.
 

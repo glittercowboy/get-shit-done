@@ -323,22 +323,44 @@ Do NOT skip. Do NOT proceed to state updates if self-check fails.
 </self_check>
 
 <state_updates>
-After SUMMARY.md, update STATE.md:
+After SUMMARY.md, update STATE.md using gsd-tools:
 
-**Current Position:**
-```markdown
-Phase: [current] of [total] ([phase name])
-Plan: [just completed] of [total in phase]
-Status: [In progress / Phase complete]
-Last activity: [today] - Completed {phase}-{plan}-PLAN.md
-Progress: [progress bar]
+```bash
+# Advance plan counter (handles edge cases automatically)
+node ~/.claude/get-shit-done/bin/gsd-tools.js state advance-plan
+
+# Recalculate progress bar from disk state
+node ~/.claude/get-shit-done/bin/gsd-tools.js state update-progress
+
+# Record execution metrics
+node ~/.claude/get-shit-done/bin/gsd-tools.js state record-metric \
+  --phase "${PHASE}" --plan "${PLAN}" --duration "${DURATION}" \
+  --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
+
+# Add decisions (extract from SUMMARY.md key-decisions)
+for decision in "${DECISIONS[@]}"; do
+  node ~/.claude/get-shit-done/bin/gsd-tools.js state add-decision \
+    --phase "${PHASE}" --summary "${decision}"
+done
+
+# Update session info
+node ~/.claude/get-shit-done/bin/gsd-tools.js state record-session \
+  --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md"
 ```
 
-**Progress bar:** Count total plans, count completed (SUMMARY.md files), render █ for complete, ░ for incomplete.
+**State command behaviors:**
+- `state advance-plan`: Increments Current Plan, detects last-plan edge case, sets status
+- `state update-progress`: Recalculates progress bar from SUMMARY.md counts on disk
+- `state record-metric`: Appends to Performance Metrics table
+- `state add-decision`: Adds to Decisions section, removes placeholders
+- `state record-session`: Updates Last session timestamp and Stopped At fields
 
-**Extract from SUMMARY.md:** Decisions → add to STATE.md Decisions table. Next Phase Readiness blockers → add to STATE.md.
+**Extract decisions from SUMMARY.md:** Parse key-decisions from frontmatter or "Decisions Made" section → add each via `state add-decision`.
 
-**Session Continuity:** Last session date, stopped at, resume file path.
+**For blockers found during execution:**
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.js state add-blocker "Blocker description"
+```
 </state_updates>
 
 <final_commit>

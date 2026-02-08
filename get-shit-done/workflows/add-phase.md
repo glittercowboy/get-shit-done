@@ -38,96 +38,30 @@ ERROR: No roadmap found (.planning/ROADMAP.md)
 Run /gsd:new-project to initialize.
 ```
 Exit.
-
-Read roadmap content for parsing.
 </step>
 
-<step name="find_current_milestone">
-Parse the roadmap to find the current milestone section:
-
-1. Locate the "## Current Milestone:" heading
-2. Extract milestone name and version
-3. Identify all phases under this milestone (before next "---" separator or next milestone heading)
-4. Parse existing phase numbers (including decimals if present)
-
-Example structure:
-
-```
-## Current Milestone: v1.0 Foundation
-
-### Phase 4: Focused Command System
-### Phase 5: Path Routing & Validation
-### Phase 6: Documentation & Distribution
-```
-</step>
-
-<step name="calculate_next_phase">
-Find the highest integer phase number in the current milestone:
-
-1. Extract all phase numbers from phase headings (### Phase N:)
-2. Filter to integer phases only (ignore decimals like 4.1, 4.2)
-3. Find the maximum integer value
-4. Add 1 to get the next phase number
-
-Example: If phases are 4, 5, 5.1, 6 → next is 7
-
-Format as two-digit: `printf "%02d" $next_phase`
-</step>
-
-<step name="generate_slug">
-Convert the phase description to a kebab-case slug.
-
-Use `init phase-op` which provides `phase_slug` computed from phase name, or call:
-```bash
-slug=$(node ~/.claude/get-shit-done/bin/gsd-tools.js generate-slug "$description" --raw)
-```
-
-Phase directory name: `{two-digit-phase}-{slug}`
-Example: `07-add-authentication`
-</step>
-
-<step name="create_phase_directory">
-Create the phase directory structure:
+<step name="add_phase">
+**Delegate the phase addition to gsd-tools:**
 
 ```bash
-phase_dir=".planning/phases/${phase_num}-${slug}"
-mkdir -p "$phase_dir"
+RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase add "${description}")
 ```
 
-Confirm: "Created directory: $phase_dir"
-</step>
+The CLI handles:
+- Finding the highest existing integer phase number
+- Calculating next phase number (max + 1)
+- Generating slug from description
+- Creating the phase directory (`.planning/phases/{NN}-{slug}/`)
+- Inserting the phase entry into ROADMAP.md with Goal, Depends on, and Plans sections
 
-<step name="update_roadmap">
-Add the new phase entry to the roadmap:
-
-1. Find the insertion point (after last phase in current milestone, before "---" separator)
-2. Insert new phase heading:
-
-   ```
-   ### Phase {N}: {Description}
-
-   **Goal:** [To be planned]
-   **Depends on:** Phase {N-1}
-   **Plans:** 0 plans
-
-   Plans:
-   - [ ] TBD (run /gsd:plan-phase {N} to break down)
-
-   **Details:**
-   [To be added during planning]
-   ```
-
-3. Write updated roadmap back to file
-
-Preserve all other content exactly (formatting, spacing, other phases).
+Extract from result: `phase_number`, `padded`, `name`, `slug`, `directory`.
 </step>
 
 <step name="update_project_state">
 Update STATE.md to reflect the new phase:
 
 1. Read `.planning/STATE.md`
-2. Under "## Current Position" → "**Next Phase:**" add reference to new phase
-3. Under "## Accumulated Context" → "### Roadmap Evolution" add entry:
+2. Under "## Accumulated Context" → "### Roadmap Evolution" add entry:
    ```
    - Phase {N} added: {description}
    ```
@@ -145,7 +79,6 @@ Phase {N} added to current milestone:
 - Status: Not planned yet
 
 Roadmap updated: .planning/ROADMAP.md
-Project state updated: .planning/STATE.md
 
 ---
 
@@ -170,10 +103,9 @@ Project state updated: .planning/STATE.md
 </process>
 
 <success_criteria>
-- [ ] Phase directory created: `.planning/phases/{NN}-{slug}/`
+- [ ] `gsd-tools phase add` executed successfully
+- [ ] Phase directory created
 - [ ] Roadmap updated with new phase entry
 - [ ] STATE.md updated with roadmap evolution note
-- [ ] New phase appears at end of current milestone
-- [ ] Next phase number calculated correctly (ignoring decimals)
 - [ ] User informed of next steps
 </success_criteria>

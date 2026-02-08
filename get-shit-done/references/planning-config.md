@@ -53,14 +53,13 @@ INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "1")
 
 **Auto-detection:** If `.planning/` is gitignored, `commit_docs` is automatically `false` regardless of config.json. This prevents git errors when users have `.planning/` in `.gitignore`.
 
-**Conditional git operations:**
+**Commit via CLI (handles checks automatically):**
 
 ```bash
-if [ "$COMMIT_DOCS" = "true" ]; then
-  git add .planning/STATE.md
-  git commit -m "docs: update state"
-fi
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs: update state" --files .planning/STATE.md
 ```
+
+The CLI checks `commit_docs` config and gitignore status internally — no manual conditionals needed.
 
 </commit_docs_behavior>
 

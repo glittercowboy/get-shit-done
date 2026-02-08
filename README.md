@@ -15,7 +15,7 @@
 <br>
 
 ```bash
-npx get-shit-done-cc
+npx get-shit-done-cc@latest
 ```
 
 **Works on Mac, Windows, and Linux.**
@@ -73,7 +73,7 @@ People who want to describe what they want and have it built correctly — witho
 ## Getting Started
 
 ```bash
-npx get-shit-done-cc
+npx get-shit-done-cc@latest
 ```
 
 The installer prompts you to choose:
@@ -421,7 +421,7 @@ You're never locked in. The system adapts.
 
 | Command | What it does |
 |---------|--------------|
-| `/gsd:new-project` | Full initialization: questions → research → requirements → roadmap |
+| `/gsd:new-project [--auto]` | Full initialization: questions → research → requirements → roadmap |
 | `/gsd:discuss-phase [N]` | Capture implementation decisions before planning |
 | `/gsd:plan-phase [N]` | Research + plan + verify for a phase |
 | `/gsd:execute-phase <N>` | Execute all plans in parallel waves, verify when complete |

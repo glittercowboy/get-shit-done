@@ -1001,6 +1001,34 @@ Write to `.planning/phases/XX-name/{phase}-{NN}-PLAN.md`
 Include all frontmatter fields.
 </step>
 
+<step name="validate_plan">
+Validate each created PLAN.md using gsd-tools:
+
+```bash
+VALID=$(node ~/.claude/get-shit-done/bin/gsd-tools.js frontmatter validate "$PLAN_PATH" --schema plan)
+```
+
+Returns JSON: `{ valid, missing, present, schema }`
+
+**If `valid=false`:** Fix missing required fields before proceeding.
+
+Required plan frontmatter fields:
+- `phase`, `plan`, `type`, `wave`, `depends_on`, `files_modified`, `autonomous`, `must_haves`
+
+Also validate plan structure:
+
+```bash
+STRUCTURE=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify plan-structure "$PLAN_PATH")
+```
+
+Returns JSON: `{ valid, errors, warnings, task_count, tasks }`
+
+**If errors exist:** Fix before committing:
+- Missing `<name>` in task → add name element
+- Missing `<action>` → add action element
+- Checkpoint/autonomous mismatch → update `autonomous: false`
+</step>
+
 <step name="update_roadmap">
 Update ROADMAP.md to finalize phase placeholders:
 

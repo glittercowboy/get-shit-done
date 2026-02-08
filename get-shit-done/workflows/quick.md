@@ -141,6 +141,8 @@ After executor returns:
 2. Extract commit hash from executor output
 3. Report completion status
 
+**Known Claude Code bug (classifyHandoffIfNeeded):** If executor reports "failed" with error `classifyHandoffIfNeeded is not defined`, this is a Claude Code runtime bug — not a real failure. Check if summary file exists and git log shows commits. If so, treat as successful.
+
 If summary not found, error: "Executor failed to create ${next_num}-SUMMARY.md"
 
 Note: For quick tasks producing multiple plans (rare), spawn executors in parallel waves per execute-phase patterns.

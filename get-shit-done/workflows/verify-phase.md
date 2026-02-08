@@ -46,15 +46,22 @@ Extract **phase goal** from ROADMAP.md (the outcome to verify, not tasks) and **
 <step name="establish_must_haves">
 **Option A: Must-haves in PLAN frontmatter**
 
+Use gsd-tools to extract must_haves from each PLAN:
+
 ```bash
-grep -l "must_haves:" "$PHASE_DIR"/*-PLAN.md 2>/dev/null
+for plan in "$PHASE_DIR"/*-PLAN.md; do
+  MUST_HAVES=$(node ~/.claude/get-shit-done/bin/gsd-tools.js frontmatter get "$plan" --field must_haves)
+  echo "=== $plan ===" && echo "$MUST_HAVES"
+done
 ```
 
-If found, extract truths, artifacts (with paths), and key_links (from/to/via).
+Returns JSON: `{ truths: [...], artifacts: [...], key_links: [...] }`
+
+Aggregate all must_haves across plans for phase-level verification.
 
 **Option B: Derive from phase goal**
 
-If no must_haves in frontmatter:
+If no must_haves in frontmatter (MUST_HAVES returns error or empty):
 1. State the goal from ROADMAP.md
 2. Derive **truths** (3-7 observable behaviors, each testable)
 3. Derive **artifacts** (concrete file paths for each truth)
@@ -73,20 +80,28 @@ For each truth: identify supporting artifacts → check artifact status → chec
 </step>
 
 <step name="verify_artifacts">
-For each required artifact, verify three levels:
+Use gsd-tools for artifact verification against must_haves in each PLAN:
 
-**Level 1 — Existence:** File/directory exists. If MISSING → record and continue.
+```bash
+for plan in "$PHASE_DIR"/*-PLAN.md; do
+  ARTIFACT_RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify artifacts "$plan")
+  echo "=== $plan ===" && echo "$ARTIFACT_RESULT"
+done
+```
 
-**Level 2 — Substantive:** Real implementation, not a stub.
-- Line minimums: Component 15+, API route 10+, Hook/util 10+, Schema 5+
-- Stub detection: `TODO|FIXME|placeholder|not implemented|coming soon`, empty returns (`return null|return {}|return []`), placeholder content
-- Export check: `export (default )?(function|const|class)` exists
-- SUBSTANTIVE = adequate length + no stubs + has exports. STUB = too short OR stub patterns OR no exports. PARTIAL = mixed.
+Parse JSON result: `{ all_passed, passed, total, artifacts: [{path, exists, issues, passed}] }`
 
-**Level 3 — Wired:** Connected to the system.
-- Import: `grep -r "import.*$artifact_name" src/ --include="*.ts" --include="*.tsx"` → IMPORTED
-- Usage: same grep excluding import lines → USED
-- WIRED = imported AND used. ORPHANED = exists but not imported/used. PARTIAL = imported but unused.
+**Artifact status from result:**
+- `exists=false` → MISSING
+- `issues` not empty → STUB (check issues for "Only N lines" or "Missing pattern")
+- `passed=true` → VERIFIED (Levels 1-2 pass)
+
+**Level 3 — Wired (manual check for artifacts that pass Levels 1-2):**
+```bash
+grep -r "import.*$artifact_name" src/ --include="*.ts" --include="*.tsx"  # IMPORTED
+grep -r "$artifact_name" src/ --include="*.ts" --include="*.tsx" | grep -v "import"  # USED
+```
+WIRED = imported AND used. ORPHANED = exists but not imported/used.
 
 | Exists | Substantive | Wired | Status |
 |--------|-------------|-------|--------|
@@ -97,7 +112,23 @@ For each required artifact, verify three levels:
 </step>
 
 <step name="verify_wiring">
-Key links are critical connections — if broken, goal fails even with all artifacts present.
+Use gsd-tools for key link verification against must_haves in each PLAN:
+
+```bash
+for plan in "$PHASE_DIR"/*-PLAN.md; do
+  LINKS_RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify key-links "$plan")
+  echo "=== $plan ===" && echo "$LINKS_RESULT"
+done
+```
+
+Parse JSON result: `{ all_verified, verified, total, links: [{from, to, via, verified, detail}] }`
+
+**Link status from result:**
+- `verified=true` → WIRED
+- `verified=false` with "not found" → NOT_WIRED
+- `verified=false` with "Pattern not found" → PARTIAL
+
+**Fallback patterns (if key_links not in must_haves):**
 
 | Pattern | Check | Status |
 |---------|-------|--------|

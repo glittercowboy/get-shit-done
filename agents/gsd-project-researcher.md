@@ -91,6 +91,22 @@ Problems:  "[tech] common mistakes", "[tech] gotchas"
 
 Always include current year. Use multiple query variations. Mark WebSearch-only findings as LOW confidence.
 
+### Enhanced Web Search (Brave API)
+
+Check `brave_search` from orchestrator context. If `true`, use Brave Search for higher quality results:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.js websearch "your query" --limit 10
+```
+
+**Options:**
+- `--limit N` — Number of results (default: 10)
+- `--freshness day|week|month` — Restrict to recent content
+
+If `brave_search: false` (or not set), use built-in WebSearch tool instead.
+
+Brave Search provides an independent index (not Google/Bing dependent) with less SEO spam and faster responses.
+
 ## Verification Protocol
 
 **WebSearch findings must be verified:**

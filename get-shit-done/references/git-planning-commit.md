@@ -1,35 +1,23 @@
 # Git Planning Commit
 
-Check whether to commit planning artifacts, then commit if enabled.
+Commit planning artifacts using the gsd-tools CLI, which automatically checks `commit_docs` config and gitignore status.
 
-## Check Configuration
+## Commit via CLI
+
+Always use `gsd-tools.js commit` for `.planning/` files — it handles `commit_docs` and gitignore checks automatically:
 
 ```bash
-# Check config.json first
-COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
-
-# Auto-detect gitignored (overrides config)
-git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs({scope}): {description}" --files .planning/STATE.md .planning/ROADMAP.md
 ```
 
-Default: `true` if not set or config missing.
+The CLI will return `skipped` (with reason) if `commit_docs` is `false` or `.planning/` is gitignored. No manual conditional checks needed.
 
-## Conditional Commit
+## Amend previous commit
 
-Only run git operations if `COMMIT_PLANNING_DOCS=true`:
+To fold `.planning/` file changes into the previous commit:
 
 ```bash
-if [ "$COMMIT_PLANNING_DOCS" = "true" ]; then
-  git add .planning/STATE.md .planning/ROADMAP.md
-  git commit -m "$(cat <<'EOF'
-docs({scope}): {description}
-
-{optional body}
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-EOF
-)"
-fi
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "" --files .planning/codebase/*.md --amend
 ```
 
 ## Commit Message Patterns
