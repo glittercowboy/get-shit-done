@@ -38,7 +38,7 @@ function gsd-secure {
     $MountArgs = @()
     
     # 1. Gemini
-    $GeminiPath = "$HOME\.gemini"
+    $GeminiPath = "$HOME\.gemini".Replace('\', '/')
     if (Test-Path $GeminiPath) {
         $MountArgs += "-v"
         $MountArgs += "${GeminiPath}:/root/.gemini"
@@ -46,7 +46,7 @@ function gsd-secure {
     }
 
     # 2. Claude
-    $ClaudePath = "$HOME\.claude"
+    $ClaudePath = "$HOME\.claude".Replace('\', '/')
     if (Test-Path $ClaudePath) {
         $MountArgs += "-v"
         $MountArgs += "${ClaudePath}:/root/.claude"
@@ -54,7 +54,7 @@ function gsd-secure {
     }
 
     # 3. OpenCode
-    $OpenCodePath = "$HOME\.config\opencode"
+    $OpenCodePath = "$HOME\.config\opencode".Replace('\', '/')
     if (Test-Path $OpenCodePath) {
         $MountArgs += "-v"
         $MountArgs += "${OpenCodePath}:/root/.config/opencode"

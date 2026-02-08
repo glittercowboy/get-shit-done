@@ -46,25 +46,25 @@ function gsd-secure() {
     local CURRENT_DIR=$(pwd)
     
     # Universal Auth Mapping
-    local MOUNT_ARGS=""
+    local MOUNT_ARGS=()
     
     # 1. Gemini
     local GEMINI_PATH="$HOME/.gemini"
     if [ -d "$GEMINI_PATH" ]; then
-        MOUNT_ARGS="$MOUNT_ARGS -v $GEMINI_PATH:/root/.gemini"
+        MOUNT_ARGS+=("-v" "$GEMINI_PATH:/root/.gemini")
         echo -e "\033[0;90m [Auth] Gemini keys detected.\033[0m"
     fi
 
     # 2. Claude
     local CLAUDE_PATH="$HOME/.claude"
     if [ -d "$CLAUDE_PATH" ]; then
-        MOUNT_ARGS="$MOUNT_ARGS -v $CLAUDE_PATH:/root/.claude"
+        MOUNT_ARGS+=("-v" "$CLAUDE_PATH:/root/.claude")
         echo -e "\033[0;90m [Auth] Claude keys detected.\033[0m"
     fi
 
     # 3. OpenCode
     if [ -d "$HOME/.config/opencode" ]; then
-        MOUNT_ARGS="$MOUNT_ARGS -v \"$HOME/.config/opencode:/root/.config/opencode\""
+        MOUNT_ARGS+=("-v" "$HOME/.config/opencode:/root/.config/opencode")
         echo -e "\033[0;90m [Auth] OpenCode keys detected.\033[0m"
     fi
 
@@ -81,7 +81,7 @@ function gsd-secure() {
             --network host \
             -v "$CURRENT_DIR:/app" \
             -v "gsd-npm-cache:/root/.npm" \
-            $MOUNT_ARGS \
+            "${MOUNT_ARGS[@]}" \
             -e "GIT_AUTHOR_NAME=$GIT_NAME" \
             -e "GIT_AUTHOR_EMAIL=$GIT_EMAIL" \
             -e "GIT_COMMITTER_NAME=$GIT_NAME" \
@@ -95,7 +95,7 @@ function gsd-secure() {
             --dns 1.1.1.1 \
             -v "$CURRENT_DIR:/app" \
             -v "gsd-npm-cache:/root/.npm" \
-            $MOUNT_ARGS \
+            "${MOUNT_ARGS[@]}" \
             -e "GIT_AUTHOR_NAME=$GIT_NAME" \
             -e "GIT_AUTHOR_EMAIL=$GIT_EMAIL" \
             -e "GIT_COMMITTER_NAME=$GIT_NAME" \

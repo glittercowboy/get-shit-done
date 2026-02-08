@@ -1,3 +1,10 @@
+# Stage 1: Packer - Create a clean tarball of the source
+FROM node:20-slim as packer
+COPY . /tmp/gsd-source
+WORKDIR /tmp/gsd-source
+RUN npm pack
+
+# Stage 2: Final - The actual runtime image
 FROM node:20-slim
 
 # Install system dependencies
@@ -14,12 +21,11 @@ RUN apt-get update && apt-get install -y \
     nano \
     && rm -rf /var/lib/apt/lists/*
 
-# Global GSD installation from LOCAL source
-# We use npm pack to create a tarball, then install from it.
-# This avoids the symlink issue that occurs with direct local installs.
-COPY . /tmp/gsd-source
-WORKDIR /tmp/gsd-source
-RUN npm pack && npm install -g get-shit-done-cc-*.tgz && rm -rf /tmp/gsd-source
+# Global GSD installation from PACKER stage
+# We copy the tarball from the previous stage, install it, and remove it.
+# This prevents the source code history from bloating the final image layers.
+COPY --from=packer /tmp/gsd-source/*.tgz /tmp/
+RUN npm install -g /tmp/*.tgz && rm -rf /tmp/*.tgz
 
 # Copy entrypoint script (path relative to repo root context)
 COPY docker/entrypoint.sh /usr/local/bin/
