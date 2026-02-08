@@ -545,6 +545,37 @@ At milestone completion, GSD offers squash merge (recommended) or merge with his
 
 ---
 
+## Security
+
+### Protecting Sensitive Files
+
+GSD's codebase mapping and analysis commands read files to understand your project. **Protect files containing secrets** by adding them to Claude Code's deny list:
+
+1. Open Claude Code settings (`.claude/settings.json` or global)
+2. Add sensitive file patterns to the deny list:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/secrets/*)",
+      "Read(**/*credential*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ]
+  }
+}
+```
+
+This prevents Claude from reading these files entirely, regardless of what commands you run.
+
+> [!IMPORTANT]
+> GSD includes built-in protections against committing secrets, but defense-in-depth is best practice. Deny read access to sensitive files as a first line of defense.
+
+---
+
 ## Troubleshooting
 
 **Commands not found after install?**
@@ -595,7 +626,7 @@ These community ports pioneered multi-runtime support:
 | Project | Platform | Description |
 |---------|----------|-------------|
 | [gsd-opencode](https://github.com/rokicool/gsd-opencode) | OpenCode | Original OpenCode adaptation |
-| [gsd-gemini](https://github.com/uberfuzzy/gsd-gemini) | Gemini CLI | Original Gemini adaptation |
+| gsd-gemini (archived) | Gemini CLI | Original Gemini adaptation by uberfuzzy |
 
 ---
 
