@@ -1,6 +1,6 @@
 # Model Profiles
 
-Model profiles control which Claude model each GSD agent uses. This allows balancing quality vs token spend.
+Model profiles control which model each GSD agent uses. This allows balancing quality vs token spend.
 
 ## Profile Definitions
 
@@ -17,6 +17,39 @@ Model profiles control which Claude model each GSD agent uses. This allows balan
 | gsd-verifier | sonnet | sonnet | haiku |
 | gsd-plan-checker | sonnet | sonnet | haiku |
 | gsd-integration-checker | sonnet | sonnet | haiku |
+
+## Custom Model Configuration
+
+For users who want to use specific models (including non-Anthropic models) with fallbacks:
+
+```json
+{
+  "model_profile": "custom",
+  "models": {
+    "planning": ["google/antigravity-claude-opus-4-6-thinking", "openai/gpt-5.2"],
+    "coding": ["openai/gpt-5.3-codex", "openai/gpt-5.2-codex"],
+    "research": ["google/antigravity-gemini-3-pro", "zai-coding-plan/glm-4.7"],
+    "verification": ["google/antigravity-claude-opus-4-5-thinking", "openai/gpt-5.2"]
+  }
+}
+```
+
+### Role Mapping
+
+| Role | Agents | Use Case |
+|------|--------|----------|
+| `planning` | gsd-planner, gsd-roadmapper | Architecture decisions, roadmaps, task breakdown |
+| `coding` | gsd-executor, gsd-debugger | Implementation, debugging, code execution |
+| `research` | gsd-*-researcher, gsd-codebase-mapper | Domain research, feature analysis, pitfall discovery |
+| `verification` | gsd-verifier, gsd-plan-checker, gsd-integration-checker | Plan checking, work validation, quality gates |
+
+### Fallback Behavior
+
+Each role accepts either:
+- A single model string: `"coding": "openai/gpt-5.2-codex"`
+- An array with fallbacks: `"coding": ["openai/gpt-5.3-codex", "openai/gpt-5.2-codex"]`
+
+The first model in the array is primary; subsequent models are fallbacks if the primary is unavailable.
 
 ## Profile Philosophy
 
@@ -36,6 +69,11 @@ Model profiles control which Claude model each GSD agent uses. This allows balan
 - Haiku for research and verification
 - Use when: conserving quota, high-volume work, less critical phases
 
+**custom** - Full control
+- Specify exact models per role with fallbacks
+- Mix providers (Anthropic, OpenAI, Google, etc.)
+- Use when: specific model requirements, multi-provider setups
+
 ## Resolution Logic
 
 Orchestrators resolve model before spawning:
@@ -43,8 +81,9 @@ Orchestrators resolve model before spawning:
 ```
 1. Read .planning/config.json
 2. Get model_profile (default: "balanced")
-3. Look up agent in table above
-4. Pass model parameter to Task call
+3. If "custom" and models.{role} exists → use custom model
+4. Otherwise → look up agent in profile table
+5. Pass model parameter to Task call
 ```
 
 ## Switching Profiles
