@@ -988,9 +988,15 @@ INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
 
 **Commit the fix:**
 
-If `COMMIT_PLANNING_DOCS=true` (default):
+Stage code changes individually (NEVER `git add -A` — it stages .planning/ files):
 ```bash
-git add -A
+git add src/path/to/fixed-file.ts
+git add src/path/to/other-file.ts
+```
+
+If `COMMIT_PLANNING_DOCS=true` (from state load JSON):
+```bash
+git add .planning/debug/resolved/{slug}.md
 git commit -m "fix: {brief description}
 
 Root cause: {root_cause}
@@ -999,9 +1005,7 @@ Debug session: .planning/debug/resolved/{slug}.md"
 
 If `COMMIT_PLANNING_DOCS=false`:
 ```bash
-# Only commit code changes, exclude .planning/
-git add -A
-git reset .planning/
+# Do NOT stage any .planning/ files
 git commit -m "fix: {brief description}
 
 Root cause: {root_cause}"
