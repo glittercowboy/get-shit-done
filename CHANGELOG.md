@@ -6,6 +6,101 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-02-08
+
+### Changed
+- Optimized workflow context loading to eliminate redundant file reads, reducing token usage by ~5,000-10,000 tokens per workflow execution
+
+## [1.14.0] - 2026-02-08
+
+### Added
+- Context-optimizing parsing commands in gsd-tools (`phase-plan-index`, `state-snapshot`, `summary-extract`) — reduces agent context usage by returning structured JSON instead of raw file content
+
+### Fixed
+- Installer no longer deletes opencode.json on JSONC parse errors — now handles comments, trailing commas, and BOM correctly (#474)
+
+## [1.13.0] - 2026-02-08
+
+### Added
+- `gsd-tools history-digest` — Compiles phase summaries into structured JSON for faster context loading
+- `gsd-tools phases list` — Lists phase directories with filtering (replaces fragile `ls | sort -V` patterns)
+- `gsd-tools roadmap get-phase` — Extracts phase sections from ROADMAP.md
+- `gsd-tools phase next-decimal` — Calculates next decimal phase number for insert operations
+- `gsd-tools state get/patch` — Atomic STATE.md field operations
+- `gsd-tools template select` — Chooses summary template based on plan complexity
+- Summary template variants: minimal (~30 lines), standard (~60 lines), complex (~100 lines)
+- Test infrastructure with 22 tests covering new commands
+
+### Changed
+- Planner uses two-step context assembly: digest for selection, full SUMMARY for understanding
+- Agents migrated from bash patterns to structured gsd-tools commands
+- Nested YAML frontmatter parsing now handles `dependency-graph.provides`, `tech-stack.added` correctly
+
+## [1.12.1] - 2026-02-08
+
+### Changed
+- Consolidated workflow initialization into compound `init` commands, reducing token usage and improving startup performance
+- Updated 24 workflow and agent files to use single-call context gathering instead of multiple atomic calls
+
+## [1.12.0] - 2026-02-07
+
+### Changed
+- **Architecture: Thin orchestrator pattern** — Commands now delegate to workflows, reducing command file size by ~75% and improving maintainability
+- **Centralized utilities** — New `gsd-tools.js` (11 functions) replaces repetitive bash patterns across 50+ files
+- **Token reduction** — ~22k characters removed from affected command/workflow/agent files
+- **Condensed agent prompts** — Same behavior with fewer words (executor, planner, verifier, researcher agents)
+
+### Added
+- `gsd-tools.js` CLI utility with functions: state load/update, resolve-model, find-phase, commit, verify-summary, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section
+
+## [1.11.2] - 2026-02-05
+
+### Added
+- Security section in README with Claude Code deny rules for sensitive files
+
+### Changed
+- Install respects `attribution.commit` setting for OpenCode compatibility (#286)
+
+### Fixed
+- **CRITICAL:** Prevent API keys from being committed via `/gsd:map-codebase` (#429)
+- Enforce context fidelity in planning pipeline - agents now honor CONTEXT.md decisions (#326, #216, #206)
+- Executor verifies task completion to prevent hallucinated success (#315)
+- Auto-create `config.json` when missing during `/gsd:settings` (#264)
+- `/gsd:update` respects local vs global install location
+- Researcher writes RESEARCH.md regardless of `commit_docs` setting
+- Statusline crash handling, color validation, git staging rules
+- Statusline.js reference updated during install (#330)
+- Parallelization config setting now respected (#379)
+- ASCII box-drawing vs text content with diacritics (#289)
+- Removed broken gsd-gemini link (404)
+
+## [1.11.1] - 2026-01-31
+
+### Added
+- Git branching strategy configuration with three options:
+  - `none` (default): commit to current branch
+  - `phase`: create branch per phase (`gsd/phase-{N}-{slug}`)
+  - `milestone`: create branch per milestone (`gsd/{version}-{slug}`)
+- Squash merge option at milestone completion (recommended) with merge-with-history alternative
+- Context compliance verification dimension in plan checker — flags if plans contradict user decisions
+
+### Fixed
+- CONTEXT.md from `/gsd:discuss-phase` now properly flows to all downstream agents (researcher, planner, checker, revision loop)
+
+## [1.10.1] - 2025-01-30
+
+### Fixed
+- Gemini CLI agent loading errors that prevented commands from executing
+
+## [1.10.0] - 2026-01-29
+
+### Added
+- Native Gemini CLI support — install with `--gemini` flag or select from interactive menu
+- New `--all` flag to install for Claude Code, OpenCode, and Gemini simultaneously
+
+### Fixed
+- Context bar now shows 100% at actual 80% limit (was scaling incorrectly)
+
 ## [1.9.12] - 2025-01-23
 
 ### Removed
@@ -1055,7 +1150,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - YOLO mode for autonomous execution
 - Interactive mode with checkpoints
 
-[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.9.12...HEAD
+[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.15.0...HEAD
+[1.15.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.15.0
+[1.14.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.14.0
+[1.13.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.13.0
+[1.12.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.12.1
+[1.12.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.12.0
+[1.11.2]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.11.2
+[1.11.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.11.0
+[1.10.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.1
+[1.10.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.10.0
 [1.9.12]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.12
 [1.9.11]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.11
 [1.9.10]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.9.10

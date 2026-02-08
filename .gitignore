@@ -18,3 +18,6 @@ hooks/dist/
 animation/
 *.gif
 
+# Internal planning documents
+reports/
+RAILROAD_ARCHITECTURE.md
