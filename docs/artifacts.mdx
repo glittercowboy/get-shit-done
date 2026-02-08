@@ -1,0 +1,53 @@
+---
+title: "Artifacts"
+description: "What GSD creates and why it exists"
+---
+
+GSD creates files that double as both **state** and **prompt context**.
+
+## Core Files
+
+| File | Role |
+|------|------|
+| `PROJECT.md` | The project vision. Always loaded. |
+| `REQUIREMENTS.md` | Scope with v1/v2 separation. |
+| `ROADMAP.md` | Phases mapped to requirements. |
+| `STATE.md` | Living memory (decisions, blockers, position). |
+
+## Planning Outputs
+
+| Output | When it appears |
+|--------|------------------|
+| `{phase}-CONTEXT.md` | After `/gsd:discuss-phase` |
+| `{phase}-RESEARCH.md` | During `/gsd:plan-phase` |
+| `{phase}-{N}-PLAN.md` | Plans created by the planner |
+
+## Execution Outputs
+
+| Output | When it appears |
+|--------|------------------|
+| `{phase}-{N}-SUMMARY.md` | After each plan execution |
+| `{phase}-VERIFICATION.md` | After execution verification |
+| `{phase}-UAT.md` | After `/gsd:verify-work` |
+
+## Typical Directory Shape
+
+```mermaid
+flowchart TD
+  A[.planning/] --> B[PROJECT.md]
+  A --> C[REQUIREMENTS.md]
+  A --> D[ROADMAP.md]
+  A --> E[STATE.md]
+  A --> F[research/]
+  A --> G[phases/]
+  G --> H[01-some-phase/]
+  H --> I[01-CONTEXT.md]
+  H --> J[01-RESEARCH.md]
+  H --> K[01-1-PLAN.md]
+  H --> L[01-1-SUMMARY.md]
+  H --> M[01-VERIFICATION.md]
+```
+
+<Note>
+  These artifacts are the product. They keep future sessions aligned even when the model context window resets.
+</Note>

@@ -1,0 +1,53 @@
+---
+title: "Style Guide"
+description: "The writing and structure rules GSD enforces"
+---
+
+GSD is a meta-prompting system. Docs are not marketing pages; they are **instructions the model executes**.
+
+## Non-Negotiables
+
+- No enterprise theater.
+- No filler.
+- No sycophancy.
+- Prefer imperative voice.
+- Prefer measurable verification steps.
+
+## Documentation Rules
+
+### Semantic XML
+
+Plans and workflows use semantic XML containers (not generic tags).
+
+Good:
+
+```xml
+<objective>
+Build X
+</objective>
+```
+
+Bad:
+
+```xml
+<section>
+  <content>Build X</content>
+</section>
+```
+
+### Progressive Disclosure
+
+Keep detail in the right layer:
+
+1. Command (thin wrapper)
+2. Workflow (the process)
+3. Template (the shape)
+4. Reference (deep dive)
+
+### Context Engineering
+
+Keep plans small. Split work when it risks context rot.
+
+<Note>
+  The full reference lives in `GSD-STYLE.md` in the repository.
+</Note>

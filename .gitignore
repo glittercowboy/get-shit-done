@@ -11,6 +11,10 @@ commands.html
 # Build artifacts (committed to npm, not git)
 hooks/dist/
 
+# Local docs preview artifacts
+docs/.mintlify/
+docs/mintlify.log
+
 # Animation assets
 animation/
 *.gif

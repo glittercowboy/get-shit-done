@@ -1,0 +1,59 @@
+---
+title: "Quickstart"
+description: "From install to your first verified phase"
+---
+
+## 1) Install
+
+```bash
+npx get-shit-done-cc
+```
+
+When the installer finishes, verify inside your runtime:
+
+```bash
+/gsd:help
+```
+
+## 2) Start a Project
+
+Run:
+
+```bash
+/gsd:new-project
+```
+
+Write the project intent like a spec headline + constraints. Example:
+
+```text
+Build a personal finance dashboard.
+- Next.js App Router
+- Postgres
+- Stripe billing later (out of scope for v1)
+- Fast onboarding; no enterprise workflows
+```
+
+GSD generates project context files and a phase roadmap.
+
+## 3) Build One Phase End-to-End
+
+Pick phase 1 and run the loop:
+
+```bash
+/gsd:discuss-phase 1
+/gsd:plan-phase 1
+/gsd:execute-phase 1
+/gsd:verify-work 1
+```
+
+## 4) Repeat
+
+Keep the cadence the same. When the milestone is complete:
+
+```bash
+/gsd:complete-milestone
+```
+
+<Note>
+  The highest leverage habit: keep phases small enough that each plan stays executable without context rot.
+</Note>
