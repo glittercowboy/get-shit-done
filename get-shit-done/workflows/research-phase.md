@@ -18,10 +18,10 @@ Resolve model for:
 @~/.claude/get-shit-done/references/phase-argument-parsing.md
 
 ```bash
-grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md 2>/dev/null
+PHASE_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE}")
 ```
 
-If not found: Error and exit.
+If `found` is false: Error and exit.
 
 ## Step 2: Check Existing Research
 
@@ -34,7 +34,8 @@ If exists: Offer update/view/skip options.
 ## Step 3: Gather Phase Context
 
 ```bash
-grep -A20 "Phase ${PHASE}:" .planning/ROADMAP.md
+# Phase section from roadmap (already loaded in PHASE_INFO)
+echo "$PHASE_INFO" | jq -r '.section'
 cat .planning/REQUIREMENTS.md 2>/dev/null
 cat .planning/phases/${PHASE}-*/*-CONTEXT.md 2>/dev/null
 grep -A30 "### Decisions Made" .planning/STATE.md 2>/dev/null

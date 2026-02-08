@@ -2,40 +2,45 @@
 
 Calculate the next decimal phase number for urgent insertions.
 
-## Find Existing Decimals
-
-For a given integer phase, find all existing decimal phases:
+## Using gsd-tools
 
 ```bash
-# Find decimal phases after integer phase N (e.g., 06.1, 06.2)
-AFTER_PHASE=$1  # e.g., 6
-
-# Pad to 2 digits
-PADDED=$(printf "%02d" "$AFTER_PHASE")
-
-# Find existing decimals
-EXISTING=$(ls -d .planning/phases/${PADDED}.*-* 2>/dev/null | \
-  xargs -I{} basename {} | \
-  grep -oE '^[0-9]+\.[0-9]+' | \
-  sort -V)
+# Get next decimal phase after phase 6
+node ~/.claude/get-shit-done/bin/gsd-tools.js phase next-decimal 6
 ```
 
-## Calculate Next Decimal
+Output:
+```json
+{
+  "found": true,
+  "base_phase": "06",
+  "next": "06.1",
+  "existing": []
+}
+```
 
-Find the highest decimal suffix and increment:
+With existing decimals:
+```json
+{
+  "found": true,
+  "base_phase": "06",
+  "next": "06.3",
+  "existing": ["06.1", "06.2"]
+}
+```
+
+## Extract Values
 
 ```bash
-if [ -z "$EXISTING" ]; then
-  # No decimals exist, start at .1
-  NEXT_DECIMAL="1"
-else
-  # Get highest decimal suffix
-  MAX_SUFFIX=$(echo "$EXISTING" | tail -1 | grep -oE '\.[0-9]+$' | tr -d '.')
-  NEXT_DECIMAL=$((MAX_SUFFIX + 1))
-fi
+DECIMAL_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase next-decimal "${AFTER_PHASE}")
+DECIMAL_PHASE=$(echo "$DECIMAL_INFO" | jq -r '.next')
+BASE_PHASE=$(echo "$DECIMAL_INFO" | jq -r '.base_phase')
+```
 
-# Format: 06.1, 06.2, etc.
-DECIMAL_PHASE="${PADDED}.${NEXT_DECIMAL}"
+Or with --raw flag:
+```bash
+DECIMAL_PHASE=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase next-decimal "${AFTER_PHASE}" --raw)
+# Returns just: 06.1
 ```
 
 ## Examples
@@ -45,13 +50,14 @@ DECIMAL_PHASE="${PADDED}.${NEXT_DECIMAL}"
 | 06 only | 06.1 |
 | 06, 06.1 | 06.2 |
 | 06, 06.1, 06.2 | 06.3 |
+| 06, 06.1, 06.3 (gap) | 06.4 |
 
 ## Directory Naming
 
 Decimal phase directories use the full decimal number:
 
 ```bash
-SLUG=$(echo "$DESCRIPTION" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+SLUG=$(node ~/.claude/get-shit-done/bin/gsd-tools.js generate-slug "$DESCRIPTION" --raw)
 PHASE_DIR=".planning/phases/${DECIMAL_PHASE}-${SLUG}"
 mkdir -p "$PHASE_DIR"
 ```

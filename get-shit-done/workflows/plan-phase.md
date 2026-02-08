@@ -38,10 +38,10 @@ mkdir -p ".planning/phases/${padded_phase}-${phase_slug}"
 ## 3. Validate Phase
 
 ```bash
-grep -A5 "Phase ${PHASE}:" .planning/ROADMAP.md 2>/dev/null
+PHASE_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE}")
 ```
 
-**If not found:** Error with available phases. **If found:** Extract phase number, name, description.
+**If `found` is false:** Error with available phases. **If `found` is true:** Extract `phase_number`, `phase_name`, `goal` from JSON.
 
 ## 4. Load CONTEXT.md
 
@@ -73,7 +73,7 @@ Display banner:
 ### Spawn gsd-phase-researcher
 
 ```bash
-PHASE_DESC=$(grep -A3 "Phase ${PHASE}:" .planning/ROADMAP.md)
+PHASE_DESC=$(node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE}" | jq -r '.section')
 REQUIREMENTS=$(cat .planning/REQUIREMENTS.md 2>/dev/null | grep -A100 "## Requirements" | head -50)
 DECISIONS=$(grep -A20 "### Decisions Made" .planning/STATE.md 2>/dev/null)
 ```

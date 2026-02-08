@@ -24,8 +24,8 @@ CHECKER_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-
 ## 1. Determine Milestone Scope
 
 ```bash
-# Get phases in milestone
-ls -d .planning/phases/*/ | sort -V
+# Get phases in milestone (sorted numerically, handles decimals)
+node ~/.claude/get-shit-done/bin/gsd-tools.js phases list
 ```
 
 - Parse version from arguments or detect current from ROADMAP.md

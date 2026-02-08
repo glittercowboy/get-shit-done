@@ -9,7 +9,23 @@ From `$ARGUMENTS`:
 - Extract flags (prefixed with `--`)
 - Remaining text is description (for insert/add commands)
 
-## Normalization
+## Using gsd-tools
+
+The `find-phase` command handles normalization and validation in one step:
+
+```bash
+PHASE_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "${PHASE}")
+```
+
+Returns JSON with:
+- `found`: true/false
+- `directory`: Full path to phase directory
+- `phase_number`: Normalized number (e.g., "06", "06.1")
+- `phase_name`: Name portion (e.g., "foundation")
+- `plans`: Array of PLAN.md files
+- `summaries`: Array of SUMMARY.md files
+
+## Manual Normalization (Legacy)
 
 Zero-pad integer phases to 2 digits. Preserve decimal suffixes.
 
@@ -24,35 +40,22 @@ elif [[ "$PHASE" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
 fi
 ```
 
-## Auto-Detection
-
-When no phase number provided, detect the next unplanned phase:
-
-```bash
-# Find phases without PLAN.md files
-for dir in .planning/phases/*/; do
-  if ! ls "$dir"/*-PLAN.md 2>/dev/null | head -1 >/dev/null; then
-    PHASE=$(basename "$dir" | grep -oE '^[0-9.]+')
-    break
-  fi
-done
-```
-
 ## Validation
 
-After normalization, verify phase exists in ROADMAP.md:
+Use `roadmap get-phase` to validate phase exists:
 
 ```bash
-grep -q "### Phase ${PHASE}:" .planning/ROADMAP.md || {
+PHASE_CHECK=$(node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE}")
+if [ "$(echo "$PHASE_CHECK" | jq -r '.found')" = "false" ]; then
   echo "ERROR: Phase ${PHASE} not found in roadmap"
   exit 1
-}
+fi
 ```
 
 ## Directory Lookup
 
-Find the phase directory using the normalized phase number:
+Use `find-phase` for directory lookup:
 
 ```bash
-PHASE_DIR=$(ls -d .planning/phases/${PHASE}-* 2>/dev/null | head -1)
+PHASE_DIR=$(node ~/.claude/get-shit-done/bin/gsd-tools.js find-phase "${PHASE}" --raw)
 ```

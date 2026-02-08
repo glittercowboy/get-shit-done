@@ -77,20 +77,26 @@ Verify that the target phase exists in the roadmap:
 </step>
 
 <step name="find_existing_decimals">
-Find existing decimal phases after the target phase:
+Calculate next decimal phase number:
 
-1. Search for all "### Phase {after_phase}.N:" headings
-2. Extract decimal suffixes (e.g., for Phase 72: find 72.1, 72.2, 72.3)
-3. Find the highest decimal suffix
-4. Calculate next decimal: max + 1
+```bash
+DECIMAL_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase next-decimal "${after_phase}")
+```
+
+Extract from JSON:
+- `next`: The next available decimal (e.g., "06.1", "06.3")
+- `existing`: Array of existing decimals (e.g., ["06.1", "06.2"])
+- `base_phase`: Normalized base phase (e.g., "06")
+
+Store the result:
+```bash
+decimal_phase=$(echo "$DECIMAL_INFO" | jq -r '.next')
+```
 
 Examples:
-
 - Phase 72 with no decimals -> next is 72.1
 - Phase 72 with 72.1 -> next is 72.2
 - Phase 72 with 72.1, 72.2 -> next is 72.3
-
-Store as: `decimal_phase="$(printf "%02d" $after_phase).${next_decimal}"`
 </step>
 
 <step name="generate_slug">

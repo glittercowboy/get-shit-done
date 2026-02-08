@@ -64,7 +64,9 @@ Gap: Flow "View dashboard" broken at data fetch
 
 Find highest existing phase:
 ```bash
-ls -d .planning/phases/*/ | sort -V | tail -1
+# Get sorted phase list, extract last one
+PHASES=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phases list)
+HIGHEST=$(echo "$PHASES" | jq -r '.directories[-1]')
 ```
 
 New phases continue from there:

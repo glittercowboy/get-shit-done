@@ -308,7 +308,7 @@ Orchestrator provides CONTEXT.md content in the verification prompt. If provided
 
 ```bash
 ls "$phase_dir"/*-PLAN.md 2>/dev/null
-grep -A 10 "Phase $phase_number" .planning/ROADMAP.md | head -15
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "$phase_number"
 ls "$phase_dir"/*-BRIEF.md 2>/dev/null
 ```
 

@@ -54,7 +54,7 @@ Set `is_re_verification = false`, proceed with Step 1.
 ```bash
 ls "$PHASE_DIR"/*-PLAN.md 2>/dev/null
 ls "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null
-grep -A 5 "Phase $PHASE_NUM" .planning/ROADMAP.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "$PHASE_NUM"
 grep -E "^| $PHASE_NUM" .planning/REQUIREMENTS.md 2>/dev/null
 ```
 

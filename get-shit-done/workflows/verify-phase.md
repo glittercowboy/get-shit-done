@@ -35,7 +35,7 @@ Extract from init JSON: `phase_dir`, `phase_number`, `phase_name`, `has_plans`, 
 
 Then load phase details and list plans/summaries:
 ```bash
-grep -A 5 "Phase ${phase_number}" .planning/ROADMAP.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${phase_number}"
 grep -E "^| ${phase_number}" .planning/REQUIREMENTS.md 2>/dev/null
 ls "$phase_dir"/*-SUMMARY.md "$phase_dir"/*-PLAN.md 2>/dev/null
 ```
