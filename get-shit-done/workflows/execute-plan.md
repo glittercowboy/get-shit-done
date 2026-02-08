@@ -111,6 +111,12 @@ Pattern B only (verify-only checkpoints). Skip for A/C.
    - Verify key-files.created exist on disk with `[ -f ]`
    - Check `git log --oneline --all --grep="{phase}-{plan}"` returns ≥1 commit
    - Append `## Self-Check: PASSED` or `## Self-Check: FAILED` to SUMMARY
+
+   **Known Claude Code bug (classifyHandoffIfNeeded):** If any segment agent reports "failed" with `classifyHandoffIfNeeded is not defined`, this is a Claude Code runtime bug — not a real failure. Run spot-checks; if they pass, treat as successful.
+
+
+
+
 </step>
 
 <step name="load_prompt">
