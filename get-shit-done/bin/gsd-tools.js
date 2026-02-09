@@ -121,6 +121,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // ─── Model Profile Table ─────────────────────────────────────────────────────
+// Supports full model IDs (e.g., "openai/gpt-5.2-codex") or tier names (opus/sonnet/haiku)
 
 const MODEL_PROFILES = {
   'gsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet' },
@@ -134,6 +135,36 @@ const MODEL_PROFILES = {
   'gsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
   'gsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
   'gsd-integration-checker':  { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
+};
+
+// ─── Custom Model Mapping ────────────────────────────────────────────────────
+// Maps agent types to roles for custom model configuration.
+// Configure in .planning/config.json under "models" key with fallback arrays:
+//
+// {
+//   "model_profile": "custom",
+//   "models": {
+//     "planning": ["google/antigravity-claude-opus-4-6-thinking", "openai/gpt-5.2"],
+//     "coding": ["openai/gpt-5.3-codex", "openai/gpt-5.2-codex"],
+//     "research": ["google/antigravity-gemini-3-pro", "zai-coding-plan/glm-4.7"],
+//     "verification": ["google/antigravity-claude-opus-4-5-thinking", "openai/gpt-5.2"]
+//   }
+// }
+//
+// Each role can be a single model string or an array (first = primary, rest = fallbacks).
+
+const AGENT_TO_ROLE = {
+  'gsd-planner': 'planning',
+  'gsd-roadmapper': 'planning',
+  'gsd-executor': 'coding',
+  'gsd-phase-researcher': 'research',
+  'gsd-project-researcher': 'research',
+  'gsd-research-synthesizer': 'research',
+  'gsd-debugger': 'coding',
+  'gsd-codebase-mapper': 'research',
+  'gsd-verifier': 'verification',
+  'gsd-plan-checker': 'verification',
+  'gsd-integration-checker': 'verification',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1321,6 +1352,21 @@ function cmdResolveModel(cwd, agentType, raw) {
   const config = loadConfig(cwd);
   const profile = config.model_profile || 'balanced';
 
+  // Check for custom model overrides first
+  const customModels = loadCustomModels(cwd);
+  const role = AGENT_TO_ROLE[agentType];
+  
+  if (customModels && role && customModels[role]) {
+    const modelConfig = customModels[role];
+    // Support both string and array (fallback list)
+    const model = Array.isArray(modelConfig) ? modelConfig[0] : modelConfig;
+    const fallbacks = Array.isArray(modelConfig) ? modelConfig.slice(1) : [];
+    const result = { model, profile: 'custom', role, fallbacks };
+    output(result, raw, model);
+    return;
+  }
+
+  // Fallback to default profile-based resolution
   const agentModels = MODEL_PROFILES[agentType];
   if (!agentModels) {
     const result = { model: 'sonnet', profile, unknown_agent: true };
@@ -1331,6 +1377,17 @@ function cmdResolveModel(cwd, agentType, raw) {
   const model = agentModels[profile] || agentModels['balanced'] || 'sonnet';
   const result = { model, profile };
   output(result, raw, model);
+}
+
+function loadCustomModels(cwd) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  try {
+    const raw = fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return parsed.models || null;
+  } catch {
+    return null;
+  }
 }
 
 function cmdFindPhase(cwd, phase, raw) {
