@@ -68,6 +68,26 @@ function gsd-secure() {
         echo -e "\033[0;90m [Auth] OpenCode keys detected.\033[0m"
     fi
 
+    # 4. Codex (for OpenCode's Codex auth)
+    if [ -d "$HOME/.codex" ]; then
+        MOUNT_ARGS+=("-v" "$HOME/.codex:/root/.codex")
+        echo -e "\033[0;90m [Auth] Codex keys detected.\033[0m"
+    fi
+
+    # 5. Antigravity (for OpenCode's Antigravity auth)
+    if [ -d "$HOME/.antigravity" ]; then
+        MOUNT_ARGS+=("-v" "$HOME/.antigravity:/root/.antigravity")
+        echo -e "\033[0;90m [Auth] Antigravity keys detected.\033[0m"
+    fi
+
+    # 6. OpenCode Cache & Local Share (Persistence)
+    if [ -d "$HOME/.cache/opencode" ]; then
+        MOUNT_ARGS+=("-v" "$HOME/.cache/opencode:/root/.cache/opencode")
+    fi
+    if [ -d "$HOME/.local/share/opencode" ]; then
+        MOUNT_ARGS+=("-v" "$HOME/.local/share/opencode:/root/.local/share/opencode")
+    fi
+
 
 
     echo -e "\033[0;32mEntering GSD Secure Sandbox...\033[0m"
@@ -89,7 +109,8 @@ function gsd-secure() {
     fi
     
     # Default ports covering 99% of dev use cases
-    local DEFAULT_PORTS=(1234 3000 3001 4000 4173 4200 5000 5001 5173 5174 8000 8080 8081 8888 9000)
+    # 1455: OpenCode/OpenAI Browser Auth
+    local DEFAULT_PORTS=(1234 1455 3000 3001 4000 4173 4200 5000 5001 5173 5174 8000 8080 8081 8888 9000)
     
     # Auto-detect ports from project configuration
     detect_project_ports() {

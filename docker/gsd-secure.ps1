@@ -61,6 +61,34 @@ function gsd-secure {
         Write-Host " [Auth] OpenCode keys detected." -ForegroundColor DarkGray
     }
 
+    # 4. Codex (for OpenCode's Codex auth)
+    $CodexPath = "$HOME\.codex".Replace('\', '/')
+    if (Test-Path $CodexPath) {
+        $MountArgs += "-v"
+        $MountArgs += "${CodexPath}:/root/.codex"
+        Write-Host " [Auth] Codex keys detected." -ForegroundColor DarkGray
+    }
+
+    # 5. Antigravity (for OpenCode's Antigravity auth)
+    $AntigravityPath = "$HOME\.antigravity".Replace('\', '/')
+    if (Test-Path $AntigravityPath) {
+        $MountArgs += "-v"
+        $MountArgs += "${AntigravityPath}:/root/.antigravity"
+        Write-Host " [Auth] Antigravity keys detected." -ForegroundColor DarkGray
+    }
+
+    # 6. OpenCode Cache & Local Share (Persistence)
+    $CachePath = "$HOME\.cache\opencode".Replace('\', '/')
+    if (Test-Path $CachePath) {
+        $MountArgs += "-v"
+        $MountArgs += "${CachePath}:/root/.cache/opencode"
+    }
+    $LocalSharePath = "$HOME\.local\share\opencode".Replace('\', '/')
+    if (Test-Path $LocalSharePath) {
+        $MountArgs += "-v"
+        $MountArgs += "${LocalSharePath}:/root/.local/share/opencode"
+    }
+
 
 
     Write-Host "Entering GSD Secure Sandbox..." -ForegroundColor Green
@@ -76,6 +104,7 @@ function gsd-secure {
     # Default ports covering 99% of dev use cases
     $DefaultPorts = @(
         1234,                 # Parcel
+        1455,                 # OpenCode/OpenAI Browser Auth
         3000, 3001,           # Express, Next.js, React, Rails
         4000,                 # GraphQL, NestJS, Phoenix
         4173,                 # Vite preview
