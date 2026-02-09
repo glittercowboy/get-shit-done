@@ -228,7 +228,29 @@ After all waves:
 
 <step name="offer_next">
 
-**Always present verify-work as the primary next step:**
+**Route based on execution mode:**
+
+**If `--gaps-only` (gap closure execution):**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► GAP FIXES EXECUTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Phase {X}: {Name} — gap closure plans executed.
+
+───────────────────────────────────────────────────────────────
+
+## ▶ Next Up
+
+**Re-verify fixes** — confirm gaps are closed
+
+`/clear` then `/gsd:verify-work {X}`
+
+───────────────────────────────────────────────────────────────
+```
+
+**If normal execution (no flags):**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
