@@ -138,7 +138,7 @@ function extractTitle(content) {
  * Parse and transform front matter using gray-matter (if available)
  * Falls back to regex-based approach if gray-matter not installed
  */
-function transformFrontMatter(content, title, sidebarPosition) {
+function transformFrontMatter(content, title, sidebarPosition, slug) {
   let hasFrontMatter = false;
   let bodyContent = content;
 
@@ -160,13 +160,20 @@ function transformFrontMatter(content, title, sidebarPosition) {
   // Generate Docusaurus-compatible front matter
   // Quote title to handle special YAML characters (colons, etc.)
   const quotedTitle = title.replace(/"/g, '\\"');
-  const newFrontMatter = [
+  const frontMatterLines = [
     '---',
     `title: "${quotedTitle}"`,
-    `sidebar_position: ${sidebarPosition}`,
-    '---',
-    ''
-  ].join('\n');
+    `sidebar_position: ${sidebarPosition}`
+  ];
+
+  // Add slug if provided (used for landing page)
+  if (slug) {
+    frontMatterLines.push(`slug: ${slug}`);
+  }
+
+  frontMatterLines.push('---', '');
+
+  const newFrontMatter = frontMatterLines.join('\n');
 
   return newFrontMatter + bodyContent;
 }
@@ -182,8 +189,12 @@ function transformFile(sourcePath, destPath, title, sidebarPosition) {
     title = extractTitle(content) || path.basename(sourcePath, '.md');
   }
 
+  // Check if this is the intro page (landing page)
+  const isIntro = path.basename(destPath) === 'intro.md';
+  const slug = isIntro ? '/' : null;
+
   // Transform front matter
-  content = transformFrontMatter(content, title, sidebarPosition);
+  content = transformFrontMatter(content, title, sidebarPosition, slug);
 
   // Escape MDX special characters
   content = escapeMDX(content);
