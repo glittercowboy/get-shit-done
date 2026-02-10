@@ -183,7 +183,7 @@ function patchWorkflows() {
   }
 }
 
-async function main() {
+function install() {
   console.log('Starting GSD Vibe installation...');
 
   ensureDirectories();
@@ -193,9 +193,16 @@ async function main() {
   patchWorkflows();
 
   console.log('Installation complete! Please restart Vibe CLI.');
+  return { runtime: 'vibe', success: true };
 }
 
-main().catch(err => {
-  console.error('Installation failed:', err);
-  process.exit(1);
-});
+module.exports = { install };
+
+if (require.main === module) {
+  try {
+    install();
+  } catch (err) {
+    console.error('Installation failed:', err);
+    process.exit(1);
+  }
+}
