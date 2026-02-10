@@ -46,6 +46,7 @@ if (hasAll) {
 function getDirName(runtime) {
   if (runtime === 'opencode') return '.opencode';
   if (runtime === 'gemini') return '.gemini';
+  if (runtime === 'vibe') return '.vibe';
   return '.claude';
 }
 
@@ -97,6 +98,13 @@ function getGlobalDir(runtime, explicitDir = null) {
       return expandTilde(process.env.GEMINI_CONFIG_DIR);
     }
     return path.join(os.homedir(), '.gemini');
+  }
+
+  if (runtime === 'vibe') {
+    if (process.env.VIBE_HOME) {
+      return expandTilde(process.env.VIBE_HOME);
+    }
+    return path.join(os.homedir(), '.vibe');
   }
 
   // Claude Code: --config-dir > CLAUDE_CONFIG_DIR > ~/.claude
@@ -1599,6 +1607,7 @@ function promptRuntime(callback) {
   ${cyan}2${reset}) OpenCode    ${dim}(~/.config/opencode)${reset} - open source, free models
   ${cyan}3${reset}) Gemini      ${dim}(~/.gemini)${reset}
   ${cyan}4${reset}) All
+  ${cyan}5${reset}) Mistral Vibe
 `);
 
   rl.question(`  Choice ${dim}[1]${reset}: `, (answer) => {
