@@ -1,0 +1,45 @@
+---
+title: "Troubleshooting"
+description: "Common failures and fast fixes"
+---
+
+## Commands Not Found
+
+1. Restart your runtime (Claude Code / OpenCode / Gemini CLI) so it reloads slash commands.
+2. Verify install location:
+   - Claude global: `~/.claude/commands/gsd/`
+   - Claude local: `./.claude/commands/gsd/`
+
+## Install Again (Safe)
+
+```bash
+npx get-shit-done-cc@latest
+```
+
+## Container / Docker Path Issues
+
+If file reads fail with tilde paths (`~/.claude/...`), set `CLAUDE_CONFIG_DIR` before installing:
+
+```bash
+CLAUDE_CONFIG_DIR=/home/youruser/.claude npx get-shit-done-cc --claude --global
+```
+
+## Update Issues
+
+If `/gsd:update` behaves oddly, reinstall:
+
+```bash
+npx get-shit-done-cc@latest
+```
+
+## Clean Uninstall
+
+```bash
+# Global installs
+npx get-shit-done-cc --claude --global --uninstall
+npx get-shit-done-cc --opencode --global --uninstall
+npx get-shit-done-cc --gemini --global --uninstall
+
+# Local installs
+npx get-shit-done-cc --claude --local --uninstall
+```
