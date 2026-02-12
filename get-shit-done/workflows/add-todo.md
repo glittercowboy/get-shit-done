@@ -19,7 +19,7 @@ Extract from init JSON: `commit_docs`, `date`, `timestamp`, `todo_count`, `todos
 
 Ensure directories exist:
 ```bash
-mkdir -p .planning/todos/pending .planning/todos/done
+mkdir -p .planning/todos/pending .planning/todos/in-progress .planning/todos/done
 ```
 
 Note existing areas from the todos array for consistency in infer_area step.

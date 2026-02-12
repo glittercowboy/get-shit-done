@@ -1886,6 +1886,60 @@ describe('progress command', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// todo start command
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('todo start command', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('moves todo from pending to in-progress', () => {
+    const pendingDir = path.join(tmpDir, '.planning', 'todos', 'pending');
+    fs.mkdirSync(pendingDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pendingDir, 'add-dark-mode.md'),
+      `title: Add dark mode\narea: ui\ncreated: 2025-01-01\n`
+    );
+
+    const result = runGsdTools('todo start add-dark-mode.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.started, true);
+
+    // Verify moved
+    assert.ok(
+      !fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'pending', 'add-dark-mode.md')),
+      'should be removed from pending'
+    );
+    assert.ok(
+      fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'in-progress', 'add-dark-mode.md')),
+      'should be in in-progress'
+    );
+
+    // Verify started timestamp added
+    const content = fs.readFileSync(
+      path.join(tmpDir, '.planning', 'todos', 'in-progress', 'add-dark-mode.md'),
+      'utf-8'
+    );
+    assert.ok(content.startsWith('started:'), 'should have started timestamp');
+  });
+
+  test('fails for nonexistent todo', () => {
+    const result = runGsdTools('todo start nonexistent.md', tmpDir);
+    assert.ok(!result.success, 'should fail');
+    assert.ok(result.error.includes('not found'), 'error mentions not found');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // todo complete command
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1900,12 +1954,12 @@ describe('todo complete command', () => {
     cleanup(tmpDir);
   });
 
-  test('moves todo from pending to completed', () => {
-    const pendingDir = path.join(tmpDir, '.planning', 'todos', 'pending');
-    fs.mkdirSync(pendingDir, { recursive: true });
+  test('completes todo from in-progress', () => {
+    const inProgressDir = path.join(tmpDir, '.planning', 'todos', 'in-progress');
+    fs.mkdirSync(inProgressDir, { recursive: true });
     fs.writeFileSync(
-      path.join(pendingDir, 'add-dark-mode.md'),
-      `title: Add dark mode\narea: ui\ncreated: 2025-01-01\n`
+      path.join(inProgressDir, 'add-dark-mode.md'),
+      `started: 2025-01-01\ntitle: Add dark mode\narea: ui\ncreated: 2025-01-01\n`
     );
 
     const result = runGsdTools('todo complete add-dark-mode.md', tmpDir);
@@ -1916,20 +1970,45 @@ describe('todo complete command', () => {
 
     // Verify moved
     assert.ok(
-      !fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'pending', 'add-dark-mode.md')),
-      'should be removed from pending'
+      !fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'in-progress', 'add-dark-mode.md')),
+      'should be removed from in-progress'
     );
     assert.ok(
-      fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'completed', 'add-dark-mode.md')),
-      'should be in completed'
+      fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'done', 'add-dark-mode.md')),
+      'should be in done'
     );
 
     // Verify completion timestamp added
     const content = fs.readFileSync(
-      path.join(tmpDir, '.planning', 'todos', 'completed', 'add-dark-mode.md'),
+      path.join(tmpDir, '.planning', 'todos', 'done', 'add-dark-mode.md'),
       'utf-8'
     );
     assert.ok(content.startsWith('completed:'), 'should have completed timestamp');
+  });
+
+  test('completes todo from pending directly', () => {
+    const pendingDir = path.join(tmpDir, '.planning', 'todos', 'pending');
+    fs.mkdirSync(pendingDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pendingDir, 'fix-bug.md'),
+      `title: Fix bug\narea: api\ncreated: 2025-01-01\n`
+    );
+
+    const result = runGsdTools('todo complete fix-bug.md', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.completed, true);
+
+    // Verify moved to done (not completed)
+    assert.ok(
+      !fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'pending', 'fix-bug.md')),
+      'should be removed from pending'
+    );
+    assert.ok(
+      fs.existsSync(path.join(tmpDir, '.planning', 'todos', 'done', 'fix-bug.md')),
+      'should be in done'
+    );
   });
 
   test('fails for nonexistent todo', () => {

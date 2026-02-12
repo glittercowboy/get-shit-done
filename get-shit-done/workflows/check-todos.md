@@ -105,7 +105,7 @@ Use AskUserQuestion:
 - header: "Action"
 - question: "This todo relates to Phase [N]: [name]. What would you like to do?"
 - options:
-  - "Work on it now" — move to done, start working
+  - "Work on it now" — move to in-progress, start working
   - "Add to phase plan" — include when planning Phase [N]
   - "Brainstorm approach" — think through before deciding
   - "Put it back" — return to list
@@ -116,7 +116,7 @@ Use AskUserQuestion:
 - header: "Action"
 - question: "What would you like to do with this todo?"
 - options:
-  - "Work on it now" — move to done, start working
+  - "Work on it now" — move to in-progress, start working
   - "Create a phase" — /gsd:add-phase with this scope
   - "Brainstorm approach" — think through before deciding
   - "Put it back" — return to list
@@ -125,7 +125,7 @@ Use AskUserQuestion:
 <step name="execute_action">
 **Work on it now:**
 ```bash
-mv ".planning/todos/pending/[filename]" ".planning/todos/done/"
+mv ".planning/todos/pending/[filename]" ".planning/todos/in-progress/"
 ```
 Update STATE.md todo count. Present problem/solution context. Begin work or ask how to proceed.
 
@@ -150,11 +150,11 @@ Re-run `init todos` to get updated count, then update STATE.md "### Pending Todo
 </step>
 
 <step name="git_commit">
-If todo was moved to done/, commit the change:
+If todo was moved to in-progress/, commit the change:
 
 ```bash
 git rm --cached .planning/todos/pending/[filename] 2>/dev/null || true
-node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs: start work on todo - [title]" --files .planning/todos/done/[filename] .planning/STATE.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs: start work on todo - [title]" --files .planning/todos/in-progress/[filename] .planning/STATE.md
 ```
 
 Tool respects `commit_docs` config and gitignore automatically.
@@ -172,5 +172,5 @@ Confirm: "Committed: docs: start work on todo - [title]"
 - [ ] Appropriate actions offered
 - [ ] Selected action executed
 - [ ] STATE.md updated if todo count changed
-- [ ] Changes committed to git (if todo moved to done/)
+- [ ] Changes committed to git (if todo moved to in-progress/)
 </success_criteria>

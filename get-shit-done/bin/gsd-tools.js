@@ -51,7 +51,8 @@
  *   progress [json|table|bar]          Render progress in various formats
  *
  * Todos:
- *   todo complete <filename>           Move todo from pending to completed
+ *   todo start <filename>              Move todo from pending to in-progress
+ *   todo complete <filename>           Move todo from in-progress (or pending) to done
  *
  * Scaffolding:
  *   scaffold context --phase <N>       Create CONTEXT.md template
@@ -515,9 +516,12 @@ function cmdCurrentTimestamp(format, raw) {
 
 function cmdListTodos(cwd, area, raw) {
   const pendingDir = path.join(cwd, '.planning', 'todos', 'pending');
+  const inProgressDir = path.join(cwd, '.planning', 'todos', 'in-progress');
 
   let count = 0;
   const todos = [];
+  let inProgressCount = 0;
+  const inProgressTodos = [];
 
   try {
     const files = fs.readdirSync(pendingDir).filter(f => f.endsWith('.md'));
@@ -546,7 +550,35 @@ function cmdListTodos(cwd, area, raw) {
     }
   } catch {}
 
-  const result = { count, todos };
+  try {
+    const files = fs.readdirSync(inProgressDir).filter(f => f.endsWith('.md'));
+
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(inProgressDir, file), 'utf-8');
+        const createdMatch = content.match(/^created:\s*(.+)$/m);
+        const titleMatch = content.match(/^title:\s*(.+)$/m);
+        const areaMatch = content.match(/^area:\s*(.+)$/m);
+        const startedMatch = content.match(/^started:\s*(.+)$/m);
+
+        const todoArea = areaMatch ? areaMatch[1].trim() : 'general';
+
+        if (area && todoArea !== area) continue;
+
+        inProgressCount++;
+        inProgressTodos.push({
+          file,
+          created: createdMatch ? createdMatch[1].trim() : 'unknown',
+          started: startedMatch ? startedMatch[1].trim() : 'unknown',
+          title: titleMatch ? titleMatch[1].trim() : 'Untitled',
+          area: todoArea,
+          path: path.join('.planning', 'todos', 'in-progress', file),
+        });
+      } catch {}
+    }
+  } catch {}
+
+  const result = { count, todos, in_progress_count: inProgressCount, in_progress_todos: inProgressTodos };
   output(result, raw, count.toString());
 }
 
@@ -3383,6 +3415,35 @@ function cmdProgressRender(cwd, format, raw) {
   }
 }
 
+// ─── Todo Start ──────────────────────────────────────────────────────────────
+
+function cmdTodoStart(cwd, filename, raw) {
+  if (!filename) {
+    error('filename required for todo start');
+  }
+
+  const pendingDir = path.join(cwd, '.planning', 'todos', 'pending');
+  const inProgressDir = path.join(cwd, '.planning', 'todos', 'in-progress');
+  const sourcePath = path.join(pendingDir, filename);
+
+  if (!fs.existsSync(sourcePath)) {
+    error(`Todo not found: ${filename}`);
+  }
+
+  // Ensure in-progress directory exists
+  fs.mkdirSync(inProgressDir, { recursive: true });
+
+  // Read, add started timestamp, move
+  let content = fs.readFileSync(sourcePath, 'utf-8');
+  const today = new Date().toISOString().split('T')[0];
+  content = `started: ${today}\n` + content;
+
+  fs.writeFileSync(path.join(inProgressDir, filename), content, 'utf-8');
+  fs.unlinkSync(sourcePath);
+
+  output({ started: true, file: filename, date: today }, raw, 'started');
+}
+
 // ─── Todo Complete ────────────────────────────────────────────────────────────
 
 function cmdTodoComplete(cwd, filename, raw) {
@@ -3390,23 +3451,28 @@ function cmdTodoComplete(cwd, filename, raw) {
     error('filename required for todo complete');
   }
 
+  const inProgressDir = path.join(cwd, '.planning', 'todos', 'in-progress');
   const pendingDir = path.join(cwd, '.planning', 'todos', 'pending');
-  const completedDir = path.join(cwd, '.planning', 'todos', 'completed');
-  const sourcePath = path.join(pendingDir, filename);
+  const doneDir = path.join(cwd, '.planning', 'todos', 'done');
 
+  // Check in-progress first, then fall back to pending
+  let sourcePath = path.join(inProgressDir, filename);
   if (!fs.existsSync(sourcePath)) {
-    error(`Todo not found: ${filename}`);
+    sourcePath = path.join(pendingDir, filename);
+    if (!fs.existsSync(sourcePath)) {
+      error(`Todo not found: ${filename}`);
+    }
   }
 
-  // Ensure completed directory exists
-  fs.mkdirSync(completedDir, { recursive: true });
+  // Ensure done directory exists
+  fs.mkdirSync(doneDir, { recursive: true });
 
   // Read, add completion timestamp, move
   let content = fs.readFileSync(sourcePath, 'utf-8');
   const today = new Date().toISOString().split('T')[0];
   content = `completed: ${today}\n` + content;
 
-  fs.writeFileSync(path.join(completedDir, filename), content, 'utf-8');
+  fs.writeFileSync(path.join(doneDir, filename), content, 'utf-8');
   fs.unlinkSync(sourcePath);
 
   output({ completed: true, file: filename, date: today }, raw, 'completed');
@@ -3952,7 +4018,7 @@ function cmdInitTodos(cwd, area, raw) {
   const config = loadConfig(cwd);
   const now = new Date();
 
-  // List todos (reuse existing logic)
+  // List pending todos
   const pendingDir = path.join(cwd, '.planning', 'todos', 'pending');
   let count = 0;
   const todos = [];
@@ -3981,6 +4047,37 @@ function cmdInitTodos(cwd, area, raw) {
     }
   } catch {}
 
+  // List in-progress todos
+  const inProgressDir = path.join(cwd, '.planning', 'todos', 'in-progress');
+  let inProgressCount = 0;
+  const inProgressTodos = [];
+
+  try {
+    const files = fs.readdirSync(inProgressDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(path.join(inProgressDir, file), 'utf-8');
+        const createdMatch = content.match(/^created:\s*(.+)$/m);
+        const titleMatch = content.match(/^title:\s*(.+)$/m);
+        const areaMatch = content.match(/^area:\s*(.+)$/m);
+        const startedMatch = content.match(/^started:\s*(.+)$/m);
+        const todoArea = areaMatch ? areaMatch[1].trim() : 'general';
+
+        if (area && todoArea !== area) continue;
+
+        inProgressCount++;
+        inProgressTodos.push({
+          file,
+          created: createdMatch ? createdMatch[1].trim() : 'unknown',
+          started: startedMatch ? startedMatch[1].trim() : 'unknown',
+          title: titleMatch ? titleMatch[1].trim() : 'Untitled',
+          area: todoArea,
+          path: path.join('.planning', 'todos', 'in-progress', file),
+        });
+      } catch {}
+    }
+  } catch {}
+
   const result = {
     // Config
     commit_docs: config.commit_docs,
@@ -3992,16 +4089,20 @@ function cmdInitTodos(cwd, area, raw) {
     // Todo inventory
     todo_count: count,
     todos,
+    in_progress_count: inProgressCount,
+    in_progress_todos: inProgressTodos,
     area_filter: area || null,
 
     // Paths
     pending_dir: '.planning/todos/pending',
-    completed_dir: '.planning/todos/completed',
+    in_progress_dir: '.planning/todos/in-progress',
+    done_dir: '.planning/todos/done',
 
     // File existence
     planning_exists: pathExistsInternal(cwd, '.planning'),
     todos_dir_exists: pathExistsInternal(cwd, '.planning/todos'),
     pending_dir_exists: pathExistsInternal(cwd, '.planning/todos/pending'),
+    in_progress_dir_exists: pathExistsInternal(cwd, '.planning/todos/in-progress'),
   };
 
   output(result, raw);
@@ -4494,10 +4595,12 @@ async function main() {
 
     case 'todo': {
       const subcommand = args[1];
-      if (subcommand === 'complete') {
+      if (subcommand === 'start') {
+        cmdTodoStart(cwd, args[2], raw);
+      } else if (subcommand === 'complete') {
         cmdTodoComplete(cwd, args[2], raw);
       } else {
-        error('Unknown todo subcommand. Available: complete');
+        error('Unknown todo subcommand. Available: start, complete');
       }
       break;
     }
