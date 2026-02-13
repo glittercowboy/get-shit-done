@@ -6,9 +6,10 @@ const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 const TOOLS_PATH = path.join(__dirname, 'gsd-tools.js');
+const HOOKS_DIR = path.join(__dirname, '..', '..', 'hooks');
 
 // Helper to run gsd-tools command
 function runGsdTools(args, cwd = process.cwd()) {
@@ -2029,5 +2030,458 @@ describe('scaffold command', () => {
     const output = JSON.parse(result.output);
     assert.strictEqual(output.created, false, 'should not overwrite');
     assert.strictEqual(output.reason, 'already_exists');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hook helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+function runHook(hookName, toolInput) {
+  const input = JSON.stringify(toolInput);
+  const result = spawnSync('node', [path.join(HOOKS_DIR, hookName)], {
+    input,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  return {
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    exitCode: result.status,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// check-plan-format hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('check-plan-format hook', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('validates PLAN.md frontmatter and warns on missing fields', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    // Plan missing required frontmatter fields
+    const planPath = path.join(phaseDir, '03-01-PLAN.md');
+    fs.writeFileSync(planPath, `---
+wave: 1
+---
+
+## Task 1: Setup database
+## Task 2: Create models
+`);
+
+    const result = runHook('check-plan-format.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: planPath },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(result.stderr.includes('Missing required frontmatter field: phase'), 'should warn about missing phase');
+    assert.ok(result.stderr.includes('Missing required frontmatter field: plan'), 'should warn about missing plan');
+  });
+
+  test('warns when task count exceeds 3', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    const planPath = path.join(phaseDir, '03-01-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: "03"
+plan: "03-01"
+---
+
+## Task 1: A
+## Task 2: B
+## Task 3: C
+## Task 4: D
+`);
+
+    const result = runHook('check-plan-format.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: planPath },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(result.stderr.includes('High task count: 4'), 'should warn about >3 tasks');
+  });
+
+  test('ignores non-plan files', () => {
+    const readmePath = path.join(tmpDir, 'README.md');
+    fs.writeFileSync(readmePath, '# Hello');
+
+    const result = runHook('check-plan-format.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: readmePath },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings for non-plan files');
+  });
+
+  test('passes for valid PLAN.md', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    const planPath = path.join(phaseDir, '03-01-PLAN.md');
+    fs.writeFileSync(planPath, `---
+phase: "03"
+plan: "03-01"
+wave: 1
+---
+
+## Task 1: Setup
+## Task 2: Build
+`);
+
+    const result = runHook('check-plan-format.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: planPath },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings for valid plan');
+  });
+
+  test('validates SUMMARY.md frontmatter', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    const summaryPath = path.join(phaseDir, '03-01-SUMMARY.md');
+    fs.writeFileSync(summaryPath, `---
+phase: "03"
+---
+
+# Summary
+`);
+
+    const result = runHook('check-plan-format.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: summaryPath },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(result.stderr.includes('Missing required frontmatter field: plan'), 'should warn about missing plan');
+    assert.ok(result.stderr.includes('Missing required frontmatter field: status'), 'should warn about missing status');
+  });
+
+  test('respects config toggle', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    // Disable the hook via config
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'config.json'),
+      JSON.stringify({ hooks: { checkPlanFormat: false } })
+    );
+
+    const planPath = path.join(phaseDir, '03-01-PLAN.md');
+    fs.writeFileSync(planPath, '# No frontmatter at all');
+
+    const result = runHook('check-plan-format.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: planPath },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings when disabled');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// check-roadmap-sync hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('check-roadmap-sync hook', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('detects phase status mismatch (complete in roadmap, active in state)', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 01\n**Status:** In progress\n`
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap\n\n- [x] Phase 1: Foundation\n\n### Phase 1: Foundation\n**Goal:** Setup\n`
+    );
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-foundation'), { recursive: true });
+
+    const result = runHook('check-roadmap-sync.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, '.planning', 'STATE.md') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(
+      result.stderr.includes('marked complete in ROADMAP.md'),
+      'should warn about sync mismatch'
+    );
+  });
+
+  test('passes when state and roadmap are in sync', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 02\n**Status:** In progress\n`
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap\n\n- [x] Phase 1: Foundation\n- [ ] Phase 2: API\n\n### Phase 1: Foundation\n**Goal:** Setup\n\n### Phase 2: API\n**Goal:** Build API\n`
+    );
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '02-api'), { recursive: true });
+
+    const result = runHook('check-roadmap-sync.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, '.planning', 'STATE.md') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings when in sync');
+  });
+
+  test('ignores non-STATE.md files', () => {
+    const result = runHook('check-roadmap-sync.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, '.planning', 'ROADMAP.md') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings for non-state files');
+  });
+
+  test('warns when phase not found in roadmap', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 05\n**Status:** In progress\n`
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'ROADMAP.md'),
+      `# Roadmap\n\n### Phase 1: Foundation\n**Goal:** Setup\n`
+    );
+
+    const result = runHook('check-roadmap-sync.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, '.planning', 'STATE.md') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(
+      result.stderr.includes('not found in ROADMAP.md'),
+      'should warn about missing phase'
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// check-phase-boundary hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('check-phase-boundary hook', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('warns on out-of-phase writes (default mode)', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 03\n`
+    );
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-api'), { recursive: true });
+
+    // Write to a file outside .planning (simulating source code edit)
+    const result = runHook('check-phase-boundary.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, 'src', 'unrelated.js') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    const output = JSON.parse(result.stdout);
+    assert.strictEqual(output.decision, 'allow', 'should allow by default');
+    assert.ok(result.stderr.includes('outside the current phase'), 'should warn about boundary');
+  });
+
+  test('allows in-phase writes', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 03\n`
+    );
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+
+    const result = runHook('check-phase-boundary.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(phaseDir, '03-01-PLAN.md') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    const output = JSON.parse(result.stdout);
+    assert.strictEqual(output.decision, 'allow', 'should allow in-phase writes');
+    assert.strictEqual(result.stderr, '', 'no warnings for in-phase writes');
+  });
+
+  test('always allows .planning/ files', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 03\n`
+    );
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-api'), { recursive: true });
+
+    const result = runHook('check-phase-boundary.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, '.planning', 'ROADMAP.md') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    const output = JSON.parse(result.stdout);
+    assert.strictEqual(output.decision, 'allow', 'should allow planning files');
+  });
+
+  test('blocks when enforcePhaseBoundaries is true', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# State\n\n**Current Phase:** 03\n`
+    );
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'config.json'),
+      JSON.stringify({ hooks: { enforcePhaseBoundaries: true } })
+    );
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '03-api'), { recursive: true });
+
+    const result = runHook('check-phase-boundary.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: path.join(tmpDir, 'src', 'unrelated.js') },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    const output = JSON.parse(result.stdout);
+    assert.strictEqual(output.decision, 'block', 'should block out-of-phase writes');
+    assert.ok(output.reason.includes('Phase boundary enforcement'), 'reason explains block');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// check-subagent-output hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('check-subagent-output hook', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('warns on missing executor SUMMARY', () => {
+    // No SUMMARY files in phases dir
+    const result = runHook('check-subagent-output.js', {
+      tool_name: 'Task',
+      tool_input: 'Run gsd-executor for plan 03-01',
+      tool_result: 'gsd-executor completed plan 03-01',
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(
+      result.stderr.includes('no SUMMARY.md found'),
+      'should warn about missing SUMMARY'
+    );
+  });
+
+  test('passes when executor artifacts exist', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '03-api');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '03-01-SUMMARY.md'), '# Summary');
+
+    const result = runHook('check-subagent-output.js', {
+      tool_name: 'Task',
+      tool_input: 'Run gsd-executor for plan 03-01',
+      tool_result: 'gsd-executor completed plan 03-01',
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings when artifacts exist');
+  });
+
+  test('warns on missing planner PLAN', () => {
+    const result = runHook('check-subagent-output.js', {
+      tool_name: 'Task',
+      tool_input: 'Run gsd-planner for phase 03',
+      tool_result: 'gsd-planner completed phase 03',
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.ok(
+      result.stderr.includes('no PLAN.md found'),
+      'should warn about missing PLAN'
+    );
+  });
+
+  test('ignores non-Task tools', () => {
+    const result = runHook('check-subagent-output.js', {
+      tool_name: 'Write',
+      tool_input: { file_path: '/some/file.js' },
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings for non-Task tools');
+  });
+
+  test('respects config toggle', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'config.json'),
+      JSON.stringify({ hooks: { checkSubagentOutput: false } })
+    );
+
+    const result = runHook('check-subagent-output.js', {
+      tool_name: 'Task',
+      tool_input: 'Run gsd-executor for plan 03-01',
+      tool_result: 'gsd-executor completed plan 03-01',
+      cwd: tmpDir,
+    });
+
+    assert.strictEqual(result.exitCode, 0, 'hook should exit cleanly');
+    assert.strictEqual(result.stderr, '', 'no warnings when disabled');
   });
 });
