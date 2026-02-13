@@ -370,6 +370,7 @@ These spawn additional agents during planning/execution. They add tokens and tim
 | **Researcher** | Before planning each phase | Investigates domain, finds patterns, surfaces gotchas |
 | **Plan Checker** | After plan is created | Verifies plan actually achieves the phase goal |
 | **Verifier** | After phase execution | Confirms must-haves were delivered |
+| **Adversary** | At workflow checkpoints | Challenges assumptions and stress-tests feasibility |
 
 All recommended for important projects. Skip for quick experiments.
 
@@ -411,6 +412,15 @@ questions: [
       { label: "Quality", description: "Opus for research/roadmap — higher cost, deeper analysis" },
       { label: "Budget", description: "Haiku where possible — fastest, lowest cost" }
     ]
+  },
+  {
+    header: "Adversary",
+    question: "Enable adversarial review? (challenges artifacts at key checkpoints)",
+    multiSelect: false,
+    options: [
+      { label: "Yes (Recommended)", description: "Catch assumptions before they cause problems" },
+      { label: "No", description: "Skip adversarial review" }
+    ]
   }
 ]
 ```
@@ -428,9 +438,24 @@ Create `.planning/config.json` with all settings:
     "research": true|false,
     "plan_check": true|false,
     "verifier": true|false
+  },
+  "adversary": {
+    "enabled": true|false,
+    "max_rounds": 3,
+    "checkpoints": {
+      "requirements": true,
+      "roadmap": true,
+      "plan": true,
+      "verification": true
+    }
   }
 }
 ```
+
+**Adversary config:**
+- If adversary = "Yes": set `"enabled": true`
+- If adversary = "No": set `"enabled": false`
+- In both cases, write the full adversary section with default checkpoint values preserved. This ensures re-enabling via `/gsd:settings` doesn't lose preferences.
 
 **If commit_docs = No:**
 - Set `commit_docs: false` in config.json
@@ -450,6 +475,7 @@ Mode: [chosen mode]
 Depth: [chosen depth]
 Parallelization: [enabled/disabled]
 Workflow agents: research=[on/off], plan_check=[on/off], verifier=[on/off]
+Adversary: [on/off]
 EOF
 )"
 ```
