@@ -60,10 +60,11 @@ Plans:
   1. User can enable/disable adversary globally via config.json "adversary" toggle
   2. User can configure max debate rounds in config.json
   3. User can toggle individual checkpoints on/off in config.json (requirements, roadmap, plan, verification)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — Define adversary config schema in template and planning-config reference
+- [ ] 02-02-PLAN.md — Wire adversary config into new-project, settings, and docs
 
 ### Phase 3: New-Project Integration
 **Goal**: /gsd:new-project invokes adversary at requirements and roadmap checkpoints
@@ -113,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Core Agent | v2.1 | 1/1 | ✓ Complete | 2026-02-02 |
-| 2. Configuration | v2.1 | 0/? | Not started | - |
+| 2. Configuration | v2.1 | 0/2 | Not started | - |
 | 3. New-Project Integration | v2.1 | 0/? | Not started | - |
 | 4. Plan Integration | v2.1 | 0/? | Not started | - |
 | 5. Verification Integration | v2.1 | 0/? | Not started | - |
