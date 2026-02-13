@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-01-31)
 ## Current Position
 
 Phase: 4 of 5 (Plan Integration)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-13 — Phase 3 New-Project Integration complete and verified
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-13 — Completed 04-01-PLAN.md
 
-Progress: [██████----] 60% of milestone (3/5 phases)
+Progress: [████████--] 80% of milestone (4/5 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 7 min
-- Total execution time: 0.48 hours
+- Total plans completed: 5
+- Average duration: 6 min
+- Total execution time: 0.53 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [██████----] 60% of milestone (3/5 phases)
 | 01-core-agent | 1 | 19 min | 19 min |
 | 02-configuration | 2 | 3 min | 1.5 min |
 | 03-new-project-integration | 1 | 7 min | 7 min |
+| 04-plan-integration | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 19 min, 1 min, 2 min, 7 min
+- Last 5 plans: 19 min, 1 min, 2 min, 7 min, 3 min
 - Trend: Consistent (integration plans slightly longer than config)
 
 *Updated after each plan completion*
@@ -59,6 +60,8 @@ Recent decisions affecting current work:
 | Requirements commit before presentation | 03-01 | Enables adversary review between commit and user approval; separate revision commit preserves history |
 | Asymmetric commit handling | 03-01 | Requirements: separate revision commit. Roadmap: revisions folded into existing commit flow |
 | No separate defender agent | 03-01 | Orchestrator generates defense inline, consistent with advisory-only design |
+| Planner-as-defender | 04-01 | Re-spawn planner for revisions instead of orchestrator editing inline; planner has plan-level knowledge |
+| Step 11 routing fix | 04-01 | Checker pass routes to step 12.5 not step 13 to ensure adversary always runs |
 
 ### Pending Todos
 
@@ -71,5 +74,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Phase 3 complete and verified, ready for Phase 4
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
