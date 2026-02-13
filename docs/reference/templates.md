@@ -114,11 +114,23 @@ Workflow configuration.
     "plan_check": true,
     "verifier": true
   },
+  "adversary": {
+    "enabled": true,
+    "max_rounds": 3,
+    "checkpoints": {
+      "requirements": true,
+      "roadmap": true,
+      "plan": true,
+      "verification": true
+    }
+  },
   "git": {
     "branching_strategy": "none"
   }
 }
 ```
+
+The `adversary` section controls the adversarial review agent. `enabled` is a global kill switch. Individual `checkpoints` can be toggled independently (boolean shorthand or object form with `max_rounds` override). See `planning-config.md` for full schema and reading block.
 
 ---
 
