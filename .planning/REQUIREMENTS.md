@@ -28,9 +28,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **CONF-01**: Global toggle enables/disables adversary in config.json
-- [ ] **CONF-02**: Max rounds is configurable in config.json
-- [ ] **CONF-03**: Individual checkpoints can be toggled on/off in config.json
+- [x] **CONF-01**: Global toggle enables/disables adversary in config.json ✓
+- [x] **CONF-02**: Max rounds is configurable in config.json ✓
+- [x] **CONF-03**: Individual checkpoints can be toggled on/off in config.json ✓
 
 ## Future Requirements (v2.2+)
 
@@ -73,9 +73,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTG-02 | Phase 3 | Pending |
 | INTG-03 | Phase 4 | Pending |
 | INTG-04 | Phase 5 | Pending |
-| CONF-01 | Phase 2 | Pending |
-| CONF-02 | Phase 2 | Pending |
-| CONF-03 | Phase 2 | Pending |
+| CONF-01 | Phase 2 | Complete |
+| CONF-02 | Phase 2 | Complete |
+| CONF-03 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 12 total
@@ -84,4 +84,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-31*
-*Last updated: 2026-02-02 after Phase 1 completion*
+*Last updated: 2026-02-13 after Phase 2 completion*

@@ -30,7 +30,7 @@ Development predates GSD workflow tracking. See `.planning/MILESTONES.md` for ac
 - Decimal phases (e.g., 2.1): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Core Agent** - Implement gsd-adversary agent with structured challenge generation ✓
-- [ ] **Phase 2: Configuration** - Add adversary settings to config.json schema
+- [x] **Phase 2: Configuration** - Add adversary settings to config.json schema ✓
 - [ ] **Phase 3: New-Project Integration** - Adversary checkpoints for requirements and roadmap
 - [ ] **Phase 4: Plan Integration** - Adversary checkpoint for plan creation
 - [ ] **Phase 5: Verification Integration** - Adversary checkpoint for verification conclusions
@@ -63,8 +63,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Define adversary config schema in template and planning-config reference
-- [ ] 02-02-PLAN.md — Wire adversary config into new-project, settings, and docs
+- [x] 02-01-PLAN.md — Define adversary config schema in template and planning-config reference ✓
+- [x] 02-02-PLAN.md — Wire adversary config into new-project, settings, and docs ✓
 
 ### Phase 3: New-Project Integration
 **Goal**: /gsd:new-project invokes adversary at requirements and roadmap checkpoints
@@ -114,7 +114,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Core Agent | v2.1 | 1/1 | ✓ Complete | 2026-02-02 |
-| 2. Configuration | v2.1 | 0/2 | Not started | - |
+| 2. Configuration | v2.1 | 2/2 | ✓ Complete | 2026-02-13 |
 | 3. New-Project Integration | v2.1 | 0/? | Not started | - |
 | 4. Plan Integration | v2.1 | 0/? | Not started | - |
 | 5. Verification Integration | v2.1 | 0/? | Not started | - |
