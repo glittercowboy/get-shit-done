@@ -860,6 +860,8 @@ function uninstall(isGlobal, runtime = 'claude') {
     const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh', 'check-dangerous-commands.js', 'validate-commit.js', 'check-skill-workflow.js'];
 =======
     const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh', 'track-context-budget.js', 'suggest-compact.js', 'context-budget-check.js'];
+=======
+    const gsdHooks = ['gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh', 'session-cleanup.js', 'log-subagent.js'];
     let hookCount = 0;
     for (const hook of gsdHooks) {
       const hookPath = path.join(hooksDir, hook);
@@ -923,6 +925,35 @@ function uninstall(isGlobal, runtime = 'claude') {
         if (settings.hooks[eventType].length === 0) {
           delete settings.hooks[eventType];
         }
+=======
+    // Remove GSD hooks from all hook events
+    if (settings.hooks) {
+      const gsdHookPatterns = ['gsd-check-update', 'gsd-statusline', 'session-cleanup', 'log-subagent'];
+      for (const eventType of ['SessionStart', 'Stop', 'SubagentStart', 'SubagentStop']) {
+        if (settings.hooks[eventType]) {
+          const before = settings.hooks[eventType].length;
+          settings.hooks[eventType] = settings.hooks[eventType].filter(entry => {
+            if (entry.hooks && Array.isArray(entry.hooks)) {
+              const hasGsdHook = entry.hooks.some(h =>
+                h.command && gsdHookPatterns.some(p => h.command.includes(p))
+              );
+              return !hasGsdHook;
+            }
+            return true;
+          });
+          if (settings.hooks[eventType].length < before) {
+            settingsModified = true;
+          }
+          if (settings.hooks[eventType].length === 0) {
+            delete settings.hooks[eventType];
+          }
+        }
+      }
+      if (settingsModified) {
+        console.log(`  ${green}✓${reset} Removed GSD hooks from settings`);
+      }
+      if (Object.keys(settings.hooks).length === 0) {
+        delete settings.hooks;
       }
     }
     // Clean up empty hooks object
@@ -1467,6 +1498,9 @@ function install(isGlobal, runtime = 'claude') {
   const updateCheckCommand = isGlobal
     ? buildHookCommand(targetDir, 'gsd-check-update.js')
     : 'node ' + dirName + '/hooks/gsd-check-update.js';
+  const sessionCleanupCommand = isGlobal
+    ? buildHookCommand(targetDir, 'session-cleanup.js')
+    : 'node ' + dirName + '/hooks/session-cleanup.js';
 
   // Enable experimental agents for Gemini CLI (required for custom sub-agents)
   if (isGemini) {
@@ -1636,6 +1670,26 @@ function install(isGlobal, runtime = 'claude') {
         ]
       });
       console.log(`  ${green}✓${reset} Configured PostToolUse(Write/Edit) dispatcher`);
+=======
+    // Configure Stop hook for session cleanup
+    if (!settings.hooks.Stop) {
+      settings.hooks.Stop = [];
+    }
+
+    const hasSessionCleanupHook = settings.hooks.Stop.some(entry =>
+      entry.hooks && entry.hooks.some(h => h.command && h.command.includes('session-cleanup'))
+    );
+
+    if (!hasSessionCleanupHook) {
+      settings.hooks.Stop.push({
+        hooks: [
+          {
+            type: 'command',
+            command: sessionCleanupCommand
+          }
+        ]
+      });
+      console.log(`  ${green}✓${reset} Configured session cleanup hook`);
     }
   }
 

@@ -25,6 +25,9 @@ const HOOKS_TO_COPY = [
   'track-context-budget.js',
   'suggest-compact.js',
   'context-budget-check.js'
+=======
+  'session-cleanup.js',
+  'log-subagent.js'
 ];
 
 function build() {
