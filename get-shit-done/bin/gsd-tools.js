@@ -4209,6 +4209,147 @@ function cmdInitProgress(cwd, includes, raw) {
   output(result, raw);
 }
 
+function cmdInitDiscussCurrent(cwd, includes, raw) {
+  const planningDir = path.join(cwd, '.planning');
+  const planningExists = pathExistsInternal(cwd, '.planning');
+
+  if (!planningExists) {
+    const result = {
+      project_exists: false,
+      codebase_maps: { exists: false, files: [], missing: [] },
+      phase_summaries: [],
+      requirements: { exists: false, path: null },
+      project_md: { exists: false, path: null },
+      roadmap: { exists: false, path: null },
+      state: { exists: false, path: null },
+      stats: {
+        total_phases: 0,
+        completed_phases: 0,
+        total_plans: 0,
+        total_summaries: 0,
+        codebase_map_count: 0,
+      },
+    };
+    output(result, raw);
+    return;
+  }
+
+  // Codebase maps
+  const expectedMaps = [
+    'ARCHITECTURE.md', 'STACK.md', 'CONVENTIONS.md', 'STRUCTURE.md',
+    'TESTING.md', 'INTEGRATIONS.md', 'CONCERNS.md',
+  ];
+  const codebaseDir = path.join(planningDir, 'codebase');
+  const existingMaps = [];
+  const missingMaps = [];
+  for (const mapFile of expectedMaps) {
+    if (pathExistsInternal(cwd, path.join('.planning', 'codebase', mapFile))) {
+      existingMaps.push(mapFile);
+    } else {
+      missingMaps.push(mapFile);
+    }
+  }
+
+  // Phase summaries
+  const phasesDir = path.join(planningDir, 'phases');
+  const phaseSummaries = [];
+  let totalPlans = 0;
+  let totalSummaries = 0;
+  let completedPhases = 0;
+
+  try {
+    const entries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name).sort();
+
+    for (const dir of dirs) {
+      const match = dir.match(/^(\d+(?:\.\d+)?)-?(.*)/);
+      const phaseNumber = match ? match[1] : dir;
+      const phaseName = match && match[2] ? match[2] : null;
+
+      const phasePath = path.join(phasesDir, dir);
+      const phaseFiles = fs.readdirSync(phasePath);
+
+      const plans = phaseFiles.filter(f => f.endsWith('-PLAN.md') || f === 'PLAN.md');
+      const summaries = phaseFiles.filter(f => f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md');
+      const verifications = phaseFiles.filter(f => f.endsWith('-VERIFICATION.md') || f === 'VERIFICATION.md');
+
+      const status = summaries.length >= plans.length && plans.length > 0 ? 'complete' :
+                     plans.length > 0 ? 'in_progress' : 'pending';
+
+      if (status === 'complete') completedPhases++;
+      totalPlans += plans.length;
+      totalSummaries += summaries.length;
+
+      phaseSummaries.push({
+        phase: phaseName ? `${phaseNumber}-${phaseName}` : phaseNumber,
+        directory: path.join('.planning', 'phases', dir),
+        summaries: summaries,
+        verifications: verifications,
+        status,
+      });
+    }
+  } catch {}
+
+  const result = {
+    project_exists: true,
+    codebase_maps: {
+      exists: existingMaps.length > 0,
+      files: existingMaps,
+      missing: missingMaps,
+    },
+    phase_summaries: phaseSummaries,
+    requirements: {
+      exists: pathExistsInternal(cwd, '.planning/REQUIREMENTS.md'),
+      path: pathExistsInternal(cwd, '.planning/REQUIREMENTS.md') ? '.planning/REQUIREMENTS.md' : null,
+    },
+    project_md: {
+      exists: pathExistsInternal(cwd, '.planning/PROJECT.md'),
+      path: pathExistsInternal(cwd, '.planning/PROJECT.md') ? '.planning/PROJECT.md' : null,
+    },
+    roadmap: {
+      exists: pathExistsInternal(cwd, '.planning/ROADMAP.md'),
+      path: pathExistsInternal(cwd, '.planning/ROADMAP.md') ? '.planning/ROADMAP.md' : null,
+    },
+    state: {
+      exists: pathExistsInternal(cwd, '.planning/STATE.md'),
+      path: pathExistsInternal(cwd, '.planning/STATE.md') ? '.planning/STATE.md' : null,
+    },
+    stats: {
+      total_phases: phaseSummaries.length,
+      completed_phases: completedPhases,
+      total_plans: totalPlans,
+      total_summaries: totalSummaries,
+      codebase_map_count: existingMaps.length,
+    },
+  };
+
+  // Include file contents if requested via --include
+  if (includes.has('codebase')) {
+    const codebaseContents = {};
+    for (const mapFile of existingMaps) {
+      const content = safeReadFile(path.join(codebaseDir, mapFile));
+      if (content !== null) {
+        codebaseContents[mapFile] = content;
+      }
+    }
+    result.codebase_contents = codebaseContents;
+  }
+  if (includes.has('requirements')) {
+    result.requirements_content = safeReadFile(path.join(planningDir, 'REQUIREMENTS.md'));
+  }
+  if (includes.has('project')) {
+    result.project_content = safeReadFile(path.join(planningDir, 'PROJECT.md'));
+  }
+  if (includes.has('roadmap')) {
+    result.roadmap_content = safeReadFile(path.join(planningDir, 'ROADMAP.md'));
+  }
+  if (includes.has('state')) {
+    result.state_content = safeReadFile(path.join(planningDir, 'STATE.md'));
+  }
+
+  output(result, raw);
+}
+
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
 async function main() {
@@ -4553,6 +4694,9 @@ async function main() {
           break;
         case 'progress':
           cmdInitProgress(cwd, includes, raw);
+          break;
+        case 'discuss-current':
+          cmdInitDiscussCurrent(cwd, includes, raw);
           break;
         default:
           error(`Unknown init workflow: ${workflow}\nAvailable: execute-phase, plan-phase, new-project, new-milestone, quick, resume, verify-work, phase-op, todos, milestone-op, map-codebase, progress`);
