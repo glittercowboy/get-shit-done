@@ -379,7 +379,13 @@ If SUMMARY "Issues Encountered" ≠ "None": yolo → log and continue. Interacti
 </step>
 
 <step name="update_roadmap">
-More plans → update plan count, keep "In progress". Last plan → mark phase "Complete", add date.
+Update ROADMAP.md progress table with disk-accurate plan counts:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap update-plan-count {X}
+```
+
+This reads PLAN vs SUMMARY files on disk and updates the progress table row and plan count for Phase {X}. Returns `plan_count`, `summary_count`, and `status` (Pending/Planned/In Progress/Complete).
 </step>
 
 <step name="git_commit_metadata">
