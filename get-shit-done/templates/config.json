@@ -1,6 +1,7 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "behavioral_context": "auto",
   "workflow": {
     "research": true,
     "plan_check": true,
