@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v2.0 MVP** - Core GSD workflow system (shipped 2026-01-31)
-- 🚧 **v2.1 Adversary Agent** - Phases 1-5 (in progress)
+- ✅ **v2.1 Adversary Agent** - Phases 1-5 (completed 2026-02-13)
 
 ## Phases
 
@@ -21,7 +21,7 @@ Development predates GSD workflow tracking. See `.planning/MILESTONES.md` for ac
 
 </details>
 
-### 🚧 v2.1 Adversary Agent (In Progress)
+### ✅ v2.1 Adversary Agent (Completed 2026-02-13)
 
 **Milestone Goal:** Adversarial review agent that challenges assumptions and stress-tests feasibility at four key checkpoints in the GSD workflow: requirements, roadmap, plans, and verification. The agent integrates into existing commands without disrupting workflows, enabled via configuration toggle. Research-backed patterns (structured critique, constructive stance, adaptive convergence) prevent common multi-agent debate failures.
 
@@ -33,7 +33,7 @@ Development predates GSD workflow tracking. See `.planning/MILESTONES.md` for ac
 - [x] **Phase 2: Configuration** - Add adversary settings to config.json schema ✓
 - [x] **Phase 3: New-Project Integration** - Adversary checkpoints for requirements and roadmap ✓
 - [x] **Phase 4: Plan Integration** - Adversary checkpoint for plan creation ✓
-- [ ] **Phase 5: Verification Integration** - Adversary checkpoint for verification conclusions
+- [x] **Phase 5: Verification Integration** - Adversary checkpoint for verification conclusions ✓
 
 ## Phase Details
 
@@ -102,7 +102,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Integrate adversary verification review into execute-phase step 7.5 with verifier-as-defender
+- [x] 05-01-PLAN.md — Integrate adversary verification review into execute-phase step 7.5 with verifier-as-defender ✓
 
 ## Progress
 
@@ -115,7 +115,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Configuration | v2.1 | 2/2 | ✓ Complete | 2026-02-13 |
 | 3. New-Project Integration | v2.1 | 1/1 | ✓ Complete | 2026-02-13 |
 | 4. Plan Integration | v2.1 | 1/1 | ✓ Complete | 2026-02-13 |
-| 5. Verification Integration | v2.1 | 0/? | Not started | - |
+| 5. Verification Integration | v2.1 | 1/1 | ✓ Complete | 2026-02-13 |
 
 ---
 *Roadmap created: 2026-01-31*
