@@ -87,10 +87,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Adversary challenges PLAN.md after creation in /gsd:plan-phase (if enabled)
   2. Plan is updated based on valid adversary challenges before commit
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Integrate per-plan adversary review loop with planner-as-defender pattern
 
 ### Phase 5: Verification Integration
 **Goal**: /gsd:verify-work invokes adversary to challenge verification conclusions
