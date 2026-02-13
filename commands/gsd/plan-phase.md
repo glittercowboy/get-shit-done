@@ -16,6 +16,7 @@ allowed-tools:
 
 <execution_context>
 @~/.claude/get-shit-done/references/ui-brand.md
+@~/.claude/get-shit-done/references/planning-config.md
 </execution_context>
 
 <objective>
@@ -65,6 +66,7 @@ Default to "balanced" if not set.
 | gsd-phase-researcher | opus | sonnet | haiku |
 | gsd-planner | opus | opus | sonnet |
 | gsd-plan-checker | sonnet | sonnet | haiku |
+| gsd-adversary | sonnet | sonnet | haiku |
 
 Store resolved models for use in Task calls below.
 
@@ -466,6 +468,240 @@ Offer options:
 3. Abandon (exit planning)
 
 Wait for user response.
+
+## 12.5. Adversary Review — Plans
+
+**Read adversary config:**
+
+```bash
+CHECKPOINT_NAME="plan"
+CHECKPOINT_CONFIG=$(node -e "
+  try {
+    const c = JSON.parse(require('fs').readFileSync('.planning/config.json', 'utf8'));
+    const adv = c.adversary || {};
+    if (adv.enabled === false) { console.log('false|3'); process.exit(0); }
+    const cp = adv.checkpoints?.[process.argv[1]];
+    let enabled, rounds;
+    if (typeof cp === 'boolean') { enabled = cp; rounds = adv.max_rounds ?? 3; }
+    else if (typeof cp === 'object' && cp !== null) { enabled = cp.enabled ?? true; rounds = cp.max_rounds ?? adv.max_rounds ?? 3; }
+    else { enabled = true; rounds = adv.max_rounds ?? 3; }
+    console.log(enabled + '|' + rounds);
+  } catch(e) { console.log('true|3'); }
+" "$CHECKPOINT_NAME" 2>/dev/null || echo "true|3")
+
+CHECKPOINT_ENABLED=$(echo "$CHECKPOINT_CONFIG" | cut -d'|' -f1)
+MAX_ROUNDS=$(echo "$CHECKPOINT_CONFIG" | cut -d'|' -f2)
+
+# Apply CONV-01 hard cap: debate never exceeds 3 rounds
+EFFECTIVE_MAX_ROUNDS=$((MAX_ROUNDS > 3 ? 3 : MAX_ROUNDS))
+```
+
+**Skip logic:**
+
+- If `CHECKPOINT_ENABLED = "false"`: Set `ADVERSARY_SKIPPED_DISABLED=true`. Skip to step 13.
+- If `--gaps` mode: Set `ADVERSARY_SKIPPED_GAPS=true`. Skip to step 13. Adversary review adds friction without proportional value for gap closure plans.
+
+**If CHECKPOINT_ENABLED = "true" AND not --gaps mode:**
+
+Set `ADVERSARY_RAN=true`.
+
+**Enumerate plans:**
+
+```bash
+PLAN_FILES=$(ls "${PHASE_DIR}"/*-PLAN.md 2>/dev/null | sort)
+PLAN_COUNT=$(echo "$PLAN_FILES" | wc -l | tr -d ' ')
+```
+
+Initialize tracking variables: `PLANS_REVISED=false`, `TOTAL_CHALLENGES=0`, `TOTAL_ADDRESSED=0`, `TOTAL_NOTED=0`
+
+**Per-plan debate loop:**
+
+For each PLAN_FILE in PLAN_FILES (in plan number order):
+
+### i. Display banner
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD > ADVERSARY REVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Plan {NN} of {PLAN_COUNT}: Reviewing...
+```
+
+### ii. Initialize per-plan state
+
+`ROUND=1`, `CONVERGED=false`, `PLAN_REVISED=false`
+
+### iii. Debate loop
+
+While ROUND <= EFFECTIVE_MAX_ROUNDS AND not CONVERGED:
+
+**1. Read artifact from disk** (re-read each round to get latest after planner revision):
+
+```bash
+ARTIFACT_CONTENT=$(cat "$PLAN_FILE")
+PROJECT_CONTEXT=$(head -50 .planning/PROJECT.md)
+
+# Gather prior plans (all plans before current in sort order)
+PRIOR_PLANS=""
+for prior in $PLAN_FILES; do
+  [ "$prior" = "$PLAN_FILE" ] && break
+  PRIOR_PLANS+="$(cat "$prior")\n\n---\n\n"
+done
+```
+
+**2. Spawn adversary:**
+
+**Round 1:**
+```
+Task(prompt="First, read ~/.claude/agents/gsd-adversary.md for your role and instructions.
+
+<artifact_type>plan</artifact_type>
+
+<artifact_content>
+{ARTIFACT_CONTENT}
+</artifact_content>
+
+<round>1</round>
+<max_rounds>{EFFECTIVE_MAX_ROUNDS}</max_rounds>
+
+<project_context>
+{PROJECT_CONTEXT}
+</project_context>
+
+<prior_plans>
+{PRIOR_PLANS — content of prior PLAN.md files in this phase. Empty for plan 01.}
+</prior_plans>
+", subagent_type="gsd-adversary", model="{adversary_model}", description="Adversary review: plan {NN} (round 1)")
+```
+
+**Round > 1:**
+```
+Task(prompt="First, read ~/.claude/agents/gsd-adversary.md for your role and instructions.
+
+<artifact_type>plan</artifact_type>
+
+<artifact_content>
+{ARTIFACT_CONTENT — re-read from disk after planner revision}
+</artifact_content>
+
+<round>{ROUND}</round>
+<max_rounds>{EFFECTIVE_MAX_ROUNDS}</max_rounds>
+
+<defense>
+{DEFENSE — built from planner's revision return}
+</defense>
+
+<previous_challenges>
+{PREV_CHALLENGES — adversary's challenges from previous round}
+</previous_challenges>
+
+<project_context>
+{PROJECT_CONTEXT}
+</project_context>
+
+<prior_plans>
+{PRIOR_PLANS}
+</prior_plans>
+", subagent_type="gsd-adversary", model="{adversary_model}", description="Adversary review: plan {NN} (round {ROUND})")
+```
+
+**3. Parse adversary response:**
+- Extract challenges (title, severity, concern, evidence, affected)
+- Extract convergence recommendation (CONTINUE/CONVERGE)
+
+**4. Check convergence:** If adversary recommends CONVERGE and ROUND > 1:
+- Set `CONVERGED=true`
+- Break
+
+**5. Handle challenges** (if ROUND < EFFECTIVE_MAX_ROUNDS):
+
+**If BLOCKING challenges exist — Planner-as-defender pattern:**
+
+Re-spawn the planner agent in adversary_revision mode to address challenges. Do NOT edit the plan inline as the orchestrator — the planner has plan-level knowledge for higher-quality revisions.
+
+```
+Task(prompt="First, read ~/.claude/agents/gsd-planner.md for your role and instructions.
+
+<revision_context>
+
+**Phase:** {phase_number}
+**Mode:** adversary_revision
+**Target plan:** {plan_number}
+
+**Current plan content:**
+{current plan content from disk}
+
+**Adversary challenges:**
+{adversary's full challenge output — not a summary}
+
+**Challenge handling instructions:**
+- BLOCKING challenges: Must address with specific plan changes
+- MAJOR challenges: Address if valid, note with rationale if not
+- MINOR challenges: Note without revision (typically)
+
+</revision_context>
+
+<instructions>
+Make targeted updates to plan {plan_number} to address adversary challenges.
+Do NOT rewrite the plan from scratch.
+Do NOT modify other plans.
+Write the revised plan to disk at the exact file path: {PLAN_FILE}
+Return what changed and why — this becomes the defense for the next adversary round.
+</instructions>
+", subagent_type="general-purpose", model="{planner_model}", description="Revise plan {NN} (adversary feedback)")
+```
+
+After planner returns:
+- Build `DEFENSE` text from planner's return (what changed + what was rejected with rationale)
+- Store `PREV_CHALLENGES` = adversary's full challenge output from this round
+- Set `PLAN_REVISED=true`, `PLANS_REVISED=true`
+- Update challenge counts: `TOTAL_ADDRESSED += addressed count`
+
+**If MAJOR/MINOR only (no BLOCKING):** At Claude's discretion, may note without spawning planner. Build defense text noting the rationale for not revising. Store `PREV_CHALLENGES`. Increment `TOTAL_NOTED`.
+
+**6.** Increment ROUND
+
+### iv. Display per-plan summary
+
+```
+Plan {NN}: Adversary review complete
+
+**Challenges:**
+- ✓ **[SEVERITY]** {title} — Addressed: {what changed}
+- ○ **[SEVERITY]** {title} — Noted: {rationale}
+- ⚠ **[SEVERITY]** {title} — Unresolved: {why}
+```
+
+Use `✓` for addressed challenges, `○` for noted/minor challenges, `⚠` for unresolved challenges remaining at max rounds.
+
+---
+
+**Consolidated commit:**
+
+After all plans reviewed, if `PLANS_REVISED = true`:
+
+```bash
+git add "${PHASE_DIR}"/*-PLAN.md
+git commit -m "$(cat <<'EOF'
+docs({phase}): incorporate adversary review feedback (plans)
+EOF
+)"
+```
+
+Only commit if actual revisions were made. Do not commit if all challenges were noted without revision. This preserves the pre-adversary state in git history (separate from the planner's original commit in step 8 and the checker revision commit in step 12).
+
+**Consolidated summary:**
+
+Display after all plans reviewed, before step 13:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD > ADVERSARY REVIEW COMPLETE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{PLAN_COUNT} plan(s) reviewed | {TOTAL_ADDRESSED} challenges addressed | {TOTAL_NOTED} noted
+```
 
 ## 13. Present Final Status
 
