@@ -75,10 +75,10 @@ Plans:
   2. Adversary challenges ROADMAP.md after creation in /gsd:new-project (if enabled)
   3. Debate loop runs until convergence or max rounds reached (hard cap at 3)
   4. User sees adversary challenges and Claude's responses in output
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Integrate adversary debate loop at requirements and roadmap checkpoints
 
 ### Phase 4: Plan Integration
 **Goal**: /gsd:plan-phase invokes adversary after plan creation
@@ -115,7 +115,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|-----------|----------------|--------|-----------|
 | 1. Core Agent | v2.1 | 1/1 | ✓ Complete | 2026-02-02 |
 | 2. Configuration | v2.1 | 2/2 | ✓ Complete | 2026-02-13 |
-| 3. New-Project Integration | v2.1 | 0/? | Not started | - |
+| 3. New-Project Integration | v2.1 | 0/1 | Planned | - |
 | 4. Plan Integration | v2.1 | 0/? | Not started | - |
 | 5. Verification Integration | v2.1 | 0/? | Not started | - |
 
