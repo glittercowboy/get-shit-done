@@ -99,12 +99,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Adversary challenges verification conclusions after VERIFICATION.md created (if enabled)
   2. Verification summary reflects consideration of adversary challenges
-**Plans**: TBD
-
-**Research Note**: This phase may overlap with existing gsd-verifier. Evaluate during implementation whether adversarial verification adds unique value or is redundant.
+**Plans:** 1 plan
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Integrate adversary verification review into execute-phase step 7.5 with verifier-as-defender
 
 ## Progress
 
