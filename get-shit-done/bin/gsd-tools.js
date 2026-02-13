@@ -2954,7 +2954,12 @@ function cmdRoadmapUpdatePlanCount(cwd, phaseNum, raw) {
   else if (summaryCount > 0) status = 'In Progress';
   else status = 'Planned';
 
-  let roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
+  let roadmapContent;
+  try {
+    roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
+  } catch (e) {
+    error(`Failed to read ROADMAP.md: ${e.message}`);
+  }
   let updated = false;
 
   // Build regex that matches both padded (01) and unpadded (1) phase numbers
@@ -2993,7 +2998,11 @@ function cmdRoadmapUpdatePlanCount(cwd, phaseNum, raw) {
   }
 
   if (updated) {
-    fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+    try {
+      fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+    } catch (e) {
+      error(`Failed to write ROADMAP.md: ${e.message}`);
+    }
   }
 
   const result = {
