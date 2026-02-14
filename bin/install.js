@@ -856,7 +856,9 @@ function uninstall(isGlobal, runtime = 'claude') {
       'gsd-statusline.js', 'gsd-check-update.js', 'gsd-check-update.sh',
       'hook-logger.js', 'pre-bash-dispatch.js', 'pre-write-dispatch.js', 'post-write-dispatch.js',
       'check-dangerous-commands.js', 'validate-commit.js', 'check-skill-workflow.js',
-      'track-context-budget.js', 'suggest-compact.js', 'context-budget-check.js'
+      'track-context-budget.js', 'suggest-compact.js', 'context-budget-check.js',
+      'check-plan-format.js', 'check-roadmap-sync.js',
+      'check-phase-boundary.js', 'check-subagent-output.js'
     ];
     let hookCount = 0;
     for (const hook of gsdHooks) {

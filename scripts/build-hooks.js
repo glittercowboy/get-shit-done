@@ -22,7 +22,11 @@ const HOOKS_TO_COPY = [
   'check-skill-workflow.js',
   'track-context-budget.js',
   'suggest-compact.js',
-  'context-budget-check.js'
+  'context-budget-check.js',
+  'check-plan-format.js',
+  'check-roadmap-sync.js',
+  'check-phase-boundary.js',
+  'check-subagent-output.js'
 ];
 
 function build() {
