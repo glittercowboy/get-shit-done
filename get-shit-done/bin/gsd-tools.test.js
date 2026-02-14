@@ -2031,3 +2031,233 @@ describe('scaffold command', () => {
     assert.strictEqual(output.reason, 'already_exists');
   });
 });
+
+// ─── Atomic Write Tests ───────────────────────────────────────────────────────
+
+describe('atomicWrite (via state update)', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('state update creates .bak file for existing STATE.md', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Status:** planning\n**Current Phase:** 1\n');
+
+    const result = runGsdTools('state update Status building', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    // Verify .bak exists (atomicWrite creates backup)
+    assert.ok(
+      fs.existsSync(statePath + '.bak'),
+      'Should create .bak backup file'
+    );
+
+    // Verify .bak contains original content
+    const bakContent = fs.readFileSync(statePath + '.bak', 'utf-8');
+    assert.ok(
+      bakContent.includes('**Status:** planning'),
+      'Backup should contain original content'
+    );
+
+    // Verify main file has updated content
+    const content = fs.readFileSync(statePath, 'utf-8');
+    assert.ok(
+      content.includes('**Status:** building'),
+      'Main file should have updated content'
+    );
+  });
+
+  test('no .tmp file left after successful state update', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Status:** planning\n');
+
+    runGsdTools('state update Status building', tmpDir);
+
+    assert.ok(
+      !fs.existsSync(statePath + '.tmp'),
+      'Should not leave .tmp file after success'
+    );
+  });
+
+  test('no .lock file left after successful state update', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Status:** planning\n');
+
+    runGsdTools('state update Status building', tmpDir);
+
+    assert.ok(
+      !fs.existsSync(statePath + '.lock'),
+      'Should not leave .lock file after success'
+    );
+  });
+
+  test('config-ensure-section uses atomic write', () => {
+    const result = runGsdTools('config-ensure-section', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const configPath = path.join(tmpDir, '.planning', 'config.json');
+    assert.ok(fs.existsSync(configPath), 'config.json should exist');
+
+    // No .tmp should be left behind
+    assert.ok(
+      !fs.existsSync(configPath + '.tmp'),
+      'Should not leave .tmp file'
+    );
+  });
+
+  test('frontmatter set uses atomic write', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-setup');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    const planPath = path.join(phaseDir, '01-PLAN.md');
+    fs.writeFileSync(planPath, '---\nphase: "01"\nplan: "01"\nwave: 1\n---\n\n# Plan\n');
+
+    const result = runGsdTools(`frontmatter set "${planPath}" --field status --value '"active"'`, tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    // Verify backup was created
+    assert.ok(
+      fs.existsSync(planPath + '.bak'),
+      'Should create .bak backup of frontmatter file'
+    );
+  });
+
+  test('multiple successive state updates preserve content', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Status:** planning\n**Current Phase:** 1\n**Last Activity:** none\n');
+
+    runGsdTools('state update Status building', tmpDir);
+    runGsdTools('state update "Current Phase" 2', tmpDir);
+    runGsdTools('state update "Last Activity" 2026-02-11', tmpDir);
+
+    const content = fs.readFileSync(statePath, 'utf-8');
+    assert.ok(content.includes('**Status:** building'), 'Status should be building');
+    assert.ok(content.includes('**Current Phase:** 2'), 'Current Phase should be 2');
+    assert.ok(content.includes('**Last Activity:** 2026-02-11'), 'Last Activity should be updated');
+  });
+});
+
+// ─── Lockfile Protection Tests ────────────────────────────────────────────────
+
+describe('lockedFileUpdate (via state mutation commands)', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('state patch uses locked update — no lock left behind', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Status:** planning\n**Current Phase:** 1\n');
+
+    const result = runGsdTools('state patch --Status building --"Current Phase" 2', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    assert.ok(
+      !fs.existsSync(statePath + '.lock'),
+      'Lock file should be cleaned up after state patch'
+    );
+  });
+
+  test('state add-decision uses locked update', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n### Decisions\nNone yet.\n');
+
+    const result = runGsdTools('state add-decision --summary "Use React" --phase 1', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.added, true, 'Decision should be added');
+
+    // Verify no lock left behind
+    assert.ok(
+      !fs.existsSync(statePath + '.lock'),
+      'Lock file should be cleaned up after add-decision'
+    );
+
+    // Verify content
+    const content = fs.readFileSync(statePath, 'utf-8');
+    assert.ok(content.includes('Use React'), 'Decision should be in STATE.md');
+    assert.ok(!content.includes('None yet'), 'Placeholder should be removed');
+  });
+
+  test('state add-blocker uses locked update', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n### Blockers\nNone\n');
+
+    const result = runGsdTools('state add-blocker --text "API key missing"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.added, true);
+
+    assert.ok(
+      !fs.existsSync(statePath + '.lock'),
+      'Lock file should be cleaned up'
+    );
+
+    const content = fs.readFileSync(statePath, 'utf-8');
+    assert.ok(content.includes('API key missing'), 'Blocker should be in STATE.md');
+  });
+
+  test('state resolve-blocker uses locked update', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n### Blockers\n- API key missing\n- Database timeout\n');
+
+    const result = runGsdTools('state resolve-blocker --text "API key"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.resolved, true);
+
+    const content = fs.readFileSync(statePath, 'utf-8');
+    assert.ok(!content.includes('API key missing'), 'Resolved blocker should be removed');
+    assert.ok(content.includes('Database timeout'), 'Other blockers should remain');
+  });
+
+  test('stale lock is recovered automatically', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Status:** planning\n');
+
+    // Create a stale lock file (old timestamp)
+    const lockPath = statePath + '.lock';
+    fs.writeFileSync(lockPath, '99999');
+    const oldTime = new Date(Date.now() - 10000); // 10 seconds ago
+    fs.utimesSync(lockPath, oldTime, oldTime);
+
+    // Should still succeed — stale lock gets cleaned up
+    const result = runGsdTools('state update Status building', tmpDir);
+    assert.ok(result.success, `Command should succeed despite stale lock: ${result.error}`);
+
+    const content = fs.readFileSync(statePath, 'utf-8');
+    assert.ok(content.includes('**Status:** building'), 'Update should have been applied');
+
+    // Lock should be cleaned up
+    assert.ok(!fs.existsSync(lockPath), 'Stale lock should be removed');
+  });
+
+  test('state record-session uses locked update', () => {
+    const statePath = path.join(tmpDir, '.planning', 'STATE.md');
+    fs.writeFileSync(statePath, '# Project State\n\n**Last session:** none\n**Last Date:** none\n**Stopped At:** none\n**Resume File:** none\n');
+
+    const result = runGsdTools('state record-session --stopped-at "Finished phase 2"', tmpDir);
+    assert.ok(result.success, `Command failed: ${result.error}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.recorded, true);
+
+    assert.ok(
+      !fs.existsSync(statePath + '.lock'),
+      'Lock file should be cleaned up'
+    );
+  });
+});
