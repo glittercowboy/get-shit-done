@@ -545,6 +545,64 @@ Confirm:
 
 </step>
 
+<step name="generate_documentation">
+
+Regenerate documentation from current .planning/ state before tagging the milestone.
+
+**Check if docs infrastructure exists:**
+
+```bash
+if [ ! -f scripts/generate-docs.js ]; then
+  echo "Skipping documentation generation (scripts/generate-docs.js not found)"
+  # Continue to next step - docs setup is optional
+else
+  echo "Generating documentation..."
+
+  # Run documentation generation
+  node scripts/generate-docs.js
+
+  if [ $? -ne 0 ]; then
+    echo "Warning: Documentation generation failed. Continuing with milestone completion..."
+    # Non-blocking - continue even if docs fail
+  else
+    echo "Documentation generated successfully"
+
+    # Install dependencies if needed
+    if [ ! -d docs/node_modules ]; then
+      echo "Installing Docusaurus dependencies..."
+      pnpm install --dir docs
+
+      if [ $? -ne 0 ]; then
+        echo "Warning: Failed to install docs dependencies. Continuing..."
+      fi
+    fi
+
+    # Check deployment configuration
+    DEPLOY_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"deploy_to_github_pages"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+
+    if [ "$DEPLOY_DOCS" = "true" ]; then
+      echo "Deployment enabled - preparing GitHub Pages deployment..."
+
+      if [ -f scripts/prepare-gh-pages-deployment.js ]; then
+        node scripts/prepare-gh-pages-deployment.js
+
+        if [ $? -ne 0 ]; then
+          echo "Warning: Deployment preparation failed. Continuing..."
+        else
+          echo "Deployment configured successfully"
+        fi
+      else
+        echo "Warning: scripts/prepare-gh-pages-deployment.js not found. Skipping deployment preparation."
+      fi
+    fi
+  fi
+fi
+```
+
+Continue to update_state step.
+
+</step>
+
 <step name="update_state">
 
 Update STATE.md to reflect milestone completion.
