@@ -16,7 +16,19 @@ const HOOKS_TO_COPY = [
   'hook-logger.js',
   'pre-bash-dispatch.js',
   'pre-write-dispatch.js',
-  'post-write-dispatch.js'
+  'post-write-dispatch.js',
+  'check-dangerous-commands.js',
+  'validate-commit.js',
+  'check-skill-workflow.js',
+  'track-context-budget.js',
+  'suggest-compact.js',
+  'context-budget-check.js',
+  'check-plan-format.js',
+  'check-roadmap-sync.js',
+  'check-phase-boundary.js',
+  'check-subagent-output.js',
+  'session-cleanup.js',
+  'log-subagent.js'
 ];
 
 function build() {
