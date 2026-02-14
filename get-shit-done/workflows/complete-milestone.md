@@ -665,6 +665,61 @@ else
 fi
 ```
 
+Continue to surface_critical_learnings step.
+
+</step>
+
+<step name="surface_critical_learnings">
+
+Surface critical (recurring) learnings into project CLAUDE.md for zero-query-overhead context.
+This step is controlled by `learning.auto_surface_critical` in `.planning/config.json` (default: false).
+Runs AFTER extract_learnings to ensure the latest learnings are in the vector DB.
+
+**Check if surfacing is enabled:**
+
+```bash
+SURFACE_CRITICAL=$(cat .planning/config.json 2>/dev/null | grep -o '"auto_surface_critical"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+
+if [ "$SURFACE_CRITICAL" = "false" ]; then
+  echo "Critical learnings surfacing not enabled (set learning.auto_surface_critical: true in .planning/config.json)"
+  # Continue to next step
+fi
+```
+
+**Check if surfacing script exists:**
+
+```bash
+if [ ! -f scripts/surface-critical-learnings.js ]; then
+  echo "Skipping critical learnings surfacing (scripts/surface-critical-learnings.js not found)"
+  # Continue to next step
+fi
+```
+
+**If enabled and script exists, surface critical learnings:**
+
+```bash
+echo ""
+echo "Surfacing critical learnings to CLAUDE.md..."
+echo ""
+
+MILESTONE_VERSION="${MILESTONE_VERSION:-v1.0}"
+
+node scripts/surface-critical-learnings.js --milestone "$MILESTONE_VERSION"
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "Warning: Critical learnings surfacing encountered errors"
+  echo "   Continuing with milestone completion..."
+  echo ""
+  echo "   To retry later: node scripts/surface-critical-learnings.js --milestone $MILESTONE_VERSION"
+  echo ""
+else
+  echo ""
+  echo "Critical learnings surfaced to CLAUDE.md"
+  echo ""
+fi
+```
+
 Continue to update_state step.
 
 </step>
@@ -911,6 +966,11 @@ git add .planning/STATE.md
 # Stage docs/ if documentation was generated
 if [ -d docs/docs ]; then
   git add docs/
+fi
+
+# Stage CLAUDE.md if critical learnings were surfaced
+if [ -f CLAUDE.md ]; then
+  git add CLAUDE.md
 fi
 
 # Stage deletions
