@@ -2364,3 +2364,297 @@ describe('hook configuration', () => {
     assert.deepStrictEqual(output.config.hooks, {}, 'hooks should default to empty object when config missing');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// safety hooks
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('safety hooks', () => {
+  const { execSync } = require('node:child_process');
+  const hooksDir = path.join(__dirname, '..', '..', 'hooks');
+
+  function runHook(hookName, toolInput) {
+    const input = JSON.stringify(toolInput);
+    try {
+      const result = execSync(`node "${path.join(hooksDir, hookName)}"`, {
+        input: input,
+        encoding: 'utf8',
+        timeout: 5000
+      });
+      return { stdout: result, exitCode: 0 };
+    } catch (e) {
+      return { stdout: e.stdout || '', exitCode: e.status };
+    }
+  }
+
+  // ── check-dangerous-commands.js ──
+
+  describe('check-dangerous-commands', () => {
+    test('blocks rm -rf .planning', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'rm -rf .planning' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+      assert.ok(output.reason.includes('.planning'), 'reason mentions .planning');
+    });
+
+    test('blocks git reset --hard', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git reset --hard HEAD~1' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+    });
+
+    test('blocks git push --force', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git push --force' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+    });
+
+    test('blocks git push --force to main', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git push origin --force main' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+    });
+
+    test('blocks git clean -fd', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git clean -fd' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+    });
+
+    test('blocks DROP TABLE', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'mysql -e "DROP TABLE users"' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+    });
+
+    test('blocks DROP DATABASE', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'psql -c "DROP DATABASE production"' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+    });
+
+    test('allows safe bash commands', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git status' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('allows git push without --force', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git push origin main' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('allows git push --force-with-lease', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git push --force-with-lease origin feature' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should allow --force-with-lease');
+    });
+
+    test('ignores non-Bash tools', () => {
+      const result = runHook('check-dangerous-commands.js', {
+        tool_name: 'Write',
+        tool_input: { command: 'rm -rf .planning' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0 for non-Bash tools');
+    });
+  });
+
+  // ── validate-commit.js ──
+
+  describe('validate-commit', () => {
+    test('blocks bad commit message format', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: "git commit -m 'updated stuff'" }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+      assert.ok(output.reason.includes('does not match format'), 'reason explains format issue');
+    });
+
+    test('allows valid commit message', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: "git commit -m 'feat(hooks): add safety hooks'" }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('allows commit with scope', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git commit -m "fix(api): resolve auth bug"' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('allows commit without scope', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git commit -m "docs: update readme"' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('blocks staging .env files', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git add .env' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+      assert.ok(output.reason.includes('.env'), 'reason mentions .env');
+    });
+
+    test('blocks staging .pem files', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git add server.pem' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+    });
+
+    test('blocks staging credentials files', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git add credentials.json' }
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+    });
+
+    test('allows staging normal files', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'git add src/index.ts' }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('ignores non-Bash tools', () => {
+      const result = runHook('validate-commit.js', {
+        tool_name: 'Write',
+        tool_input: { command: "git commit -m 'bad message'" }
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0 for non-Bash tools');
+    });
+  });
+
+  // ── check-skill-workflow.js ──
+
+  describe('check-skill-workflow', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = createTempProject();
+    });
+
+    afterEach(() => {
+      cleanup(tmpDir);
+    });
+
+    test('blocks source writes without PLAN.md during execute-phase', () => {
+      // Set up .active-skill signal
+      fs.writeFileSync(path.join(tmpDir, '.planning', '.active-skill'), 'execute-phase');
+
+      const result = runHook('check-skill-workflow.js', {
+        tool_name: 'Write',
+        tool_input: { file_path: path.join(tmpDir, 'src', 'index.ts') },
+        cwd: tmpDir
+      });
+      assert.strictEqual(result.exitCode, 2, 'should exit with code 2');
+      const output = JSON.parse(result.stdout);
+      assert.strictEqual(output.decision, 'block');
+      assert.ok(output.reason.includes('no PLAN.md found'), 'reason mentions missing plan');
+    });
+
+    test('allows source writes when PLAN.md exists during execute-phase', () => {
+      // Set up .active-skill signal
+      fs.writeFileSync(path.join(tmpDir, '.planning', '.active-skill'), 'execute-phase');
+      // Create a PLAN.md
+      const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+      fs.mkdirSync(phaseDir, { recursive: true });
+      fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan');
+
+      const result = runHook('check-skill-workflow.js', {
+        tool_name: 'Write',
+        tool_input: { file_path: path.join(tmpDir, 'src', 'index.ts') },
+        cwd: tmpDir
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0');
+    });
+
+    test('allows planning file writes always', () => {
+      // Set up .active-skill signal without any PLAN.md
+      fs.writeFileSync(path.join(tmpDir, '.planning', '.active-skill'), 'execute-phase');
+
+      const result = runHook('check-skill-workflow.js', {
+        tool_name: 'Write',
+        tool_input: { file_path: path.join(tmpDir, '.planning', 'STATE.md') },
+        cwd: tmpDir
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0 for planning files');
+    });
+
+    test('warns on SUMMARY.md write without .active-agent', () => {
+      const result = runHook('check-skill-workflow.js', {
+        tool_name: 'Write',
+        tool_input: { file_path: path.join(tmpDir, 'src', 'SUMMARY.md') },
+        cwd: tmpDir
+      });
+      // Should warn but not block (exit 0)
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0 (warn only)');
+      if (result.stdout) {
+        const output = JSON.parse(result.stdout);
+        assert.strictEqual(output.decision, 'warn');
+      }
+    });
+
+    test('ignores non-Write/Edit tools', () => {
+      fs.writeFileSync(path.join(tmpDir, '.planning', '.active-skill'), 'execute-phase');
+
+      const result = runHook('check-skill-workflow.js', {
+        tool_name: 'Bash',
+        tool_input: { command: 'echo hello' },
+        cwd: tmpDir
+      });
+      assert.strictEqual(result.exitCode, 0, 'should exit with code 0 for non-Write/Edit tools');
+    });
+  });
+});
