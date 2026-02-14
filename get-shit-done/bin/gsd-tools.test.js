@@ -3716,3 +3716,191 @@ describe('session-cleanup hook', () => {
     assert.ok(!fs.existsSync(path.join(planningDir, '.context-tracker')));
   });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// progress tracking commands (crash recovery)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('progress tracking commands', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('progress write/read/delete lifecycle', () => {
+    // Write progress
+    const writeResult = runGsdTools('progress write 01-02 --task 2 --total 5 --commit abc1234', tmpDir);
+    assert.ok(writeResult.success, `Write failed: ${writeResult.error}`);
+
+    const writeData = JSON.parse(writeResult.output);
+    assert.strictEqual(writeData.plan_id, '01-02');
+    assert.strictEqual(writeData.last_completed_task, 2);
+    assert.strictEqual(writeData.total_tasks, 5);
+    assert.strictEqual(writeData.last_commit, 'abc1234');
+    assert.ok(writeData.timestamp, 'should have timestamp');
+
+    // Read progress
+    const readResult = runGsdTools('progress read 01-02', tmpDir);
+    assert.ok(readResult.success, `Read failed: ${readResult.error}`);
+
+    const readData = JSON.parse(readResult.output);
+    assert.strictEqual(readData.exists, true);
+    assert.strictEqual(readData.plan_id, '01-02');
+    assert.strictEqual(readData.last_completed_task, 2);
+    assert.strictEqual(readData.total_tasks, 5);
+    assert.strictEqual(readData.last_commit, 'abc1234');
+
+    // Delete progress
+    const deleteResult = runGsdTools('progress delete 01-02', tmpDir);
+    assert.ok(deleteResult.success, `Delete failed: ${deleteResult.error}`);
+
+    const deleteData = JSON.parse(deleteResult.output);
+    assert.strictEqual(deleteData.deleted, true);
+    assert.strictEqual(deleteData.existed, true);
+
+    // Verify deleted
+    const afterDelete = runGsdTools('progress read 01-02', tmpDir);
+    assert.ok(afterDelete.success);
+    const afterData = JSON.parse(afterDelete.output);
+    assert.strictEqual(afterData.exists, false);
+  });
+
+  test('progress list with multiple progress files', () => {
+    // Write two progress files
+    runGsdTools('progress write 01-01 --task 1 --total 3 --commit aaa1111', tmpDir);
+    runGsdTools('progress write 02-01 --task 3 --total 4 --commit bbb2222', tmpDir);
+
+    const result = runGsdTools('progress list', tmpDir);
+    assert.ok(result.success, `List failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.progress.length, 2, 'should have 2 progress entries');
+
+    const planIds = data.progress.map(p => p.plan_id).sort();
+    assert.deepStrictEqual(planIds, ['01-01', '02-01']);
+  });
+
+  test('progress list with no progress files', () => {
+    const result = runGsdTools('progress list', tmpDir);
+    assert.ok(result.success, `List failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.progress.length, 0, 'should have no progress entries');
+  });
+
+  test('progress read for nonexistent plan returns exists:false', () => {
+    const result = runGsdTools('progress read 99-99', tmpDir);
+    assert.ok(result.success, `Read failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.exists, false);
+  });
+
+  test('progress write with --raw flag returns human-readable text', () => {
+    const result = runGsdTools('progress write 01-03 --task 1 --total 2 --raw', tmpDir);
+    assert.ok(result.success, `Write failed: ${result.error}`);
+
+    // --raw outputs the human-readable rawValue string
+    assert.ok(result.output.includes('Progress: 01-03 task 1/2'),
+      `Expected human-readable output, got: ${result.output}`);
+  });
+
+  test('progress write without --commit defaults to empty string', () => {
+    const result = runGsdTools('progress write 01-04 --task 1 --total 3', tmpDir);
+    assert.ok(result.success, `Write failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.last_commit, '');
+  });
+
+  test('progress delete nonexistent file succeeds with existed:false', () => {
+    const result = runGsdTools('progress delete 99-99', tmpDir);
+    assert.ok(result.success, `Delete failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.deleted, true);
+    assert.strictEqual(data.existed, false);
+  });
+
+  test('progress check-orphaned with no files returns empty', () => {
+    const result = runGsdTools('progress check-orphaned', tmpDir);
+    assert.ok(result.success, `Check-orphaned failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.orphaned.length, 0);
+  });
+
+  test('progress check-orphaned detects old files', () => {
+    // Create a progress file and manually backdate it
+    const progressPath = path.join(tmpDir, '.planning', '.PROGRESS-01-01');
+    const data = {
+      plan_id: '01-01',
+      last_completed_task: 2,
+      total_tasks: 5,
+      last_commit: 'abc1234',
+      timestamp: '2024-01-01T00:00:00Z',
+    };
+    fs.writeFileSync(progressPath, JSON.stringify(data, null, 2));
+
+    // Backdate the file mtime to 2 hours ago
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    fs.utimesSync(progressPath, twoHoursAgo, twoHoursAgo);
+
+    const result = runGsdTools('progress check-orphaned', tmpDir);
+    assert.ok(result.success, `Check-orphaned failed: ${result.error}`);
+
+    const orphanData = JSON.parse(result.output);
+    assert.strictEqual(orphanData.orphaned.length, 1, 'should detect 1 orphaned file');
+    assert.strictEqual(orphanData.orphaned[0].plan_id, '01-01');
+    assert.ok(orphanData.orphaned[0].age_minutes >= 119, 'should be at least ~120 minutes old');
+  });
+
+  test('progress check-orphaned ignores recent files', () => {
+    // Write a fresh progress file (< 1 hour old)
+    runGsdTools('progress write 01-01 --task 1 --total 3 --commit fff0000', tmpDir);
+
+    const result = runGsdTools('progress check-orphaned', tmpDir);
+    assert.ok(result.success, `Check-orphaned failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.strictEqual(data.orphaned.length, 0, 'fresh file should not be orphaned');
+  });
+
+  test('progress write errors without .planning directory', () => {
+    const emptyDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-test-noplanning-'));
+    try {
+      const result = runGsdTools('progress write 01-01 --task 1 --total 3', emptyDir);
+      assert.ok(!result.success, 'Should fail without .planning dir');
+      assert.ok(result.error.includes('.planning directory not found'));
+    } finally {
+      fs.rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  test('progress write errors with missing required args', () => {
+    const result = runGsdTools('progress write 01-01', tmpDir);
+    assert.ok(!result.success, 'Should fail without --task and --total');
+    assert.ok(result.error.includes('Usage'));
+  });
+
+  test('existing progress render commands still work', () => {
+    // The json/table/bar subcommands should still go through cmdProgressRender
+    // This creates a minimal structure for progress render
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-test');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan');
+    fs.writeFileSync(path.join(phaseDir, '01-01-SUMMARY.md'), '# Summary');
+
+    const result = runGsdTools('progress json', tmpDir);
+    assert.ok(result.success, `Progress json failed: ${result.error}`);
+
+    const data = JSON.parse(result.output);
+    assert.ok(data.phases !== undefined || data.total !== undefined, 'should return progress data');
+  });
+});

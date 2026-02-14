@@ -49,6 +49,12 @@
  *
  * Progress:
  *   progress [json|table|bar]          Render progress in various formats
+ *   progress write <plan_id>           Write a .PROGRESS-{plan_id} breadcrumb
+ *     --task N --total T [--commit h]
+ *   progress read <plan_id>            Read a progress file, return JSON
+ *   progress delete <plan_id>          Delete a progress file
+ *   progress list                      List all .PROGRESS files with contents
+ *   progress check-orphaned            Find .PROGRESS files older than 1 hour
  *
  * Todos:
  *   todo complete <filename>           Move todo from pending to completed
@@ -395,6 +401,34 @@ function execGit(cwd, args) {
       stdout: (err.stdout ?? '').toString().trim(),
       stderr: (err.stderr ?? '').toString().trim(),
     };
+  }
+}
+
+/**
+ * Wraps execGit with retry logic for git lock contention.
+ * When git operations fail due to index.lock conflicts (common during
+ * concurrent operations or mid-crash recovery), retries with exponential
+ * backoff: 1s, 2s, 4s.
+ *
+ * @param {string} cwd - Working directory
+ * @param {string[]} args - Git command arguments
+ * @param {number} [maxRetries=3] - Maximum retry attempts
+ * @returns {object} Same shape as execGit: { exitCode, stdout, stderr }
+ */
+function execGitRetry(cwd, args, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const result = execGit(cwd, args);
+    if (result.exitCode === 0) return result;
+
+    const isLockError = result.stderr.includes('.lock') || result.stderr.includes('index.lock');
+    if (attempt < maxRetries && isLockError) {
+      // Exponential backoff: 1s, 2s, 4s
+      const waitMs = Math.pow(2, attempt - 1) * 1000;
+      const start = Date.now();
+      while (Date.now() - start < waitMs) { /* busy wait for synchronous backoff */ }
+      continue;
+    }
+    return result;
   }
 }
 
@@ -1665,15 +1699,15 @@ function cmdCommit(cwd, message, files, raw, amend) {
     return;
   }
 
-  // Stage files
+  // Stage files (with retry for lock contention)
   const filesToStage = files && files.length > 0 ? files : ['.planning/'];
   for (const file of filesToStage) {
-    execGit(cwd, ['add', file]);
+    execGitRetry(cwd, ['add', file]);
   }
 
-  // Commit
+  // Commit (with retry for lock contention)
   const commitArgs = amend ? ['commit', '--amend', '--no-edit'] : ['commit', '-m', message];
-  const commitResult = execGit(cwd, commitArgs);
+  const commitResult = execGitRetry(cwd, commitArgs);
   if (commitResult.exitCode !== 0) {
     if (commitResult.stdout.includes('nothing to commit') || commitResult.stderr.includes('nothing to commit')) {
       const result = { committed: false, hash: null, reason: 'nothing_to_commit' };
@@ -3580,6 +3614,130 @@ function cmdValidateConsistency(cwd, raw) {
   output({ passed, errors, warnings, warning_count: warnings.length }, raw, passed ? 'passed' : 'failed');
 }
 
+// ─── Progress Tracking (Crash Recovery) ──────────────────────────────────────
+
+function cmdProgressWrite(cwd, planId, taskNum, totalTasks, commitHash, raw) {
+  const planningDir = path.join(cwd, '.planning');
+  if (!fs.existsSync(planningDir)) {
+    error('.planning directory not found');
+  }
+  if (!planId) {
+    error('plan_id required');
+  }
+  if (taskNum === undefined || totalTasks === undefined) {
+    error('--task and --total are required');
+  }
+
+  const progressPath = path.join(planningDir, `.PROGRESS-${planId}`);
+  const data = {
+    plan_id: planId,
+    last_completed_task: parseInt(taskNum, 10),
+    total_tasks: parseInt(totalTasks, 10),
+    last_commit: commitHash || '',
+    timestamp: new Date().toISOString(),
+  };
+  fs.writeFileSync(progressPath, JSON.stringify(data, null, 2));
+  output(data, raw, `Progress: ${planId} task ${taskNum}/${totalTasks}`);
+}
+
+function cmdProgressRead(cwd, planId, raw) {
+  if (!planId) {
+    error('plan_id required');
+  }
+  const progressPath = path.join(cwd, '.planning', `.PROGRESS-${planId}`);
+  if (!fs.existsSync(progressPath)) {
+    const data = { exists: false };
+    output(data, raw, 'No progress file found');
+    return;
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(progressPath, 'utf8'));
+    data.exists = true;
+    output(data, raw, `Progress: ${data.plan_id} task ${data.last_completed_task}/${data.total_tasks} (${data.timestamp})`);
+  } catch {
+    const data = { exists: true, error: 'parse_error' };
+    output(data, raw, 'Progress file exists but is corrupted');
+  }
+}
+
+function cmdProgressDelete(cwd, planId, raw) {
+  if (!planId) {
+    error('plan_id required');
+  }
+  const progressPath = path.join(cwd, '.planning', `.PROGRESS-${planId}`);
+  const existed = fs.existsSync(progressPath);
+  if (existed) {
+    fs.unlinkSync(progressPath);
+  }
+  const data = { deleted: true, existed };
+  output(data, raw, `Progress file for ${planId} deleted`);
+}
+
+function cmdProgressList(cwd, raw) {
+  const planningDir = path.join(cwd, '.planning');
+  if (!fs.existsSync(planningDir)) {
+    error('.planning directory not found');
+  }
+  const files = fs.readdirSync(planningDir).filter(f => f.startsWith('.PROGRESS-'));
+  const progress = files.map(f => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(planningDir, f), 'utf8'));
+    } catch {
+      return { file: f, error: 'parse_error' };
+    }
+  });
+  if (raw) {
+    const data = { progress };
+    output(data, raw, JSON.stringify(data));
+  } else {
+    if (progress.length === 0) {
+      output({ progress: [] }, false, 'No active progress files');
+    } else {
+      const lines = progress.map(p =>
+        p.error
+          ? `${p.file}: parse error`
+          : `${p.plan_id}: task ${p.last_completed_task}/${p.total_tasks} (${p.timestamp})`
+      );
+      output({ progress }, false, lines.join('\n'));
+    }
+  }
+}
+
+function cmdProgressCheckOrphaned(cwd, raw) {
+  const planningDir = path.join(cwd, '.planning');
+  if (!fs.existsSync(planningDir)) {
+    error('.planning directory not found');
+  }
+  const files = fs.readdirSync(planningDir).filter(f => f.startsWith('.PROGRESS-'));
+  const orphaned = [];
+  const oneHour = 60 * 60 * 1000;
+  for (const f of files) {
+    const filePath = path.join(planningDir, f);
+    const stat = fs.statSync(filePath);
+    const ageMs = Date.now() - stat.mtimeMs;
+    if (ageMs > oneHour) {
+      try {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        orphaned.push({ ...data, age_minutes: Math.round(ageMs / 60000), file: f });
+      } catch {
+        orphaned.push({ file: f, age_minutes: Math.round(ageMs / 60000), error: 'parse_error' });
+      }
+    }
+  }
+  if (raw) {
+    output({ orphaned }, raw, JSON.stringify({ orphaned }));
+  } else {
+    if (orphaned.length === 0) {
+      output({ orphaned: [] }, false, 'No orphaned progress files');
+    } else {
+      const lines = orphaned.map(o =>
+        `ORPHANED: ${o.file} (${o.age_minutes}m old) — task ${o.last_completed_task || '?'}/${o.total_tasks || '?'}`
+      );
+      output({ orphaned }, false, lines.join('\n'));
+    }
+  }
+}
+
 // ─── Progress Render ──────────────────────────────────────────────────────────
 
 function cmdProgressRender(cwd, format, raw) {
@@ -4867,7 +5025,38 @@ async function main() {
 
     case 'progress': {
       const subcommand = args[1] || 'json';
-      cmdProgressRender(cwd, subcommand, raw);
+      // New progress tracking subcommands (crash recovery)
+      if (['write', 'read', 'delete', 'list', 'check-orphaned'].includes(subcommand)) {
+        switch (subcommand) {
+          case 'write': {
+            const planId = args[2];
+            const taskIdx = args.indexOf('--task');
+            const totalIdx = args.indexOf('--total');
+            const commitIdx = args.indexOf('--commit');
+            if (!planId || taskIdx === -1 || totalIdx === -1) {
+              error('Usage: progress write <plan_id> --task N --total T [--commit hash]');
+            }
+            cmdProgressWrite(cwd, planId, args[taskIdx + 1], args[totalIdx + 1],
+              commitIdx !== -1 ? args[commitIdx + 1] : '', raw);
+            break;
+          }
+          case 'read':
+            cmdProgressRead(cwd, args[2], raw);
+            break;
+          case 'delete':
+            cmdProgressDelete(cwd, args[2], raw);
+            break;
+          case 'list':
+            cmdProgressList(cwd, raw);
+            break;
+          case 'check-orphaned':
+            cmdProgressCheckOrphaned(cwd, raw);
+            break;
+        }
+      } else {
+        // Existing progress render: json|table|bar
+        cmdProgressRender(cwd, subcommand, raw);
+      }
       break;
     }
 
