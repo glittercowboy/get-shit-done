@@ -39,6 +39,7 @@
  * Roadmap Operations:
  *   roadmap get-phase <phase>          Extract phase section from ROADMAP.md
  *   roadmap analyze                    Full roadmap parse with disk status
+ *   roadmap update-plan-count <phase>  Update ROADMAP progress table from disk counts
  *
  * Milestone Operations:
  *   milestone complete <version>       Archive milestone, create MILESTONES.md
@@ -2925,6 +2926,96 @@ function cmdPhaseRemove(cwd, targetPhase, options, raw) {
   output(result, raw);
 }
 
+// ─── Roadmap Update Plan Count ────────────────────────────────────────────────
+
+function cmdRoadmapUpdatePlanCount(cwd, phaseNum, raw) {
+  if (!phaseNum) {
+    error('phase number required for roadmap update-plan-count');
+  }
+
+  const roadmapPath = path.join(cwd, '.planning', 'ROADMAP.md');
+
+  if (!fs.existsSync(roadmapPath)) {
+    error('ROADMAP.md not found');
+  }
+
+  // Find phase directory and count PLAN vs SUMMARY on disk
+  const phaseInfo = findPhaseInternal(cwd, phaseNum);
+  if (!phaseInfo) {
+    error(`Phase ${phaseNum} not found`);
+  }
+
+  const planCount = phaseInfo.plans.length;
+  const summaryCount = phaseInfo.summaries.length;
+
+  let status;
+  if (planCount === 0) status = 'Pending';
+  else if (summaryCount >= planCount) status = 'Complete';
+  else if (summaryCount > 0) status = 'In Progress';
+  else status = 'Planned';
+
+  let roadmapContent;
+  try {
+    roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
+  } catch (e) {
+    error(`Failed to read ROADMAP.md: ${e.message}`);
+  }
+  let updated = false;
+
+  // Build regex that matches both padded (01) and unpadded (1) phase numbers
+  const canonicalNum = phaseInfo.phase_number; // e.g., "01" from directory
+  const unpaddedNum = String(parseFloat(canonicalNum)); // e.g., "1"
+  const phaseVariants = canonicalNum === unpaddedNum
+    ? canonicalNum.replace(/\./g, '\\.')
+    : `(?:${canonicalNum.replace(/\./g, '\\.')}|${unpaddedNum.replace(/\./g, '\\.')})`;
+
+  // Update progress table row: | Phase N | Name | X/Y | Status |
+  const tablePattern = new RegExp(
+    `(\\|\\s*${phaseVariants}\\.?\\s[^|]*\\|[^|]*\\|)\\s*[^|]*(\\|)\\s*[^|]*(\\|)`,
+    'i'
+  );
+  const tableMatch = roadmapContent.match(tablePattern);
+
+  if (tableMatch) {
+    roadmapContent = roadmapContent.replace(
+      tablePattern,
+      `$1 ${summaryCount}/${planCount} $2 ${status} $3`
+    );
+    updated = true;
+  }
+
+  // Update plan count in phase section heading area (stay within section, don't cross ### boundaries)
+  const planCountPattern = new RegExp(
+    `(###\\s*Phase\\s+${phaseVariants}(?:(?!###)[\\s\\S])*?\\*\\*Plans:\\*\\*\\s*)[^\\n]+`,
+    'i'
+  );
+  if (planCountPattern.test(roadmapContent)) {
+    roadmapContent = roadmapContent.replace(
+      planCountPattern,
+      `$1${summaryCount}/${planCount} plans complete`
+    );
+    updated = true;
+  }
+
+  if (updated) {
+    try {
+      fs.writeFileSync(roadmapPath, roadmapContent, 'utf-8');
+    } catch (e) {
+      error(`Failed to write ROADMAP.md: ${e.message}`);
+    }
+  }
+
+  const result = {
+    phase: phaseNum,
+    plan_count: planCount,
+    summary_count: summaryCount,
+    status,
+    roadmap_updated: updated,
+  };
+
+  output(result, raw, `${summaryCount}/${planCount} ${status}`);
+}
+
 // ─── Phase Complete (Transition) ──────────────────────────────────────────────
 
 function cmdPhaseComplete(cwd, phaseNum, raw) {
@@ -4439,8 +4530,10 @@ async function main() {
         cmdRoadmapGetPhase(cwd, args[2], raw);
       } else if (subcommand === 'analyze') {
         cmdRoadmapAnalyze(cwd, raw);
+      } else if (subcommand === 'update-plan-count') {
+        cmdRoadmapUpdatePlanCount(cwd, args[2], raw);
       } else {
-        error('Unknown roadmap subcommand. Available: get-phase, analyze');
+        error('Unknown roadmap subcommand. Available: get-phase, analyze, update-plan-count');
       }
       break;
     }
