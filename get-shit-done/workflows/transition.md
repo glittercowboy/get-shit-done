@@ -123,7 +123,7 @@ If found, delete them — phase is complete, handoffs are stale.
 **Delegate ROADMAP.md and STATE.md updates to gsd-tools:**
 
 ```bash
-TRANSITION=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase complete "${current_phase}")
+TRANSITION=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs phase complete "${current_phase}")
 ```
 
 The CLI handles:
@@ -238,7 +238,7 @@ After (Phase 2 shipped JWT auth, discovered rate limiting needed):
 Verify the updates are correct by reading STATE.md. If the progress bar needs updating, use:
 
 ```bash
-PROGRESS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js progress bar --raw)
+PROGRESS=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs progress bar --raw)
 ```
 
 Update the progress bar line in STATE.md with the result.
@@ -347,7 +347,7 @@ The `next_phase` and `next_phase_name` fields give you the next phase details.
 
 If you need additional context, use:
 ```bash
-ROADMAP=$(node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap analyze)
+ROADMAP=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap analyze)
 ```
 
 This returns all phases with goals, disk status, and completion info.
@@ -358,9 +358,17 @@ This returns all phases with goals, disk status, and completion info.
 
 Read ROADMAP.md to get the next phase's name and goal.
 
+**Check if next phase has CONTEXT.md:**
+
+```bash
+ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null
+```
+
 **If next phase exists:**
 
 <if mode="yolo">
+
+**If CONTEXT.md exists:**
 
 ```
 Phase [X] marked complete.
@@ -372,9 +380,23 @@ Next: Phase [X+1] — [Name]
 
 Exit skill and invoke SlashCommand("/gsd:plan-phase [X+1]")
 
+**If CONTEXT.md does NOT exist:**
+
+```
+Phase [X] marked complete.
+
+Next: Phase [X+1] — [Name]
+
+⚡ Auto-continuing: Discuss Phase [X+1] first
+```
+
+Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1]")
+
 </if>
 
 <if mode="interactive" OR="custom with gates.confirm_transition true">
+
+**If CONTEXT.md does NOT exist:**
 
 ```
 ## ✓ Phase [X] Complete
@@ -385,6 +407,31 @@ Exit skill and invoke SlashCommand("/gsd:plan-phase [X+1]")
 
 **Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
 
+`/gsd:discuss-phase [X+1]` — gather context and clarify approach
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+
+**Also available:**
+- `/gsd:plan-phase [X+1]` — skip discussion, plan directly
+- `/gsd:research-phase [X+1]` — investigate unknowns
+
+---
+```
+
+**If CONTEXT.md exists:**
+
+```
+## ✓ Phase [X] Complete
+
+---
+
+## ▶ Next Up
+
+**Phase [X+1]: [Name]** — [Goal from ROADMAP.md]
+<sub>✓ Context gathered, ready to plan</sub>
+
 `/gsd:plan-phase [X+1]`
 
 <sub>`/clear` first → fresh context window</sub>
@@ -392,9 +439,8 @@ Exit skill and invoke SlashCommand("/gsd:plan-phase [X+1]")
 ---
 
 **Also available:**
-- `/gsd:discuss-phase [X+1]` — gather context first
+- `/gsd:discuss-phase [X+1]` — revisit context
 - `/gsd:research-phase [X+1]` — investigate unknowns
-- Review roadmap
 
 ---
 ```
