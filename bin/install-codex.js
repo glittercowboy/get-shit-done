@@ -20,8 +20,8 @@ Options:
   --help, -h            Show this help message
 
 Examples:
-  npx github:ahmed118-glitch/get-shit-done-codex
-  npx github:ahmed118-glitch/get-shit-done-codex -- --path ./my-project
+  npx @ahmed118glitch/get-shit-done-codex@latest --path .
+  npx @ahmed118glitch/get-shit-done-codex@latest --path ./my-project
 `;
 
 if (args.includes('--help') || args.includes('-h')) {
@@ -84,7 +84,8 @@ function copyCodexToDirectory(baseDir) {
 copyCodexToDirectory(targetDir);
 
 if (installGlobal) {
-  const globalBase = path.join(os.homedir(), '.codex');
+  // Global installs should place prompts at ~/.codex/prompts (not ~/.codex/.codex/prompts).
+  const globalBase = os.homedir();
   copyCodexToDirectory(globalBase);
 }
 
