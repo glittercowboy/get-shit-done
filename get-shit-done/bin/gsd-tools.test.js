@@ -3430,7 +3430,7 @@ describe('check-subagent-output hook', () => {
     // No SUMMARY files in phases dir
     const result = runHook('check-subagent-output.js', {
       tool_name: 'Task',
-      tool_input: 'Run gsd-executor for plan 03-01',
+      tool_input: { subagent_type: 'gsd-executor', prompt: 'Execute plan 03-01' },
       tool_result: 'gsd-executor completed plan 03-01',
       cwd: tmpDir,
     });
@@ -3449,7 +3449,7 @@ describe('check-subagent-output hook', () => {
 
     const result = runHook('check-subagent-output.js', {
       tool_name: 'Task',
-      tool_input: 'Run gsd-executor for plan 03-01',
+      tool_input: { subagent_type: 'gsd-executor', prompt: 'Execute plan 03-01' },
       tool_result: 'gsd-executor completed plan 03-01',
       cwd: tmpDir,
     });
@@ -3461,7 +3461,7 @@ describe('check-subagent-output hook', () => {
   test('warns on missing planner PLAN', () => {
     const result = runHook('check-subagent-output.js', {
       tool_name: 'Task',
-      tool_input: 'Run gsd-planner for phase 03',
+      tool_input: { subagent_type: 'gsd-planner', prompt: 'Plan phase 03' },
       tool_result: 'gsd-planner completed phase 03',
       cwd: tmpDir,
     });
