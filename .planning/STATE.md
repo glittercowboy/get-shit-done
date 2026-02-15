@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 1 of 8 (Auto Mode Foundation)
-Plan: 04 of 06 (Multiple plans complete)
+Plan: 05 of 06 (Multiple plans complete)
 Status: In progress
-Last activity: 2026-02-15 — Completed plan 01-04 (auto profile and usage display)
+Last activity: 2026-02-15 — Completed plan 01-05 (learn routing rules from sessions)
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 4 min
 - Total execution time: 0.3 hours
 
@@ -27,7 +27,7 @@ Progress: [████░░░░░░] 40%
 
 | Phase | Plans | Total  | Avg/Plan |
 |-------|-------|--------|----------|
-| 01    | 4     | 17 min | 4 min    |
+| 01    | 5     | 18 min | 4 min    |
 
 **Recent Completions:**
 
@@ -37,6 +37,7 @@ Progress: [████░░░░░░] 40%
 | 01    | 02   | 4 min    | 3     | 3     |
 | 01    | 03   | 4 min    | 3     | 2     |
 | 01    | 04   | 5 min    | 3     | 2     |
+| 01    | 05   | 1 min    | 5     | 1     |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions affecting current work:
 - [Phase 01-04]: Stats command calculates cost savings vs hypothetical all-Opus execution
 - [Phase 01-04]: Both table (human-readable) and JSON (programmatic) output formats
 - [Phase 01-04]: Quota functions integrated into project gsd-tools.js for consistency
+- [Phase 01-05]: Use 11 categories to organize routing rules (Testing, Architecture, Implementation, Debugging, Analysis, Refactoring, Security, DevOps, Documentation, Research, Performance)
+- [Phase 01-05]: Extract high-level patterns from session logs rather than project-specific patterns
+- [Phase 01-05]: Use action verbs with scope modifiers to capture intent and complexity level
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15T19:13:38Z (plan execution)
-Stopped at: Completed 01-04-PLAN.md (auto profile and usage display)
+Last session: 2026-02-15T19:23:00Z (plan execution)
+Stopped at: Completed 01-05-PLAN.md (learn routing rules from sessions)
 Resume file: None
