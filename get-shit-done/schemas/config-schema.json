@@ -3,8 +3,8 @@
   "title": "GSD Config",
   "type": "object",
   "properties": {
-    "mode": { "type": "string", "enum": ["interactive", "autonomous", "supervised"] },
-    "depth": { "type": "string", "enum": ["minimal", "standard", "thorough"] },
+    "mode": { "type": "string", "enum": ["interactive", "yolo"] },
+    "depth": { "type": "string", "enum": ["quick", "standard", "comprehensive"] },
     "model_profile": { "type": "string", "enum": ["quality", "balanced", "budget"] },
     "commit_docs": { "type": "boolean" },
     "search_gitignored": { "type": "boolean" },
@@ -29,10 +29,28 @@
         "enum": ["opus", "sonnet", "haiku", "inherit"]
       }
     },
-    "workflow": { "type": "object" },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "research": { "type": "boolean" },
+        "plan_check": { "type": "boolean" },
+        "verifier": { "type": "boolean" },
+        "max_discuss_questions": { "type": "integer", "minimum": 1, "maximum": 10, "default": 4 }
+      }
+    },
     "planning": { "type": "object" },
     "gates": { "type": "object" },
     "safety": { "type": "object" },
-    "git": { "type": "object" }
+    "git": { "type": "object" },
+    "thresholds": {
+      "type": "object",
+      "description": "Configurable thresholds for hooks and context management",
+      "properties": {
+        "read_limit": { "type": "integer", "default": 15, "description": "Max file reads before suggesting compact" },
+        "char_limit": { "type": "integer", "default": 30000, "description": "Max chars read before suggesting compact" },
+        "compact_threshold": { "type": "integer", "default": 50, "description": "Tool call count threshold for compact suggestion" },
+        "log_rotation": { "type": "integer", "default": 200, "description": "Max hook log entries before rotation" }
+      }
+    }
   }
 }
