@@ -89,7 +89,7 @@ if (installGlobal) {
   copyCodexToDirectory(globalBase);
 }
 
-console.log(`\n${pkg.name} installed to:`);
+console.log(`\n${pkg.name}@${pkg.version} installed to:`);
 console.log(`  local: ${targetDir}`);
 if (installGlobal) {
   console.log('  global: ~/.codex');
