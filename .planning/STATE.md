@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 1 of 8 (Auto Mode Foundation)
-Plan: 03 of 06 (Quota and Token Tracking)
+Plan: 03 of 06 (Multiple plans complete)
 Status: In progress
-Last activity: 2026-02-15 — Completed plan 01-03 (quota and token tracking)
+Last activity: 2026-02-15 — Completed plans 01-02 (task context skill) and 01-03 (quota and token tracking)
 
 Progress: [███░░░░░░░] 30%
 
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - Parallel execution: Phases 1-2 can run parallel to Phase 3
 - [Phase 01]: Use comma-separated patterns in markdown tables instead of pipe-separated to avoid delimiter conflicts
 - [Phase 01]: Routing rules: project rules override global rules for same patterns
+- [Phase 01-02]: Use simple keyword extraction with stop words instead of NLP library for speed
+- [Phase 01-02]: Cache context index for 1 hour to avoid rebuilding on every routing call
+- [Phase 01-02]: Weight tag matches 2x higher than keyword matches for scoring
+- [Phase 01-02]: Extract CLAUDE.md instructions via pattern matching (bullet/numbered lists)
 - [Phase 01-03]: 80% soft warning threshold (shows once per session, non-blocking)
 - [Phase 01-03]: 98% hard threshold triggers auto-wait calculation
 - [Phase 01-03]: Auto-wait returns duration info for coordinator to handle (not blocking in CLI)
@@ -65,6 +69,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15T19:04:56Z (plan execution)
-Stopped at: Completed 01-03-PLAN.md (quota and token tracking)
+Last session: 2026-02-15T19:09:35Z (plan execution)
+Stopped at: Completed 01-02-PLAN.md (task context skill)
 Resume file: None
