@@ -337,76 +337,24 @@ Spawning parallel debug agents to investigate each issue.
 - Follow @~/.claude/get-shit-done/workflows/diagnose-issues.md
 - Spawn parallel debug agents for each issue
 - Collect root causes
-- Update UAT.md with root causes
-- Proceed to `plan_gap_closure`
+- Update UAT.md with root causes (set frontmatter status to `diagnosed`)
+- Proceed to `present_gap_closure_next`
 
 Diagnosis runs automatically - no user prompt. Parallel agents investigate simultaneously, so overhead is minimal and fixes are more accurate.
 </step>
 
-<step name="plan_gap_closure">
-**Auto-plan fixes from diagnosed gaps:**
+<step name="present_gap_closure_next">
+**Defer gap planning to a fresh context window.**
 
-Display:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► PLANNING FIXES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Do NOT spawn planners or checkers inline — by this point in the session, context is heavily used from UAT testing and diagnosis. Gap planning needs fresh context for quality results.
 
-◆ Spawning planner for gap closure...
-```
+Commit the diagnosed UAT file:
 
-Spawn gsd-planner in --gaps mode:
-
-```
-Task(
-  prompt="""
-<planning_context>
-
-**Phase:** {phase_number}
-**Mode:** gap_closure
-
-**UAT with diagnoses:**
-@.planning/phases/{phase_dir}/{phase_num}-UAT.md
-
-**Project State:**
-@.planning/STATE.md
-
-**Roadmap:**
-@.planning/ROADMAP.md
-
-</planning_context>
-
-<downstream_consumer>
-Output consumed by /gsd:execute-phase
-Plans must be executable prompts.
-</downstream_consumer>
-""",
-  subagent_type="gsd-planner",
-  model="{planner_model}",
-  description="Plan gap fixes for Phase {phase}"
-)
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "test({phase}): diagnose UAT gaps - {issues} issues found" --files ".planning/phases/XX-name/{phase}-UAT.md"
 ```
 
-On return:
-- **PLANNING COMPLETE:** Proceed to `verify_gap_plans`
-- **PLANNING INCONCLUSIVE:** Report and offer manual intervention
-</step>
-
-<step name="verify_gap_plans">
-**Verify fix plans with checker:**
-
-Display:
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► VERIFYING FIX PLANS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-◆ Spawning plan checker...
-```
-
-Initialize: `iteration_count = 1`
-
-Spawn gsd-plan-checker:
+Present:
 
 ```
 Task(
@@ -490,32 +438,42 @@ Wait for user response.
 </step>
 
 <step name="present_ready">
-**Present completion and next steps:**
+Present:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► FIXES READY ✓
+ GSD ► GAPS DIAGNOSED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**Phase {X}: {Name}** — {N} gap(s) diagnosed, {M} fix plan(s) created
+**Phase {X}: {Name}** — {N} issue(s) diagnosed
 
-| Gap | Root Cause | Fix Plan |
-|-----|------------|----------|
-| {truth 1} | {root_cause} | {phase}-04 |
-| {truth 2} | {root_cause} | {phase}-04 |
+| # | Issue | Severity | Root Cause |
+|---|-------|----------|------------|
+| 1 | {truth 1} | {severity} | {root_cause} |
+| 2 | {truth 2} | {severity} | {root_cause} |
 
-Plans verified and ready for execution.
+Diagnoses saved to: {phase}-UAT.md
 
 ───────────────────────────────────────────────────────────────
 
 ## ▶ Next Up
 
-**Execute fixes** — run fix plans
+**Plan fixes** — create gap closure plans from diagnoses
 
-`/clear` then `/gsd:execute-phase {phase} --gaps-only`
+`/gsd:plan-phase {phase} --gaps`
+
+<sub>`/clear` first → fresh context window for quality planning</sub>
+
+───────────────────────────────────────────────────────────────
+
+**Also available:**
+- `/gsd:execute-phase {phase} --gaps-only` — if fix plans already exist
+- Re-run `/gsd:verify-work {phase}` — test additional scenarios
 
 ───────────────────────────────────────────────────────────────
 ```
+
+**STOP HERE.** Do not spawn planners or checkers. The user will `/clear` and run `/gsd:plan-phase --gaps` in a fresh context where the planner gets full context budget for quality gap closure plans.
 </step>
 
 </process>
@@ -555,6 +513,27 @@ Default to **major** if unclear. User can correct if needed.
 **Never ask "how severe is this?"** - just infer and move on.
 </severity_inference>
 
+<integration_health>
+## Integration Health Score
+
+After UAT testing completes, calculate integration health to quantify system quality:
+
+```bash
+SCORE=$(node ~/.claude/get-shit-done/bin/gsd-tools.js integration-score --raw)
+```
+
+The integration score uses the **5-state export model** (CONNECTED, IMPORTED_NOT_USED, ORPHANED, MISMATCHED, MISSING_EXPORT) to classify every export and calculates per-category scores for:
+- **Exports** -- percentage of exports in CONNECTED state
+- **API Coverage** -- percentage of routes with active consumers
+- **Auth Protection** -- percentage of sensitive routes with auth checks
+- **E2E Flows** -- percentage of user flows completing end-to-end
+
+Include the score in the UAT completion summary when a VERIFICATION.md exists.
+
+For CRUD entity verification, use the 10-step template:
+@~/.claude/get-shit-done/templates/crud-flow-verification.md
+</integration_health>
+
 <success_criteria>
 - [ ] UAT file created with all tests from SUMMARY.md
 - [ ] Tests presented one at a time with expected behavior
@@ -563,8 +542,8 @@ Default to **major** if unclear. User can correct if needed.
 - [ ] Batched writes: on issue, every 5 passes, or completion
 - [ ] Committed on completion
 - [ ] If issues: parallel debug agents diagnose root causes
-- [ ] If issues: gsd-planner creates fix plans (gap_closure mode)
-- [ ] If issues: gsd-plan-checker verifies fix plans
-- [ ] If issues: revision loop until plans pass (max 3 iterations)
-- [ ] Ready for `/gsd:execute-phase --gaps-only` when complete
+- [ ] If issues: UAT.md committed with diagnoses (status: diagnosed)
+- [ ] If issues: user directed to `/gsd:plan-phase --gaps` in fresh context
+- [ ] Integration health score calculated when VERIFICATION.md available
+- [ ] Ready for next step when complete
 </success_criteria>

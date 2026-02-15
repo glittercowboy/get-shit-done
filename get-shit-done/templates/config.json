@@ -1,6 +1,8 @@
 {
   "mode": "interactive",
   "depth": "standard",
+  "model_profile": "balanced",
+  "behavioral_context": "auto",
   "workflow": {
     "research": true,
     "plan_check": true,
@@ -32,5 +34,36 @@
   "safety": {
     "always_confirm_destructive": true,
     "always_confirm_external_services": true
+  },
+  "hooks": {
+    "blockDangerousCommands": true,
+    "validateCommits": true,
+    "enforceWorkflowOrder": true,
+    "checkPlanFormat": true,
+    "checkRoadmapSync": true,
+    "enforcePhaseBoundaries": false,
+    "checkSubagentOutput": true,
+    "trackContextBudget": true,
+    "suggestCompact": true,
+    "compactThreshold": 50
+  },
+  "brave_search": false,
+  "models": {
+    "gsd-planner": "inherit",
+    "gsd-roadmapper": "inherit",
+    "gsd-executor": "inherit",
+    "gsd-phase-researcher": "inherit",
+    "gsd-project-researcher": "inherit",
+    "gsd-research-synthesizer": "inherit",
+    "gsd-debugger": "inherit",
+    "gsd-codebase-mapper": "inherit",
+    "gsd-verifier": "inherit",
+    "gsd-plan-checker": "inherit",
+    "gsd-integration-checker": "inherit"
+  },
+  "git": {
+    "branching_strategy": "none",
+    "phase_branch_template": "gsd/phase-{phase}-{slug}",
+    "milestone_branch_template": "gsd/{milestone}-{slug}"
   }
 }
