@@ -3463,6 +3463,107 @@ function cmdToken(cwd, args, raw) {
   }
 }
 
+// ─── Graduated Budget Alerts ──────────────────────────────────────────────────
+
+function cmdAlerts(cwd, args, raw) {
+  const subcommand = args[0];
+  const { GraduatedBudgetMonitor, GRADUATED_THRESHOLDS } = require('./graduated-alerts.js');
+  const budgetPath = path.join(cwd, '.planning', 'token_budget.json');
+
+  if (!subcommand) {
+    error('alerts: subcommand required (status|test|reset|history)');
+  }
+
+  switch (subcommand) {
+    case 'status': {
+      // Load existing budget state if available
+      let monitor;
+      if (fs.existsSync(budgetPath)) {
+        const data = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
+        monitor = GraduatedBudgetMonitor.fromJSON(data);
+      } else {
+        monitor = new GraduatedBudgetMonitor();
+      }
+
+      const utilization = monitor.currentUsage / monitor.maxTokens;
+      output({
+        current_usage: monitor.currentUsage,
+        max_tokens: monitor.maxTokens,
+        utilization_percent: (utilization * 100).toFixed(1),
+        thresholds: GRADUATED_THRESHOLDS,
+        thresholds_passed: Array.from(monitor.thresholdsPassed),
+        alerts_fired: monitor.graduatedAlerts.length
+      }, raw);
+      break;
+    }
+
+    case 'test': {
+      const utilizationPercent = parseFloat(args[1]) || 0;
+      const testMonitor = new GraduatedBudgetMonitor('opus', 200000);
+      const testTokens = Math.floor(200000 * (utilizationPercent / 100));
+
+      if (!raw) {
+        console.log(`Testing ${utilizationPercent}% utilization (${testTokens} tokens)...`);
+      }
+
+      try {
+        testMonitor.recordUsage(testTokens, 'test-phase');
+      } catch (error) {
+        if (!raw) {
+          console.log(`Halt triggered: ${error.message}`);
+        }
+      }
+
+      output({
+        utilization_tested: `${utilizationPercent}%`,
+        thresholds_triggered: Array.from(testMonitor.thresholdsPassed),
+        alerts: testMonitor.graduatedAlerts
+      }, raw);
+      break;
+    }
+
+    case 'reset': {
+      if (fs.existsSync(budgetPath)) {
+        const data = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
+        data.thresholdsPassed = [];
+        data.graduatedAlerts = [];
+        fs.writeFileSync(budgetPath, JSON.stringify(data, null, 2));
+        output({ reset: true }, raw, 'Graduated alert state reset');
+      } else {
+        output({ reset: false, reason: 'No budget file found' }, raw, 'No budget file to reset');
+      }
+      break;
+    }
+
+    case 'history': {
+      if (fs.existsSync(budgetPath)) {
+        const data = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
+        const alerts = data.graduatedAlerts || [];
+
+        if (args.includes('--json') || raw) {
+          output(alerts, raw);
+        } else {
+          if (alerts.length === 0) {
+            console.log('No graduated alerts recorded');
+          } else {
+            console.log('Level      | Threshold | Utilization | Phase        | Timestamp');
+            console.log('-'.repeat(75));
+            alerts.forEach(a => {
+              console.log(`${a.level.padEnd(10)} | ${a.threshold.padEnd(9)} | ${a.utilization.padEnd(11)} | ${(a.phase || '').padEnd(12)} | ${a.timestamp}`);
+            });
+          }
+        }
+      } else {
+        output({ available: false, reason: 'No budget history' }, raw, 'No budget history available');
+      }
+      break;
+    }
+
+    default:
+      error(`alerts: unknown subcommand "${subcommand}"`);
+  }
+}
+
 // ─── Task Chunking ────────────────────────────────────────────────────────────
 
 function cmdTask(cwd, args, raw) {
@@ -7308,6 +7409,11 @@ async function main() {
 
     case 'token': {
       cmdToken(cwd, args.slice(1), raw);
+      break;
+    }
+
+    case 'alerts': {
+      cmdAlerts(cwd, args.slice(1), raw);
       break;
     }
 
