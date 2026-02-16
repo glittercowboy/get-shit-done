@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Performance is the product of alignment and integrity. Declare makes both structurally enforced and visibly measured.
-**Current focus:** Phase 2 complete. Ready for Phase 3: Execution Tracking
+**Current focus:** Phase 02.1 in progress -- Artifact Separation and Command Split
 
 ## Current Position
 
-Phase: 2 of 6 (Future Declaration & Backward Derivation) -- COMPLETE
-Plan: 2 of 2 in current phase (02-02 done)
-Status: Phase Complete
-Last activity: 2026-02-16 — Completed 02-02 (declaration capture and backward derivation commands)
+Phase: 02.1 of 6 (Artifact Separation and Command Split)
+Plan: 1 of 3 in current phase (02.1-01 done)
+Status: Executing
+Last activity: 2026-02-16 — Completed 02.1-01 (artifact layer rewrite)
 
-Progress: [████████░░] 29%
+Progress: [████████░░] 33%
 
 ## Performance Metrics
 
@@ -62,6 +62,10 @@ Recent decisions affecting current work:
 - [02-02]: Workflow files separated from command files: commands handle tool orchestration, workflows contain conversation logic
 - [02-02]: Language detection embedded as classification guide in workflow rather than code-based NLP
 - [02-02]: Reframing limited to 2-3 attempts then accept user phrasing (per locked decision)
+- [02.1-01]: Folder naming uses M-XX-slug matching DAG ID format (not M001-slug)
+- [02.1-01]: writeMilestonesFile backward compat bridge: accepts 2 or 3 args for gradual migration
+- [02.1-01]: add-action deprecated immediately (returns create-plan suggestion)
+- [02.1-01]: Milestones have hasPlan boolean field instead of causedBy array
 
 ### Pending Todos
 
@@ -79,5 +83,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 02-02-PLAN.md (declaration capture and backward derivation commands). Phase 2 complete.
-Resume file: .planning/phases/02-future-declaration-backward-derivation/02-02-SUMMARY.md
+Stopped at: Completed 02.1-01-PLAN.md (artifact layer rewrite). Wave 1 complete, starting Wave 2.
+Resume file: .planning/phases/02.1-artifact-separation-and-command-split/02.1-01-SUMMARY.md
