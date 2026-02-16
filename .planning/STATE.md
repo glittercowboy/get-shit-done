@@ -58,7 +58,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- [ ] **Monaco file browser plugin** — Localhost-based web editor (Monaco + file tree) for quick file viewing/editing from Claude Code. Should be a Mesh plugin but run standalone. Easy to invoke with a specific file path. Avoids needing Cursor/VS Code for quick checks and small adjustments. (Plan separately)
 
 ### Blockers/Concerns
 
