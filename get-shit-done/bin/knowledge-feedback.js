@@ -259,6 +259,114 @@ function getPrincipleMetadata(db, principleId) {
   return row.metadata ? JSON.parse(row.metadata) : {}
 }
 
+// ─── Replacement Workflow ──────────────────────────────────────────────────
+
+/**
+ * Generate a prompt for replacement principle
+ * @param {string} principleContent - Content of the wrong principle
+ * @returns {string} Prompt text for user
+ */
+function promptForReplacement(principleContent) {
+  return `Principle '${principleContent}' was marked wrong. What should I do instead?`
+}
+
+/**
+ * Create a replacement principle for an invalidated one
+ * @param {object} db - better-sqlite3 database connection
+ * @param {number} oldPrincipleId - ID of principle being replaced
+ * @param {string} newContent - Content of replacement principle
+ * @param {object} [options={}] - Creation options
+ * @param {number} [options.confidence=0.7] - Initial confidence for new principle
+ * @returns {object} Result with creation details
+ */
+function createReplacementPrinciple(db, oldPrincipleId, newContent, options = {}) {
+  // Get old principle
+  const oldRow = db.prepare('SELECT * FROM knowledge WHERE id = ?').get(oldPrincipleId)
+  if (!oldRow) {
+    return { success: false, error: 'old_principle_not_found' }
+  }
+
+  const oldMetadata = oldRow.metadata ? JSON.parse(oldRow.metadata) : {}
+
+  // Create new principle
+  const { insertKnowledge } = require('./knowledge-crud.js')
+  const newMetadata = {
+    replaces: oldPrincipleId,
+    confidence: options.confidence !== undefined ? options.confidence : 0.7
+  }
+
+  const result = insertKnowledge(db, {
+    content: newContent,
+    type: 'principle',
+    scope: oldRow.scope,
+    metadata: newMetadata
+  })
+
+  // Update old principle to link to replacement
+  oldMetadata.replaced_by = result.id
+  db.prepare('UPDATE knowledge SET metadata = ? WHERE id = ?').run(
+    JSON.stringify(oldMetadata),
+    oldPrincipleId
+  )
+
+  return {
+    created: true,
+    old_id: oldPrincipleId,
+    new_id: result.id,
+    old_content: oldRow.content,
+    new_content: newContent
+  }
+}
+
+/**
+ * Get the replacement chain for a principle
+ * @param {object} db - better-sqlite3 database connection
+ * @param {number} principleId - Starting principle ID
+ * @returns {Array<object>} Array of principles from oldest to newest
+ */
+function getReplacementChain(db, principleId) {
+  const chain = []
+  let currentId = principleId
+
+  // Follow the chain forward
+  while (currentId) {
+    const row = db.prepare('SELECT * FROM knowledge WHERE id = ?').get(currentId)
+    if (!row) break
+
+    const metadata = row.metadata ? JSON.parse(row.metadata) : {}
+    chain.push({
+      id: row.id,
+      content: row.content,
+      confidence: metadata.confidence,
+      replaced_by: metadata.replaced_by,
+      invalidated: metadata.invalidated,
+      created_at: row.created_at
+    })
+
+    // Move to replacement if exists
+    currentId = metadata.replaced_by
+  }
+
+  return chain
+}
+
+/**
+ * Get principles that are invalidated but not yet replaced
+ * @param {object} db - better-sqlite3 database connection
+ * @returns {Array<object>} Array of invalidated principles without replacements
+ */
+function getPendingReplacements(db) {
+  return db.prepare(`
+    SELECT * FROM knowledge
+    WHERE type = 'principle'
+    AND JSON_EXTRACT(metadata, '$.invalidated') = 1
+    AND JSON_EXTRACT(metadata, '$.replaced_by') IS NULL
+  `).all().map(row => ({
+    ...row,
+    metadata: row.metadata ? JSON.parse(row.metadata) : {}
+  }))
+}
+
 // ─── Exports ───────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -268,5 +376,9 @@ module.exports = {
   getPrincipleMetadata,
   recordFeedbackEvent,
   getPrincipleFeedbackHistory,
-  getInvalidatedPrinciples
+  getInvalidatedPrinciples,
+  promptForReplacement,
+  createReplacementPrinciple,
+  getReplacementChain,
+  getPendingReplacements
 }
