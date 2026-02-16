@@ -68,5 +68,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 01-03-PLAN.md (Phase 1 Foundation complete)
-Resume file: .planning/phases/01-foundation/01-03-SUMMARY.md
+Stopped at: Phase 2 context gathered
+Resume file: .planning/phases/02-future-declaration-backward-derivation/02-CONTEXT.md
