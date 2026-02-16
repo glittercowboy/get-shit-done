@@ -20,7 +20,9 @@ let sessionStartTime = null;
  * Start new session log
  */
 function startSession() {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  // Use local time instead of UTC for easier identification
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
   const sessionsDir = path.join(PROJECT_ROOT, '.planning', 'telegram-sessions');
 
   if (!fs.existsSync(sessionsDir)) {
