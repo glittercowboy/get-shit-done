@@ -40,26 +40,33 @@ const OWNER_ID = process.env.TELEGRAM_OWNER_ID;
 
 // Store owner chat ID if provided via /start
 let ownerChatId = OWNER_ID ? parseInt(OWNER_ID, 10) : null;
+let botStarted = false;
 
 /**
  * Command: /start
- * Welcome message and store chat ID
+ * Welcome message with Haiku-powered menu
  */
-bot.command('start', (ctx) => {
-  ownerChatId = ctx.chat.id;
-  ctx.reply(
-    '👋 GSD Telegram Bot Ready!\n\n' +
-    'I\'ll send you blocking questions during autonomous execution.\n\n' +
-    `Your chat ID: ${ctx.chat.id}\n\n` +
-    'Commands:\n' +
-    '/status - Show pending questions count\n' +
-    '/pending - List all pending questions\n' +
-    '/cancel <questionId> - Cancel a pending question\n' +
-    '/whisper - Check voice transcription status\n\n' +
-    'To respond to a question:\n' +
-    '- Type: <questionId> <your answer>\n' +
-    '- Or send a voice message (transcribed locally via Whisper)'
-  );
+bot.command('start', async (ctx) => {
+  const chatId = ctx.from.id;
+  const username = ctx.from.username;
+
+  // Store chat ID for owner verification
+  if (!process.env.TELEGRAM_OWNER_ID || chatId.toString() === process.env.TELEGRAM_OWNER_ID) {
+    ownerChatId = chatId;
+    const { MAIN_MENU } = require('./telegram-haiku-monitor.js');
+    await ctx.reply(
+      `👋 Welcome ${username}!\n\n` +
+      `I'm your GSD assistant powered by Haiku.\n\n` +
+      `Use the menu below to:\n` +
+      `• Check execution status\n` +
+      `• Respond to pending questions\n` +
+      `• Add new requirements\n\n` +
+      `Voice messages are supported! 🎤`,
+      MAIN_MENU
+    );
+  } else {
+    await ctx.reply('Unauthorized. This bot is private.');
+  }
 });
 
 /**
@@ -367,18 +374,44 @@ async function sendBlockingQuestion(question, options = {}) {
 }
 
 /**
- * Start the bot in polling mode
+ * Start the bot in polling mode with Haiku monitor
  */
-function startBot() {
-  bot.launch();
-  console.log('Telegram bot started in polling mode');
+async function startBot() {
+  if (botStarted) {
+    console.log('Bot already running');
+    return;
+  }
+
+  const { startSession } = require('./telegram-session-logger.js');
+  const { startHaikuMonitor } = require('./telegram-haiku-monitor.js');
+
+  // Start session logging
+  const sessionPath = startSession();
+  console.log(`Session log: ${sessionPath}`);
+
+  // Start Haiku monitor
+  startHaikuMonitor(bot);
+
+  await bot.launch();
+  botStarted = true;
+  console.log('Telegram bot started with Haiku monitor');
 }
 
 /**
  * Stop the bot gracefully
  */
 function stopBot() {
+  if (!botStarted) return;
+
+  const { stopHaikuMonitor } = require('./telegram-haiku-monitor.js');
+  const { endSession } = require('./telegram-session-logger.js');
+
+  stopHaikuMonitor();
+  const sessionPath = endSession();
+  console.log(`Session ended: ${sessionPath}`);
+
   bot.stop('SIGTERM');
+  botStarted = false;
   console.log('Telegram bot stopped');
 }
 
