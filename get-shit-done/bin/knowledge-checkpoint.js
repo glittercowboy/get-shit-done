@@ -78,7 +78,7 @@ async function createCheckpoint(checkpoint) {
   validateCheckpoint(checkpoint);
 
   // Lazy-load dependencies
-  const knowledge = require('./knowledge.js');
+  const { knowledge } = require('./knowledge.js');
   const { generateEmbedding } = require('./embeddings.js');
 
   // Add timestamp if not present
@@ -93,26 +93,24 @@ async function createCheckpoint(checkpoint) {
   // Generate embedding
   const embedding = await generateEmbedding(semanticContext);
 
-  // Get connection
-  const conn = knowledge._getConnection('project');
-  if (!conn.available) {
-    throw new Error(`Knowledge system unavailable: ${conn.reason}`);
-  }
-
-  // Insert as knowledge entry
-  const result = await knowledge.insertKnowledge(conn, {
+  // Insert as knowledge entry using high-level API
+  const result = knowledge.add({
     content: JSON.stringify(checkpoint),
     type: 'checkpoint',
     scope: 'project',
     embedding: embedding,
     ttl_category: 'ephemeral',  // 24h TTL
-    metadata: JSON.stringify({
+    metadata: {
       phase: checkpoint.phase,
       plan_id: checkpoint.plan_id || null,
       task_title: checkpoint.task_title,
       semantic_context: semanticContext
-    })
+    }
   });
+
+  if (result.skipped) {
+    throw new Error(`Failed to create checkpoint: ${result.reason}`);
+  }
 
   return {
     checkpoint_id: result.id,
@@ -135,19 +133,10 @@ async function searchCheckpoints(query, options = {}) {
   const { phase, limit = 10, include_complete = false } = options;
 
   // Lazy-load knowledge
-  const knowledge = require('./knowledge.js');
+  const { knowledge } = require('./knowledge.js');
 
-  // Get connection
-  const conn = knowledge._getConnection('project');
-  if (!conn.available) {
-    return [];
-  }
-
-  // Build filters
-  const filters = { type: 'checkpoint' };
-
-  // Search
-  const results = await knowledge.search(conn, query, {
+  // Search using high-level API
+  const results = knowledge.search(query, {
     limit,
     scope: 'project',
     types: ['checkpoint']
@@ -188,15 +177,10 @@ async function searchCheckpoints(query, options = {}) {
  * @returns {Promise<object|null>} Checkpoint data or null if not found
  */
 async function getCheckpointById(id) {
-  const knowledge = require('./knowledge.js');
-
-  const conn = knowledge._getConnection('project');
-  if (!conn.available) {
-    return null;
-  }
+  const { knowledge } = require('./knowledge.js');
 
   try {
-    const result = await knowledge.getKnowledge(conn, id);
+    const result = knowledge.get(id, 'project');
     if (!result || result.type !== 'checkpoint') {
       return null;
     }
@@ -220,7 +204,7 @@ async function getCheckpointById(id) {
  * @returns {Promise<object|null>} Most recent checkpoint or null
  */
 async function getLatestCheckpoint(phase, planId = null) {
-  const knowledge = require('./knowledge.js');
+  const { knowledge } = require('./knowledge.js');
 
   const conn = knowledge._getConnection('project');
   if (!conn.available) {
@@ -278,7 +262,7 @@ async function getLatestCheckpoint(phase, planId = null) {
 async function cleanupCheckpoints(options = {}) {
   const { phase, older_than, completed_only = false } = options;
 
-  const knowledge = require('./knowledge.js');
+  const { knowledge } = require('./knowledge.js');
 
   const conn = knowledge._getConnection('project');
   if (!conn.available) {
@@ -317,9 +301,8 @@ async function cleanupCheckpoints(options = {}) {
 
     // Delete matching checkpoints
     if (toDelete.length > 0) {
-      const deleteStmt = conn.db.prepare('DELETE FROM knowledge WHERE id = ?');
       for (const id of toDelete) {
-        await knowledge.deleteKnowledge(conn, id);
+        knowledge.delete(id, 'project');
       }
     }
 
@@ -440,17 +423,16 @@ async function markCheckpointComplete(checkpointId) {
     updated.progress.remaining = [];
     updated.progress.current = 'completed';
 
-    const knowledge = require('./knowledge.js');
-    const conn = knowledge._getConnection('project');
-
-    if (!conn.available) {
-      return { success: false };
-    }
+    const { knowledge } = require('./knowledge.js');
 
     // Update in database
-    await knowledge.updateKnowledge(conn, checkpointId, {
+    const result = knowledge.update(checkpointId, {
       content: JSON.stringify(updated)
-    });
+    }, 'project');
+
+    if (!result.success) {
+      return { success: false };
+    }
 
     return { success: true };
   } catch (err) {
@@ -465,7 +447,7 @@ async function markCheckpointComplete(checkpointId) {
  * @returns {Promise<Array>} Checkpoints sorted by created_at ascending
  */
 async function getCheckpointHistory(phase) {
-  const knowledge = require('./knowledge.js');
+  const { knowledge } = require('./knowledge.js');
 
   const conn = knowledge._getConnection('project');
   if (!conn.available) {
