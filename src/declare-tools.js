@@ -27,12 +27,16 @@ const { runStatus } = require('./commands/status');
 const { runHelp } = require('./commands/help');
 const { runAddDeclaration } = require('./commands/add-declaration');
 const { runAddMilestone } = require('./commands/add-milestone');
+const { runAddMilestonesBatch } = require('./commands/add-milestones-batch');
 const { runAddAction } = require('./commands/add-action');
 const { runCreatePlan } = require('./commands/create-plan');
 const { runLoadGraph } = require('./commands/load-graph');
 const { runTrace } = require('./commands/trace');
 const { runPrioritize } = require('./commands/prioritize');
 const { runVisualize } = require('./commands/visualize');
+const { runComputeWaves } = require('./commands/compute-waves');
+const { runGenerateExecPlan } = require('./commands/generate-exec-plan');
+const { runVerifyWave } = require('./commands/verify-wave');
 
 /**
  * Parse --cwd flag from argv.
@@ -96,7 +100,7 @@ function main() {
   const command = args[0];
 
   if (!command) {
-    console.log(JSON.stringify({ error: 'No command specified. Use: commit, init, status, add-declaration, add-milestone, create-plan, load-graph, trace, prioritize, visualize, help' }));
+    console.log(JSON.stringify({ error: 'No command specified. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, help' }));
     process.exit(1);
   }
 
@@ -154,6 +158,14 @@ function main() {
         break;
       }
 
+      case 'add-milestones': {
+        const cwdAddMsBatch = parseCwdFlag(args) || process.cwd();
+        const result = runAddMilestonesBatch(cwdAddMsBatch, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
+
       case 'add-action': {
         const cwdAddAct = parseCwdFlag(args) || process.cwd();
         const result = runAddAction(cwdAddAct, args.slice(1));
@@ -202,8 +214,32 @@ function main() {
         break;
       }
 
+      case 'compute-waves': {
+        const cwdComputeWaves = parseCwdFlag(args) || process.cwd();
+        const result = runComputeWaves(cwdComputeWaves, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
+
+      case 'generate-exec-plan': {
+        const cwdGenExecPlan = parseCwdFlag(args) || process.cwd();
+        const result = runGenerateExecPlan(cwdGenExecPlan, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
+
+      case 'verify-wave': {
+        const cwdVerifyWave = parseCwdFlag(args) || process.cwd();
+        const result = runVerifyWave(cwdVerifyWave, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
+
       default:
-        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, create-plan, load-graph, trace, prioritize, visualize, help` }));
+        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, help` }));
         process.exit(1);
     }
   } catch (err) {
