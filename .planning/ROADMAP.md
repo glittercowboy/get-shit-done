@@ -123,11 +123,15 @@ Plans:
   4. Users can grant explicit permissions with stated limits (e.g., "max $20 on AWS")
   5. Conflict resolution applies user-defined priority rules when principles conflict
   6. Users can mark outdated or incorrect principles, triggering updates or invalidation
-**Plans**: TBD
+**Plans:** 6 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md - Permission schema and storage (grant/revoke/check with pattern matching)
+- [ ] 05-02-PLAN.md - Stop-and-ask safety gates (irreversible/external/costly)
+- [ ] 05-03-PLAN.md - Cost tracking and graduated budget alerts (50%/80%/90%/100%)
+- [ ] 05-04-PLAN.md - Principle conflict resolution with priority matrix
+- [ ] 05-05-PLAN.md - Feedback loop for principle invalidation and replacement
+- [ ] 05-06-PLAN.md - CLI commands and workflow integration
 
 ### Phase 6: Autonomous Execution Core
 **Goal**: Users can run `/gsd:execute-roadmap` and entire project phases execute autonomously with Opus coordinator spawning sub-coordinators per phase, using structured checkpoints for resume capability
@@ -226,11 +230,11 @@ Phase 7 (Autonomous Optimization) --> Phase 8 (Notifications & Observability)
 | 2. Auto Mode Refinement | 6 | Complete | 2026-02-16 |
 | 3. Knowledge System Foundation | 5 | Planning complete | - |
 | 4. Knowledge Extraction & Hooks | 6 | Planning complete | - |
-| 5. Knowledge Permissions & Safety | TBD | Not started | - |
+| 5. Knowledge Permissions & Safety | 6 | Planning complete | - |
 | 6. Autonomous Execution Core | TBD | Not started | - |
 | 7. Autonomous Execution Optimization | TBD | Not started | - |
 | 8. Notifications & Observability | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after Phase 4 planning*
+*Last updated: 2026-02-16 after Phase 5 planning*
