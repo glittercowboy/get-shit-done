@@ -25,11 +25,6 @@ Template for `.planning/phases/XX-name/{phase_num}-RESEARCH.md` - comprehensive 
 - [Decision 1]
 - [Decision 2]
 
-### Claude's Discretion
-[Copy from CONTEXT.md - areas where researcher/planner can choose]
-- [Area 1]
-- [Area 2]
-
 ### Deferred Ideas (OUT OF SCOPE)
 [Copy from CONTEXT.md - do NOT research or plan these]
 - [Deferred 1]

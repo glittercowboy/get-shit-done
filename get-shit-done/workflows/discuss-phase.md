@@ -13,7 +13,7 @@ You are a thinking partner, not an interviewer. The user is the visionary — yo
 
 2. **gsd-planner** — Reads CONTEXT.md to know WHAT decisions are locked
    - "Pull-to-refresh on mobile" → planner includes that in task specs
-   - "Claude's Discretion: loading skeleton" → planner can decide approach
+   - "Loading: skeleton approach" → planner includes that in task specs
 
 **Your job:** Capture decisions clearly enough that downstream agents can act on them without asking the user again.
 
@@ -85,7 +85,7 @@ Capture deferred ideas in a "Deferred Ideas" section. Don't lose them, don't act
 **State structure** (maintain internally, write to file at end):
 - `phase`: number, name, boundary, domainType (visual/api/cli/docs/organization/data/integration)
 - `domainTemplate`: expectedDecisions loaded from domain-decisions.md
-- `areas[name]`: questionsAsked, clarity (0-1), decisionsLocked[], decisionsPending[], claudeDiscretion[]
+- `areas[name]`: questionsAsked, clarity (0-1), decisionsLocked[], decisionsPending[]
 - `deferredIdeas[]`: captured scope creep with idea, detected_in, original_text
 - `specificIdeas[]`: "I want it like X" moments
 
@@ -100,13 +100,12 @@ Capture deferred ideas in a "Deferred Ideas" section. Don't lose them, don't act
 
 **Coverage formula:**
 ```
-coverage = (locked + discretion) / (locked + pending + discretion)
+coverage = locked / (locked + pending)
 if no decisions expected → 1.0
 ```
 
 **Clarity adjustments after each answer:**
 - Predefined option selected → +0.2, move pending → locked
-- "You decide" selected → +0.1, move pending → claudeDiscretion
 - "Other" with custom text → -0.1, parse and lock if interpretable
 - Clamp to [0.0, 1.0]
 
@@ -296,8 +295,15 @@ For each selected area, conduct adaptive discussion using Tracking Model.
 3. **Ask questions** via AskUserQuestion:
    - header: "[Area]"
    - question: Specific decision
-   - options: 2-3 concrete choices + "You decide" when reasonable
+   - **Before each question:** Analyze the options, form a recommendation, and show rationale:
+     ```
+     I'd recommend [option] — [brief reason based on phase context].
+     ```
+   - header: "[Area]"
+   - question: Specific decision
+   - options: 2-3 concrete choices. Place recommended option FIRST with "(Recommended)" suffix in label.
    - AskUserQuestion adds "Other" automatically
+   - NEVER include "You decide", "Claude decides", "Let Claude choose", or any delegation option
 
 4. **After each answer:**
    - Update clarity/coverage per Tracking Model
@@ -318,7 +324,6 @@ For each selected area, conduct adaptive discussion using Tracking Model.
 
    • [Decision 1]: [User's choice]
    • [Decision 2]: [User's choice]
-   • Claude decides: [Areas marked for discretion]
 
    Confirm or tweak?
    ```
@@ -372,8 +377,7 @@ fi
 ### [Category 2]
 - [Decision or preference]
 
-### Claude's Discretion
-[Areas where user said "you decide"]
+
 </decisions>
 
 <specifics>
@@ -412,9 +416,6 @@ Present summary and next steps:
 ### [Category]
 - [Key decision]
 
-### Claude's Discretion
-- [Areas where Claude can decide]
-
 [If deferred ideas:]
 ## Noted for Later
 - [Deferred idea] — future phase
@@ -424,7 +425,6 @@ Present summary and next steps:
 ## Coverage Summary
 
 • Decisions locked: [N]
-• Claude discretion: [N]
 • Deferred ideas: [N]
 
 ---

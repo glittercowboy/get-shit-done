@@ -40,9 +40,6 @@ Template for `.planning/phases/XX-name/{phase_num}-CONTEXT.md` - captures implem
 ### [Area 3 that was discussed]
 - [Specific decision made]
 
-### Claude's Discretion
-[Areas where user explicitly said "you decide" — Claude has flexibility here during planning/implementation]
-
 </decisions>
 
 <specifics>
@@ -105,10 +102,6 @@ Display posts from followed users in a scrollable feed. Users can view posts and
 - Friendly illustration + "Follow people to see posts here"
 - Suggest 3-5 accounts to follow based on interests
 
-### Claude's Discretion
-- Loading skeleton design
-- Exact spacing and typography
-- Error state handling
 
 </decisions>
 
@@ -167,10 +160,6 @@ CLI command to backup database to local file or S3. Supports full and incrementa
 - --no-retry flag to fail fast
 - Partial backups are deleted on failure (no corrupt files)
 
-### Claude's Discretion
-- Exact progress bar implementation
-- Compression algorithm choice
-- Temp file handling
 
 </decisions>
 
@@ -229,10 +218,6 @@ Organize existing photo library into structured folders. Handle duplicates and a
 - Preserve original filename as suffix for searchability
 - Handle name collisions with incrementing suffix
 
-### Claude's Discretion
-- Exact clustering algorithm
-- How to handle photos with no EXIF data
-- Folder emoji usage
 
 </decisions>
 

@@ -24,7 +24,6 @@ Spawned by `/gsd:plan-phase` (integrated) or `/gsd:research-phase` (standalone).
 | Section | How You Use It |
 |---------|----------------|
 | `## Decisions` | Locked choices — research THESE, not alternatives |
-| `## Claude's Discretion` | Your freedom areas — research options, recommend |
 | `## Deferred Ideas` | Out of scope — ignore completely |
 
 If CONTEXT.md exists, it constrains your research scope. Don't explore alternatives to locked decisions.
@@ -326,7 +325,6 @@ cat "$phase_dir"/*-CONTEXT.md 2>/dev/null
 | Section | Constraint |
 |---------|------------|
 | **Decisions** | Locked — research THESE deeply, no alternatives |
-| **Claude's Discretion** | Research options, make recommendations |
 | **Deferred Ideas** | Out of scope — ignore completely |
 
 **Examples:**
@@ -368,9 +366,6 @@ For each domain: Context7 first → Official docs → WebSearch → Cross-verify
 
 ### Locked Decisions
 [Copy verbatim from CONTEXT.md ## Decisions]
-
-### Claude's Discretion
-[Copy verbatim from CONTEXT.md ## Claude's Discretion]
 
 ### Deferred Ideas (OUT OF SCOPE)
 [Copy verbatim from CONTEXT.md ## Deferred Ideas]

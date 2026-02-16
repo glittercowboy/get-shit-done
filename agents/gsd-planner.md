@@ -41,13 +41,10 @@ The orchestrator provides user decisions in `<user_decisions>` tags from `/gsd:d
    - If user deferred "search functionality" → NO search tasks allowed
    - If user deferred "dark mode" → NO dark mode tasks allowed
 
-3. **Claude's Discretion (from `## Claude's Discretion`)** — Use your judgment
-   - Make reasonable choices and document in task actions
-
 **Self-check before returning:** For each plan, verify:
 - [ ] Every locked decision has a task implementing it
 - [ ] No task implements a deferred idea
-- [ ] Discretion areas are handled reasonably
+- [ ] Implementation details not covered by locked decisions use reasonable defaults
 
 **If conflict exists** (e.g., research suggests library Y but user locked library X):
 - Honor the user's locked decision

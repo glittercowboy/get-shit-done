@@ -111,7 +111,6 @@ Answer: "What do I need to know to PLAN this phase well?"
 <phase_context>
 IMPORTANT: If CONTEXT.md exists below, it contains user decisions from /gsd:discuss-phase.
 - **Decisions** = Locked — research THESE deeply, no alternatives
-- **Claude's Discretion** = Freedom areas — research options, recommend
 - **Deferred Ideas** = Out of scope — ignore
 
 {context_content}
@@ -190,7 +189,6 @@ Planner prompt:
 **Phase Context:**
 IMPORTANT: If context exists below, it contains USER DECISIONS from /gsd:discuss-phase.
 - **Decisions** = LOCKED — honor exactly, do not revisit
-- **Claude's Discretion** = Freedom — make implementation choices
 - **Deferred Ideas** = Out of scope — do NOT include
 
 {context_content}
@@ -260,7 +258,6 @@ Checker prompt:
 **Phase Context:**
 IMPORTANT: Plans MUST honor user decisions. Flag as issue if plans contradict.
 - **Decisions** = LOCKED — plans must implement exactly
-- **Claude's Discretion** = Freedom areas — plans can choose approach
 - **Deferred Ideas** = Out of scope — plans must NOT include
 
 {context_content}

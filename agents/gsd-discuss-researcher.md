@@ -46,6 +46,8 @@ Your DISCUSSION-GUIDE.md is consumed by the discuss-phase workflow:
 | `## Common Mistakes` | Generates questions that prevent common errors |
 
 **Be specific, not generic.** Decision areas should be concrete and actionable, not abstract categories.
+
+**No delegation options.** Never include "You decide", "Claude decides", or "Let Claude choose" as an option. Every option should be a concrete choice the user can evaluate.
 </downstream_consumer>
 
 <philosophy>
