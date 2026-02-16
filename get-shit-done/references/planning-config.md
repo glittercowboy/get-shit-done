@@ -191,4 +191,35 @@ Squash merge is recommended — keeps main branch history clean while preserving
 
 </branching_strategy_behavior>
 
+<autopilot_behavior>
+
+**`/gsd:autopilot` — Unattended phase execution**
+
+Runs all remaining phases in sequence: plan → execute → extract learnings → transition.
+
+**Checkpoint handling in autopilot:**
+
+When the execute-phase orchestrator prompt contains "auto-approve" or "autopilot", checkpoints are auto-approved:
+- Checkpoint tasks still execute (full task chain preserved)
+- Human verification gate is bypassed with synthetic "approved" response
+- Checkpoint details are logged for post-run review in `.planning/autopilot-log.md`
+
+**Per-phase learning extraction:**
+
+After each phase completes, learnings are extracted:
+```bash
+node scripts/extract-learnings.js --milestone $VERSION --phase $PHASE
+```
+This enables compound learning — later phases query earlier phase learnings via step 7.5 in plan-phase.
+
+**Error handling:**
+
+Failed phases are skipped and logged. The autopilot continues to the next phase. User can fix gaps manually after the run:
+- `/gsd:plan-phase {X} --gaps` — plan gap closure
+- `/gsd:execute-phase {X}` — resume incomplete execution
+
+**Autopilot log:** `.planning/autopilot-log.md` captures per-phase status, timing, and error details.
+
+</autopilot_behavior>
+
 </planning_config>
