@@ -86,11 +86,11 @@ Plans: 3/5 complete
 ```
 ◆ Spawning researcher...
 
-◆ Spawning 4 researchers in parallel...
+◆ Spawning [N] researchers in parallel...
+  → [For each selected dimension, e.g.:]
   → Stack research
   → Features research
   → Architecture research
-  → Pitfalls research
 
 ✓ Researcher complete: STACK.md written
 ```

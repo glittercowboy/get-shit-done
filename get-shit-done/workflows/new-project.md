@@ -532,18 +532,35 @@ Check if this is greenfield or subsequent milestone:
 - If no "Validated" requirements in PROJECT.md → Greenfield (building from scratch)
 - If "Validated" requirements exist → Subsequent milestone (adding to existing app)
 
-Display spawning indicator:
+**Select research dimensions:**
+
+Use AskUserQuestion:
+- header: "Dimensions"
+- question: "Which research dimensions to run? (all recommended for thorough coverage)"
+- multiSelect: true
+- options:
+  - "Stack" — Standard stack for this domain (libraries, frameworks, versions)
+  - "Features" — Table stakes vs differentiators for this domain
+  - "Architecture" — System structure, components, data flow
+  - "Pitfalls" — Common mistakes and how to avoid them
+  - "Best Practices" — Coding standards, testing strategy, safety patterns
+  - "Data Structures" — Language-specific types, feature-to-structure mappings
+
+Store selections as **selected_dimensions**.
+
+**If no dimensions selected:** Skip research entirely (equivalent to "Skip research"). Continue to Step 7.
+
+Display spawning indicator (only list selected dimensions):
 ```
-◆ Spawning 4 researchers in parallel...
-  → Stack research
-  → Features research
-  → Architecture research
-  → Pitfalls research
+◆ Spawning [count of selected_dimensions] researchers in parallel...
+  [For each selected dimension, show "→ [Dimension] research"]
 ```
 
-Spawn 4 parallel gsd-project-researcher agents with rich context:
+Spawn parallel gsd-project-researcher agents for selected dimensions:
 
 ```
+**If "Stack" in selected_dimensions:**
+
 Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
 
 <research_type>
@@ -583,6 +600,8 @@ Write to: .planning/research/STACK.md
 Use template: ~/.claude/get-shit-done/templates/research-project/STACK.md
 </output>
 ", subagent_type="general-purpose", model="{researcher_model}", description="Stack research")
+
+**If "Features" in selected_dimensions:**
 
 Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
 
@@ -624,6 +643,8 @@ Use template: ~/.claude/get-shit-done/templates/research-project/FEATURES.md
 </output>
 ", subagent_type="general-purpose", model="{researcher_model}", description="Features research")
 
+**If "Architecture" in selected_dimensions:**
+
 Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
 
 <research_type>
@@ -664,6 +685,8 @@ Use template: ~/.claude/get-shit-done/templates/research-project/ARCHITECTURE.md
 </output>
 ", subagent_type="general-purpose", model="{researcher_model}", description="Architecture research")
 
+**If "Pitfalls" in selected_dimensions:**
+
 Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
 
 <research_type>
@@ -703,9 +726,104 @@ Write to: .planning/research/PITFALLS.md
 Use template: ~/.claude/get-shit-done/templates/research-project/PITFALLS.md
 </output>
 ", subagent_type="general-purpose", model="{researcher_model}", description="Pitfalls research")
+
+**If "Best Practices" in selected_dimensions:**
+
+Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
+
+<research_type>
+Project Research — Best Practices dimension for [domain].
+</research_type>
+
+<milestone_context>
+[greenfield OR subsequent]
+
+Greenfield: What are the coding best practices, standards, and conventions for building [domain] with the chosen stack?
+Subsequent: What coding standards and practices should be followed when adding [target features] to [domain]?
+</milestone_context>
+
+<question>
+What are the essential coding best practices, safety patterns, and quality standards for [domain] projects using this stack?
+</question>
+
+<project_context>
+[PROJECT.md summary - core value, constraints, what they're building]
+</project_context>
+
+<downstream_consumer>
+Your BEST-PRACTICES.md feeds into execution phases. Be prescriptive:
+- Specific linting/formatting tools and configs
+- Testing strategy with tool recommendations
+- Code safety patterns (defensive programming, input validation, resource management)
+- Naming conventions and file structure standards
+- Code review checklist items
+</downstream_consumer>
+
+<quality_gate>
+- [ ] Practices are specific to this stack (not generic advice)
+- [ ] Official style guides and references cited
+- [ ] Anti-patterns included (what NOT to do)
+- [ ] Testing strategy includes specific tools and coverage targets
+- [ ] Security practices go beyond OWASP basics for this domain
+</quality_gate>
+
+<output>
+Write to: .planning/research/BEST-PRACTICES.md
+Use template: ~/.claude/get-shit-done/templates/research-project/BEST-PRACTICES.md
+</output>
+", subagent_type="general-purpose", model="{researcher_model}", description="Best practices research")
+
+**If "Data Structures" in selected_dimensions:**
+
+Task(prompt="First, read ~/.claude/agents/gsd-project-researcher.md for your role and instructions.
+
+<research_type>
+Project Research — Data Structures dimension for [domain].
+</research_type>
+
+<milestone_context>
+[greenfield OR subsequent]
+
+Greenfield: What data structures best support building [domain] in the chosen language/stack? Map features to concrete types.
+Subsequent: What data structures are needed for [target features]? Consider existing structures already in the codebase.
+</milestone_context>
+
+<question>
+What data structures (in the project's language) best support the features for this [domain] project? Produce a ranked list of structures by overall utility, with feature-to-structure mappings.
+</question>
+
+<project_context>
+[PROJECT.md summary - core value, constraints, what they're building]
+</project_context>
+
+<downstream_consumer>
+Your DATA-STRUCTURES.md feeds into architecture and execution phases. Be prescriptive:
+- Use the language's ACTUAL types (e.g., Python `dict[str, list[Order]]`, not abstract "hash map")
+- Map each major feature to its best-fit data structure with rationale
+- Rank structures by overall utility to the project (how many features they support, how central they are)
+- Include time complexity for common operations
+- Show composite patterns where single structures aren't enough
+- Call out persistence mapping (how in-memory structures map to database/cache)
+- Include anti-patterns — structures that seem reasonable but cause problems in this domain
+</downstream_consumer>
+
+<quality_gate>
+- [ ] Structures use language-specific types, not abstract names
+- [ ] Every major feature has a data structure recommendation with rationale
+- [ ] Ranked list justified by feature coverage and access pattern fit
+- [ ] Alternatives considered for each recommendation
+- [ ] Persistence mapping included (in-memory ↔ database)
+- [ ] Anti-patterns specific to this domain, not textbook examples
+</quality_gate>
+
+<output>
+Write to: .planning/research/DATA-STRUCTURES.md
+Use template: ~/.claude/get-shit-done/templates/research-project/DATA-STRUCTURES.md
+</output>
+", subagent_type="general-purpose", model="{researcher_model}", description="Data structures research")
 ```
 
-After all 4 agents complete, spawn synthesizer to create SUMMARY.md:
+After all selected research agents complete, spawn synthesizer to create SUMMARY.md:
 
 ```
 Task(prompt="
@@ -714,12 +832,20 @@ Synthesize research outputs into SUMMARY.md.
 </task>
 
 <research_files>
-Read these files:
-- .planning/research/STACK.md
-- .planning/research/FEATURES.md
-- .planning/research/ARCHITECTURE.md
-- .planning/research/PITFALLS.md
+Read only these files (produced by selected dimensions):
+[List only the .md files corresponding to selected_dimensions, e.g.:]
+- .planning/research/STACK.md (if "Stack" was selected)
+- .planning/research/FEATURES.md (if "Features" was selected)
+- .planning/research/ARCHITECTURE.md (if "Architecture" was selected)
+- .planning/research/PITFALLS.md (if "Pitfalls" was selected)
+- .planning/research/BEST-PRACTICES.md (if "Best Practices" was selected)
+- .planning/research/DATA-STRUCTURES.md (if "Data Structures" was selected)
 </research_files>
+
+<dimensions_produced>
+[N] of 6 dimensions researched: [comma-separated list of selected dimensions]
+Dimensions NOT researched: [comma-separated list of excluded dimensions]
+</dimensions_produced>
 
 <output>
 Write to: .planning/research/SUMMARY.md
@@ -1083,11 +1209,13 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase 1 --auto")
 
 - `.planning/PROJECT.md`
 - `.planning/config.json`
-- `.planning/research/` (if research selected)
-  - `STACK.md`
-  - `FEATURES.md`
-  - `ARCHITECTURE.md`
-  - `PITFALLS.md`
+- `.planning/research/` (if research selected — only selected dimensions)
+  - `STACK.md` (if selected)
+  - `FEATURES.md` (if selected)
+  - `ARCHITECTURE.md` (if selected)
+  - `PITFALLS.md` (if selected)
+  - `BEST-PRACTICES.md` (if selected)
+  - `DATA-STRUCTURES.md` (if selected)
   - `SUMMARY.md`
 - `.planning/REQUIREMENTS.md`
 - `.planning/ROADMAP.md`
@@ -1103,7 +1231,7 @@ Exit skill and invoke SlashCommand("/gsd:discuss-phase 1 --auto")
 - [ ] Deep questioning completed (threads followed, not rushed)
 - [ ] PROJECT.md captures full context → **committed**
 - [ ] config.json has workflow mode, depth, parallelization → **committed**
-- [ ] Research completed (if selected) — 4 parallel agents spawned → **committed**
+- [ ] Research completed (if selected) — parallel agents spawned for selected dimensions → **committed**
 - [ ] Requirements gathered (from research or conversation)
 - [ ] User scoped each category (v1/v2/out of scope)
 - [ ] REQUIREMENTS.md created with REQ-IDs → **committed**

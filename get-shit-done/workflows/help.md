@@ -34,7 +34,7 @@ Initialize new project through unified flow.
 
 One command takes you from idea to ready-for-planning:
 - Deep questioning to understand what you're building
-- Optional domain research (spawns 4 parallel researcher agents)
+- Optional domain research (spawns parallel researcher agents for selected dimensions)
 - Requirements definition with v1/v2/out-of-scope scoping
 - Roadmap creation with phase breakdown and success criteria
 
@@ -164,7 +164,7 @@ Result: Phase 17 deleted, phases 18-20 become 17-19
 Start a new milestone through unified flow.
 
 - Deep questioning to understand what you're building next
-- Optional domain research (spawns 4 parallel researcher agents)
+- Optional domain research (spawns parallel researcher agents for selected dimensions)
 - Requirements definition with scoping
 - Roadmap creation with phase breakdown
 
