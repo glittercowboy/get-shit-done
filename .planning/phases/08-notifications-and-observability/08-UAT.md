@@ -1,5 +1,5 @@
 ---
-status: complete
+status: retesting
 phase: 08-notifications-and-observability
 source: [08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-03-SUMMARY.md, 08-04-SUMMARY.md, 08-05-SUMMARY.md, 08-06-SUMMARY.md, 08-07-SUMMARY.md]
 started: 2026-02-16T19:00:00Z
@@ -14,15 +14,11 @@ updated: 2026-02-16T19:10:00Z
 
 ### 1. Health Check Command
 expected: Run `node get-shit-done/bin/gsd-tools.js health` and see 6 validation checks with color-coded status (✓ PASS / ⚠ WARN / ✗ FAIL) for: Telegram credentials, Anthropic API key, Whisper model, OpenTelemetry, session logs, dashboard port. Summary shows ready status.
-result: issue
-reported: "env file comtains api keys which health check says are missing"
-severity: major
+result: pass
 
 ### 2. Telegram Bot Start Command
 expected: Run `node get-shit-done/bin/gsd-tools.js telegram start`. Bot launches with polling mode active. Terminal shows "Bot started successfully" and instructions to open Telegram app. Process stays alive.
-result: issue
-reported: "Haiku monitor started - no instructions, session log must be in .planning/telegram-sessions/ inside get-shit-done folder from where I started it"
-severity: major
+result: pass
 
 ### 3. Telegram Bot Welcome Menu
 expected: Open Telegram app, send `/start` to bot. Receive welcome message with 3 inline keyboard buttons: "📊 Status", "❓ Pending Questions", "✨ New Requirements". Buttons are clickable.
@@ -91,25 +87,41 @@ result: [pending]
 ## Summary
 
 total: 18
-passed: 0
-issues: 2
+passed: 2
+issues: 0
 pending: 16
 skipped: 0
 
-## Gaps
+## Gaps (Fixed)
 
 - truth: "Health check command correctly detects API keys present in .env file"
-  status: failed
+  status: fixed
   reason: "User reported: env file comtains api keys which health check says are missing"
   severity: major
   test: 1
-  artifacts: []
-  missing: []
+  root_cause: "gsd-tools.js never calls dotenv.config() to load .env file. Health check reads process.env directly without populating it from .env first."
+  fix: "Added require('dotenv').config({ path: path.join(__dirname, '../../.env') }) to gsd-tools.js line 156"
+  commits: ["43dfda6: fix(08-08): add dotenv initialization to gsd-tools.js", "2f0932c: refactor(08-08): remove redundant dotenv.config() from telegram-bot"]
+  artifacts:
+    - path: "get-shit-done/bin/gsd-tools.js"
+      issue: "Missing dotenv initialization - no require('dotenv').config() call"
+      lines: "4021-4039 (health check reads process.env)"
+  debug_session: ".planning/debug/health-check-env-detection.md"
+  retest_result: "PASS - Health check now detects all API keys from .env"
 
 - truth: "Session logs are created in .planning/telegram-sessions/ relative to project root"
-  status: failed
+  status: fixed
   reason: "User reported: Haiku monitor started - no instructions, session log must be in .planning/telegram-sessions/ inside get-shit-done folder from where I started it"
   severity: major
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "whisper-node changes process.cwd() at import time. telegram-session-logger captured wrong cwd because whisper-transcribe.js required whisper-node at top level."
+  fix: "Lazy-loaded whisper-node inside transcribeAudio() function instead of at module top level. Also captured PROJECT_ROOT in telegram-session-logger.js at module load time."
+  commits: ["02529cf: fix(08-08): capture PROJECT_ROOT at module load", "5d587e5: fix(08-08): lazy-load whisper-node to prevent cwd corruption"]
+  artifacts:
+    - path: "get-shit-done/bin/telegram-session-logger.js"
+      issue: "Uses dynamic process.cwd() which changes at runtime"
+      lines: "21, 142"
+    - path: "get-shit-done/bin/whisper-transcribe.js"
+      issue: "Required whisper-node at top level, causing cwd corruption"
+  debug_session: ".planning/debug/telegram-session-logs-wrong-dir.md"
+  retest_result: "PASS - Session logs now created in correct directory: .planning/telegram-sessions/"
