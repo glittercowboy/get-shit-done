@@ -148,14 +148,15 @@ Plans:
   8. Checkpoints stored as searchable memories (semantic search for resume)
   9. System resumes from last checkpoint on failure via checkpoint lookup
   10. Phase dependencies are detected and enforced (Phase 2 waits for Phase 1)
-**Plans:** 5 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] 06-01-PLAN.md - Roadmap parsing and DAG builder (topological sort, dependency detection)
-- [ ] 06-02-PLAN.md - Execute-roadmap workflow and phase coordinator (command, confirmation, spawning)
-- [ ] 06-03-PLAN.md - Execution log infrastructure (JSONL append, progress tracking, resume detection)
-- [ ] 06-04-PLAN.md - Checkpoint storage and retrieval (knowledge system integration, semantic search)
-- [ ] 06-05-PLAN.md - Phase archiving and context management (compression, cleanup, integration)
+- [x] 06-01-PLAN.md - Roadmap parsing and DAG builder (topological sort, dependency detection)
+- [x] 06-02-PLAN.md - Execute-roadmap workflow and phase coordinator (command, confirmation, spawning)
+- [x] 06-03-PLAN.md - Execution log infrastructure (JSONL append, progress tracking, resume detection)
+- [x] 06-04-PLAN.md - Checkpoint storage and retrieval (knowledge system integration, semantic search)
+- [x] 06-05-PLAN.md - Phase archiving and context management (compression, cleanup, integration)
+- [ ] 06-06-PLAN.md - Gap closure: sync init execute-roadmap to repo copy
 
 ### Phase 7: Autonomous Execution Optimization
 **Goal**: Autonomous execution scales to 20+ phases with parallel execution, context compression, and intelligent task splitting without quality degradation
