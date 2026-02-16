@@ -148,13 +148,14 @@ Plans:
   8. Checkpoints stored as searchable memories (semantic search for resume)
   9. System resumes from last checkpoint on failure via checkpoint lookup
   10. Phase dependencies are detected and enforced (Phase 2 waits for Phase 1)
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 06-01: TBD (execute-roadmap command + coordinator)
-- [ ] 06-02: TBD (Sub-coordinator lifecycle)
-- [ ] 06-03: TBD (Structured checkpoint format + storage)
-- [ ] 06-04: TBD (Resume from checkpoint)
+- [ ] 06-01-PLAN.md - Roadmap parsing and DAG builder (topological sort, dependency detection)
+- [ ] 06-02-PLAN.md - Execute-roadmap workflow and phase coordinator (command, confirmation, spawning)
+- [ ] 06-03-PLAN.md - Execution log infrastructure (JSONL append, progress tracking, resume detection)
+- [ ] 06-04-PLAN.md - Checkpoint storage and retrieval (knowledge system integration, semantic search)
+- [ ] 06-05-PLAN.md - Phase archiving and context management (compression, cleanup, integration)
 
 ### Phase 7: Autonomous Execution Optimization
 **Goal**: Autonomous execution scales to 20+ phases with parallel execution, context compression, and intelligent task splitting without quality degradation
@@ -231,10 +232,10 @@ Phase 7 (Autonomous Optimization) --> Phase 8 (Notifications & Observability)
 | 3. Knowledge System Foundation | 5 | Planning complete | - |
 | 4. Knowledge Extraction & Hooks | 6 | Planning complete | - |
 | 5. Knowledge Permissions & Safety | 6 | Planning complete | - |
-| 6. Autonomous Execution Core | TBD | Not started | - |
+| 6. Autonomous Execution Core | 5 | Planning complete | - |
 | 7. Autonomous Execution Optimization | TBD | Not started | - |
 | 8. Notifications & Observability | TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after Phase 5 planning*
+*Last updated: 2026-02-16 after Phase 6 planning*
