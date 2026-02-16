@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 
 ## Current Position
 
-Phase: 4 of 8 (Knowledge Extraction & Hooks)
+Phase: 5 of 8 (Knowledge Permissions & Safety)
 Plan: 04 of 06
-Status: In Progress
-Last activity: 2026-02-16 — Completed plan 04-04 (Hook integration with timing modes)
+Status: Complete
+Last activity: 2026-02-16 — Completed plan 05-04 (Principle Conflict Resolution)
 
-Progress: [██████████] 25%
+Progress: [██████████] 28%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 3.3 min
-- Total execution time: 1.2 hours
+- Total plans completed: 23
+- Average duration: 3.0 min
+- Total execution time: 1.3 hours
 
 **By Phase:**
 
@@ -30,7 +30,8 @@ Progress: [██████████] 25%
 | 01    | 6     | 20 min | 3.3 min  |
 | 02    | 6     | 28 min | 4.7 min  |
 | 03    | 5     | 16 min | 3.2 min  |
-| 04    | 3     | 6 min  | 2.0 min  |
+| 04    | 6     | 14 min | 2.3 min  |
+| 05    | 1     | 2 min  | 2.0 min  |
 
 **Recent Completions:**
 
@@ -51,7 +52,12 @@ Progress: [██████████] 25%
 | 03    | 05   | 3 min    | 3     | 2     |
 | 04    | 01   | 2 min    | 2     | 3     |
 | 04    | 02   | 3 min    | 3     | 1     |
-| 04    | 04   | 1 min    | 3     | 3     |
+| 04    | 03   | 2 min    | 2     | 2     |
+| 04    | 04   | 3 min    | 2     | 1     |
+| 04    | 05   | 2 min    | 2     | 3     |
+| 04    | 06   | 2 min    | 2     | 2     |
+| 05    | 04   | 2 min    | 3     | 2     |
+| Phase 05 P02 | 2 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -146,6 +152,24 @@ Recent decisions affecting current work:
 - [Phase 04-04]: Summaries disabled by default in extraction config (too noisy)
 - [Phase 04-04]: Non-blocking error handling in per-turn mode (logs but continues)
 - [Phase 04-04]: MD5 hashing for response deduplication tracking
+- [Phase 04]: Three-stage deduplication: content hash (1.0) → canonical hash (0.95) → embedding (0.88)
+- [Phase 04]: Similarity ranges: >0.88 skip, 0.65-0.88 evolve, <0.65 create
+- [Phase 04-03]: Memory evolution appends with timestamp, preserves original content
+- [Phase 04-03]: Evolution history limited to 10 entries to prevent unbounded growth
+- [Phase 04-03]: Embedding updates disabled (vec0 limitation), existing embedding represents original concept
+- [Phase 04-05]: Q&A answers stored as global scope lessons (user preferences cross projects)
+- [Phase 04-05]: Gap-based question generation (< 5 lessons, < 3 decisions, < 10 total)
+- [Phase 04-05]: Session scanning focuses on assistant responses only
+- [Phase 04-05]: Session log age filter defaults to 30 days for discovery
+- [Phase 04-05]: 10-character minimum for valid Q&A answers
+- [Phase 04-06]: Minimum 5 examples required to form a principle (KNOW-18)
+- [Phase 04-06]: Confidence threshold 0.7 for valid principles
+- [Phase 04-06]: Only reversible actions can proceed autonomously (KNOW-19)
+- [Phase 04-06]: Enhanced delete detection with production/data context awareness
+- [Phase 05-04]: 20% gap threshold for ambiguity detection (< 20% escalates to user)
+- [Phase 05-04]: 60-second config cache TTL to balance performance vs freshness
+- [Phase 05-04]: Default priority order: safety (1.0) > security (0.9) > reliability (0.85) > speed (0.6) > cost (0.5) > convenience (0.3)
+- [Phase 05-04]: Wildcard suffix pattern (:*) for allowlist matching
 
 ### Pending Todos
 
@@ -157,6 +181,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16T05:20:04Z (plan execution)
-Stopped at: Completed 04-04-PLAN.md (Hook integration with timing modes)
+Last session: 2026-02-16T05:56:02Z (plan execution)
+Stopped at: Completed 05-04-PLAN.md (Principle Conflict Resolution)
 Resume file: None
