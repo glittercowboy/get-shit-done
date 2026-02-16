@@ -3,8 +3,13 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } = require('node:fs');
+const { join } = require('node:path');
+const { tmpdir } = require('node:os');
 const { parseFutureFile, writeFutureFile } = require('./future');
 const { parseMilestonesFile, writeMilestonesFile } = require('./milestones');
+const { parsePlanFile, writePlanFile } = require('./plan');
+const { slugify, milestoneFolderName, ensureMilestoneFolder, findMilestoneFolder, archiveMilestoneFolder } = require('./milestone-folders');
 const { DeclareDag } = require('../graph/engine');
 
 // ---------------------------------------------------------------------------
@@ -317,6 +322,224 @@ describe('multi-value field parsing', () => {
     const result = parseMilestonesFile(content);
     assert.deepEqual(result.milestones[0].realizes, ['D-01', 'D-02']);
     assert.deepEqual(result.milestones[0].causedBy, ['A-01', 'A-02']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PLAN.md tests
+// ---------------------------------------------------------------------------
+
+describe('parsePlanFile', () => {
+  it('parses canonical format correctly', () => {
+    const content = `# Plan: M-01 -- User Authentication
+
+**Milestone:** M-01
+**Realizes:** D-01, D-02
+**Status:** PENDING
+**Derived:** 2026-02-16
+
+## Actions
+
+### A-01: Build login form
+**Status:** PENDING
+**Produces:** Login component
+
+### A-02: Add session management
+**Status:** DONE
+**Produces:** Session store
+`;
+
+    const result = parsePlanFile(content);
+    assert.equal(result.milestone, 'M-01');
+    assert.deepEqual(result.realizes, ['D-01', 'D-02']);
+    assert.equal(result.status, 'PENDING');
+    assert.equal(result.derived, '2026-02-16');
+    assert.equal(result.actions.length, 2);
+
+    assert.equal(result.actions[0].id, 'A-01');
+    assert.equal(result.actions[0].title, 'Build login form');
+    assert.equal(result.actions[0].status, 'PENDING');
+    assert.equal(result.actions[0].produces, 'Login component');
+
+    assert.equal(result.actions[1].id, 'A-02');
+    assert.equal(result.actions[1].status, 'DONE');
+  });
+
+  it('parses hand-edited/permissive format', () => {
+    const content = `# Plan:  M-02  --  Loose Format
+
+  **milestone:**  M-02
+  **realizes:**  D-01
+  **status:**  active
+
+## Actions
+
+### A-03:   Loose action title
+  **status:**  pending
+  **produces:**  something
+`;
+
+    const result = parsePlanFile(content);
+    assert.equal(result.milestone, 'M-02');
+    assert.deepEqual(result.realizes, ['D-01']);
+    assert.equal(result.status, 'ACTIVE');
+    assert.equal(result.actions.length, 1);
+    assert.equal(result.actions[0].id, 'A-03');
+    assert.equal(result.actions[0].title, 'Loose action title');
+  });
+
+  it('returns defaults for empty content', () => {
+    const result = parsePlanFile('');
+    assert.equal(result.milestone, null);
+    assert.deepEqual(result.realizes, []);
+    assert.equal(result.status, 'PENDING');
+    assert.deepEqual(result.actions, []);
+  });
+
+  it('parses actions with descriptions', () => {
+    const content = `# Plan: M-01 -- Test
+
+**Milestone:** M-01
+**Realizes:** D-01
+**Status:** PENDING
+**Derived:** 2026-02-16
+
+## Actions
+
+### A-01: Action with desc
+**Status:** PENDING
+**Produces:** Thing
+This is a description paragraph.
+It spans multiple lines.
+`;
+
+    const result = parsePlanFile(content);
+    assert.equal(result.actions[0].description, 'This is a description paragraph.\nIt spans multiple lines.');
+  });
+});
+
+describe('writePlanFile', () => {
+  it('produces canonical format', () => {
+    const output = writePlanFile('M-01', 'User Auth', ['D-01'], [
+      { id: 'A-01', title: 'Build login', status: 'PENDING', produces: 'Login form' },
+      { id: 'A-02', title: 'Add sessions', status: 'PENDING', produces: 'Session store' },
+    ]);
+
+    assert.ok(output.includes('# Plan: M-01 -- User Auth'));
+    assert.ok(output.includes('**Milestone:** M-01'));
+    assert.ok(output.includes('**Realizes:** D-01'));
+    assert.ok(output.includes('**Status:** PENDING'));
+    assert.ok(output.includes('### A-01: Build login'));
+    assert.ok(output.includes('### A-02: Add sessions'));
+    assert.ok(output.includes('**Produces:** Login form'));
+  });
+
+  it('round-trips through write -> parse', () => {
+    const written = writePlanFile('M-02', 'Test MS', ['D-01', 'D-02'], [
+      { id: 'A-01', title: 'First', status: 'PENDING', produces: 'artifact1' },
+      { id: 'A-02', title: 'Second', status: 'DONE', produces: 'artifact2' },
+    ]);
+    const parsed = parsePlanFile(written);
+
+    assert.equal(parsed.milestone, 'M-02');
+    assert.deepEqual(parsed.realizes, ['D-01', 'D-02']);
+    assert.equal(parsed.actions.length, 2);
+    assert.equal(parsed.actions[0].id, 'A-01');
+    assert.equal(parsed.actions[0].title, 'First');
+    assert.equal(parsed.actions[0].produces, 'artifact1');
+    assert.equal(parsed.actions[1].id, 'A-02');
+    assert.equal(parsed.actions[1].title, 'Second');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Milestone folder tests
+// ---------------------------------------------------------------------------
+
+describe('slugify', () => {
+  it('converts basic title to slug', () => {
+    assert.equal(slugify('User Authentication'), 'user-authentication');
+  });
+
+  it('handles special characters', () => {
+    assert.equal(slugify('OAuth 2.0 + JWT'), 'oauth-2-0-jwt');
+  });
+
+  it('strips leading and trailing hyphens', () => {
+    assert.equal(slugify('--hello--'), 'hello');
+  });
+});
+
+describe('milestoneFolderName', () => {
+  it('produces correct format', () => {
+    assert.equal(milestoneFolderName('M-01', 'User Auth'), 'M-01-user-auth');
+  });
+});
+
+describe('milestone folder operations', () => {
+  let tmpDir;
+
+  it('ensureMilestoneFolder creates nested dirs', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gsd-test-'));
+    const planningDir = join(tmpDir, '.planning');
+
+    const result = ensureMilestoneFolder(planningDir, 'M-01', 'Test Milestone');
+    assert.ok(existsSync(result));
+    assert.ok(result.endsWith('M-01-test-milestone'));
+
+    // Clean up
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('findMilestoneFolder finds by prefix', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gsd-test-'));
+    const planningDir = join(tmpDir, '.planning');
+    mkdirSync(join(planningDir, 'milestones', 'M-01-test-ms'), { recursive: true });
+
+    const result = findMilestoneFolder(planningDir, 'M-01');
+    assert.ok(result !== null);
+    assert.ok(result.endsWith('M-01-test-ms'));
+
+    // Clean up
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('findMilestoneFolder returns null when not found', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gsd-test-'));
+    const planningDir = join(tmpDir, '.planning');
+    mkdirSync(join(planningDir, 'milestones'), { recursive: true });
+
+    const result = findMilestoneFolder(planningDir, 'M-99');
+    assert.equal(result, null);
+
+    // Clean up
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('archiveMilestoneFolder moves to _archived/', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gsd-test-'));
+    const planningDir = join(tmpDir, '.planning');
+    mkdirSync(join(planningDir, 'milestones', 'M-01-test'), { recursive: true });
+
+    const result = archiveMilestoneFolder(planningDir, 'M-01');
+    assert.equal(result, true);
+    assert.ok(existsSync(join(planningDir, 'milestones', '_archived', 'M-01-test')));
+    assert.ok(!existsSync(join(planningDir, 'milestones', 'M-01-test')));
+
+    // Clean up
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('archiveMilestoneFolder returns false when not found', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'gsd-test-'));
+    const planningDir = join(tmpDir, '.planning');
+    mkdirSync(join(planningDir, 'milestones'), { recursive: true });
+
+    const result = archiveMilestoneFolder(planningDir, 'M-99');
+    assert.equal(result, false);
+
+    // Clean up
+    rmSync(tmpDir, { recursive: true, force: true });
   });
 });
 
