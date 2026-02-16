@@ -13,21 +13,9 @@ const fs = require('fs');
 
 // Check for Telegram bot token
 if (!process.env.TELEGRAM_BOT_TOKEN) {
-  console.log('TELEGRAM_BOT_TOKEN not set. Telegram notifications disabled.');
-  console.log('To enable:');
-  console.log('  1. Create bot: Telegram -> @BotFather -> /newbot');
-  console.log('  2. Set TELEGRAM_BOT_TOKEN in .env file');
-  console.log('  3. Get your chat ID: Send /start to @userinfobot');
-  console.log('  4. Set TELEGRAM_OWNER_ID in .env file');
-
-  // Export disabled stubs
-  module.exports = {
-    sendBlockingQuestion: async () => ({ type: 'disabled', content: 'Telegram not configured' }),
-    startBot: () => {},
-    stopBot: () => {},
-    bot: null
-  };
-  return;
+  console.error('[ERROR] TELEGRAM_BOT_TOKEN not set. Set it in .env file.');
+  console.error('To create a bot: Message @BotFather on Telegram -> /newbot');
+  process.exit(1);
 }
 
 const { Telegraf } = require('telegraf');

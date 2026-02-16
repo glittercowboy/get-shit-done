@@ -68,7 +68,7 @@ const DASHBOARD_HTML = `
     let eventCount = 0;
 
     function connect() {
-      const ws = new WebSocket('ws://localhost:8080');
+      const ws = new WebSocket('ws://localhost:8766');
 
       ws.onopen = () => {
         statusEl.textContent = 'Connected';
@@ -129,8 +129,8 @@ const DASHBOARD_HTML = `
  * @param {object} options - { httpPort, wsPort, logPath }
  */
 function startDashboard(options = {}) {
-  const httpPort = options.httpPort || 3000;
-  const wsPort = options.wsPort || 8080;
+  const httpPort = options.httpPort || 8765;  // Changed from 3000
+  const wsPort = options.wsPort || 8766;      // Changed from 8080
   const logPath = options.logPath || '.planning/EXECUTION_LOG.md';
 
   // HTTP server for dashboard HTML
