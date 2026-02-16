@@ -1,5 +1,5 @@
 ---
-description: Derive milestones and actions backward from declarations
+description: Derive milestones and actions backward from declared futures
 allowed-tools:
   - Read
   - Write
@@ -32,7 +32,7 @@ Note all declarations, milestones, and actions from the graph -- the workflow ne
 
 Read and follow the full workflow instructions:
 
-@/Users/guilherme/Projects/get-shit-done/workflows/derive.md
+@/Users/guilherme/Projects/get-shit-done/workflows/milestones.md
 
 Pass the loaded graph state into the workflow so it knows about existing declarations, milestones, and actions.
 

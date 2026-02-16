@@ -52,7 +52,7 @@ Plans:
 
 Plans:
 - [ ] 02-01-PLAN.md -- Tooling subcommands (add-declaration, add-milestone, add-action, load-graph) with TDD and bundle rebuild
-- [ ] 02-02-PLAN.md -- Slash commands (/declare:future, /declare:derive), workflow prompts, and command installation
+- [ ] 02-02-PLAN.md -- Slash commands (/declare:future, /declare:milestones), workflow prompts, and command installation
 
 ### Phase 3: Traceability + Navigation
 **Goal**: Users can understand, trace, and prioritize the structure the system has built

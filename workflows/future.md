@@ -167,7 +167,7 @@ After the user indicates they're satisfied (or 5 declarations are captured):
 > Does this feel complete? Is there an aspect we haven't captured?
 
 If complete:
-> Your future is declared. Run `/declare:derive` to work backward from these declarations to milestones and actions.
+> Your future is declared. Run `/declare:milestones` to work backward from these declarations to milestones and actions.
 
 If the user wants more: continue the loop.
 

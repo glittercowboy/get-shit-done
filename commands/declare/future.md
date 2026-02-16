@@ -49,4 +49,4 @@ Parse the JSON output to confirm the declaration was created and note its assign
 After all declarations are captured:
 
 1. List all declarations with their IDs and statements.
-2. Suggest: "Run `/declare:derive` to work backward from these declarations to milestones and actions."
+2. Suggest: "Run `/declare:milestones` to work backward from these declarations to milestones and actions."
