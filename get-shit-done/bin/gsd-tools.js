@@ -3341,6 +3341,125 @@ function cmdCompletion(cwd, args, raw) {
   }
 }
 
+// ─── Token Budget Monitoring ─────────────────────────────────────────────────
+
+function cmdToken(cwd, args, raw) {
+  const subcommand = args[0];
+
+  if (!subcommand) {
+    error('token: subcommand required (init|reserve|record|report|reset)');
+  }
+
+  const budgetPath = path.join(cwd, '.planning', 'token_budget.json');
+
+  switch (subcommand) {
+    case 'init': {
+      // Initialize token budget file
+      const model = args[1] || 'opus';
+      const monitor = new TokenBudgetMonitor(model, 200000);
+
+      // Ensure .planning directory exists
+      const planningDir = path.join(cwd, '.planning');
+      if (!fs.existsSync(planningDir)) {
+        fs.mkdirSync(planningDir, { recursive: true });
+      }
+
+      fs.writeFileSync(budgetPath, JSON.stringify(monitor.toJSON(), null, 2));
+      output({ initialized: true, model, max_tokens: 200000 }, raw, `Token budget initialized for ${model} (200k limit)`);
+      break;
+    }
+
+    case 'reserve': {
+      // Reserve tokens before operation
+      const estimatedTokens = parseInt(args[1]);
+      const operation = args[2] || 'unknown-operation';
+
+      if (isNaN(estimatedTokens)) {
+        error('token reserve: estimatedTokens (number) required');
+      }
+
+      // Load existing budget
+      let monitor;
+      if (fs.existsSync(budgetPath)) {
+        const data = JSON.parse(fs.readFileSync(budgetPath, 'utf-8'));
+        monitor = TokenBudgetMonitor.fromJSON(data);
+      } else {
+        // Auto-initialize if not exists
+        monitor = new TokenBudgetMonitor();
+      }
+
+      const canProceed = monitor.reserve(estimatedTokens, operation);
+
+      // Update budget file
+      fs.writeFileSync(budgetPath, JSON.stringify(monitor.toJSON(), null, 2));
+
+      const report = monitor.getReport();
+      output({
+        can_proceed: canProceed,
+        alerts: report.active_alerts,
+        utilization: report.utilization_percent
+      }, raw);
+
+      // Exit code: 0 if can proceed, 1 if blocked
+      process.exit(canProceed ? 0 : 1);
+    }
+
+    case 'record': {
+      // Record actual usage after operation
+      const actualTokens = parseInt(args[1]);
+      const phase = args[2] || 'unknown-phase';
+
+      if (isNaN(actualTokens)) {
+        error('token record: actualTokens (number) required');
+      }
+
+      // Load existing budget
+      let monitor;
+      if (fs.existsSync(budgetPath)) {
+        const data = JSON.parse(fs.readFileSync(budgetPath, 'utf-8'));
+        monitor = TokenBudgetMonitor.fromJSON(data);
+      } else {
+        // Auto-initialize if not exists
+        monitor = new TokenBudgetMonitor();
+      }
+
+      monitor.recordUsage(actualTokens, phase);
+
+      // Update budget file
+      fs.writeFileSync(budgetPath, JSON.stringify(monitor.toJSON(), null, 2));
+
+      output({ recorded: true, tokens: actualTokens, phase }, raw, `Recorded ${actualTokens} tokens for ${phase}`);
+      break;
+    }
+
+    case 'report': {
+      // Display token usage report
+      if (!fs.existsSync(budgetPath)) {
+        output({ available: false, reason: 'Token budget not initialized' }, raw, 'Token budget not initialized (run: token init)');
+        break;
+      }
+
+      const data = JSON.parse(fs.readFileSync(budgetPath, 'utf-8'));
+      const monitor = TokenBudgetMonitor.fromJSON(data);
+      const report = monitor.getReport();
+
+      output(report, raw);
+      break;
+    }
+
+    case 'reset': {
+      // Reset for new session
+      const monitor = new TokenBudgetMonitor();
+      fs.writeFileSync(budgetPath, JSON.stringify(monitor.toJSON(), null, 2));
+      output({ reset: true }, raw, 'Token budget reset');
+      break;
+    }
+
+    default:
+      error(`token: unknown subcommand "${subcommand}"`);
+  }
+}
+
 // ─── Web Search (Brave API) ──────────────────────────────────────────────────
 
 async function cmdWebsearch(query, options, raw) {
@@ -6534,6 +6653,11 @@ async function main() {
 
     case 'completion': {
       cmdCompletion(cwd, args.slice(1), raw);
+      break;
+    }
+
+    case 'token': {
+      cmdToken(cwd, args.slice(1), raw);
       break;
     }
 
