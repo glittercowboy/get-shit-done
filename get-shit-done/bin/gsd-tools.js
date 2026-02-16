@@ -496,11 +496,34 @@ function parseMustHavesBlock(content, blockName) {
 }
 
 function output(result, raw, rawValue) {
-  if (raw && rawValue !== undefined) {
-    process.stdout.write(String(rawValue));
+  const outputStr = raw && rawValue !== undefined
+    ? String(rawValue)
+    : JSON.stringify(result, null, 2);
+
+  // For large outputs piped to another process, use a temp file to avoid
+  // pipe buffer limits causing data truncation
+  const LARGE_OUTPUT_THRESHOLD = 100 * 1024; // 100KB
+
+  if (outputStr.length > LARGE_OUTPUT_THRESHOLD && !process.stdout.isTTY) {
+    // Large output being piped - use temp file to prevent truncation
+    const os = require('os');
+    const tempFile = path.join(os.tmpdir(), `gsd-output-${process.pid}.json`);
+
+    try {
+      fs.writeFileSync(tempFile, outputStr, 'utf-8');
+      // Use cat to pipe the file contents - this avoids buffer limits
+      execSync(`cat "${tempFile}"`, { stdio: 'inherit' });
+      // Clean up temp file
+      fs.unlinkSync(tempFile);
+    } catch (err) {
+      // Fallback to direct write if temp file approach fails
+      process.stdout.write(outputStr);
+    }
   } else {
-    process.stdout.write(JSON.stringify(result, null, 2));
+    // Normal sized output or terminal output - write directly
+    process.stdout.write(outputStr);
   }
+
   process.exit(0);
 }
 
