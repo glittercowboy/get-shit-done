@@ -1,0 +1,91 @@
+# Requirements: Get Shit Done Together
+
+**Defined:** 2026-02-16
+**Core Value:** Quality doesn't degrade as context grows. Every session starts fresh with full project context.
+
+## v2.2 Requirements
+
+Requirements for Collaborative Design milestone. Each maps to roadmap phases.
+
+### Infrastructure
+
+- [ ] **INFRA-01**: User can detect which external AI CLIs are installed (codex, gemini, opencode)
+- [ ] **INFRA-02**: User can enable/disable co-planning globally via config.json toggle
+
+### Core Integration
+
+- [ ] **CORE-01**: User can have Claude draft an artifact and send it to a configured external agent for review (draft-review-synthesize pattern)
+- [ ] **CORE-02**: User can receive structured feedback parsed from external agent responses (challenges, suggestions, endorsements)
+- [ ] **CORE-03**: User can rely on graceful degradation when external CLIs fail, timeout, or are unavailable (falls back to Claude-only)
+- [ ] **CORE-04**: User can trust that external agent input is advisory — Claude synthesizes and makes final decisions
+
+### Configuration
+
+- [ ] **CFG-01**: User can configure which external agent(s) participate at each workflow checkpoint (requirements, roadmap, plan, verification)
+
+### User Experience
+
+- [ ] **UX-01**: User can see external agent feedback displayed in a clear, formatted way before Claude acts on it
+- [ ] **UX-02**: User can see which agent provided which feedback (synthesis with provenance/attribution)
+
+### Multi-Agent
+
+- [ ] **MULTI-01**: User can send the same artifact to multiple external agents simultaneously for parallel review
+- [ ] **MULTI-02**: User can receive a synthesized summary that merges feedback from multiple agents with source attribution
+
+## Future Requirements
+
+Deferred to future milestone. Tracked but not in current roadmap.
+
+### Customization
+
+- **CUST-01**: User can configure review perspective/role for each external agent (e.g., security reviewer, UX advocate)
+- **CUST-02**: User can route artifacts to cheaper agents for routine reviews, expensive ones for critical checkpoints (cost-aware routing)
+
+### Coexistence
+
+- **COEX-01**: User can have co-planners and adversary run at the same checkpoint with defined ordering (co-plan then challenge)
+- **COEX-02**: User can be escalated when external agents and adversary strongly disagree
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| External agents writing files directly | 41-86.7% failure rates in multi-agent shared-state systems; GSD's atomic commit model breaks |
+| Real-time streaming debate between agents | Requires WebSocket/IPC infrastructure; context windows fill fast with cross-agent chatter |
+| Democratic voting between agents | LLMs trained on similar data agree on the same wrong things; one decision-maker prevents gridlock |
+| Auto-selecting which agents to use per task | Nondeterministic routing is hard to debug and predict costs for |
+| Nested agent-to-agent delegation | Exponential complexity; Anthropic explicitly warns against nested teams |
+| Requiring external agent approval to proceed | Transforms advisory input into a blocker; if external API is down, workflow stops |
+| Full context sharing with external agents | Exceeds context windows, costs scale with input tokens, most context is irrelevant |
+| Review caching for iterative refinement | HIGH complexity for LOW initial value; defer until token costs become a user complaint |
+| Cross-agent consistency tracking | HIGH complexity; requires persistent state across checkpoints |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| INFRA-01 | — | Pending |
+| INFRA-02 | — | Pending |
+| CORE-01 | — | Pending |
+| CORE-02 | — | Pending |
+| CORE-03 | — | Pending |
+| CORE-04 | — | Pending |
+| CFG-01 | — | Pending |
+| UX-01 | — | Pending |
+| UX-02 | — | Pending |
+| MULTI-01 | — | Pending |
+| MULTI-02 | — | Pending |
+
+**Coverage:**
+- v2.2 requirements: 11 total
+- Mapped to phases: 0
+- Unmapped: 11 ⚠️
+
+---
+*Requirements defined: 2026-02-16*
+*Last updated: 2026-02-16 after initial definition*
