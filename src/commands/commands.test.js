@@ -11,6 +11,7 @@ const { execFileSync } = require('node:child_process');
 const { runAddDeclaration } = require('./add-declaration');
 const { runAddMilestone } = require('./add-milestone');
 const { runAddAction } = require('./add-action');
+const { runCreatePlan } = require('./create-plan');
 const { runLoadGraph } = require('./load-graph');
 const { parseFutureFile } = require('../artifacts/future');
 const { parseMilestonesFile } = require('../artifacts/milestones');
@@ -171,6 +172,75 @@ describe('add-action (deprecated)', () => {
     const result = runAddAction(dir, ['--title', 'Test', '--causes', 'M-01']);
     assert.ok('error' in result);
     assert.match(result.error, /create-plan/);
+  });
+});
+
+// =============================================================================
+// create-plan
+// =============================================================================
+
+describe('create-plan', () => {
+  it('returns error when --milestone missing', () => {
+    const dir = createTempDir();
+    const result = runCreatePlan(dir, ['--actions', '[{"title":"t","produces":"p"}]']);
+    assert.ok('error' in result);
+    assert.match(result.error, /--milestone/);
+  });
+
+  it('returns error when --actions missing', () => {
+    const dir = createTempDir();
+    const result = runCreatePlan(dir, ['--milestone', 'M-01']);
+    assert.ok('error' in result);
+    assert.match(result.error, /--actions/);
+  });
+
+  it('returns error when milestone not found', () => {
+    const dir = createTempDir();
+    runAddDeclaration(dir, ['--title', 'Future', '--statement', 'Truth']);
+    const result = runCreatePlan(dir, ['--milestone', 'M-99', '--actions', '[{"title":"t","produces":"p"}]']);
+    assert.ok('error' in result);
+    assert.match(result.error, /M-99/);
+  });
+
+  it('creates PLAN.md in milestone folder and updates hasPlan', () => {
+    const dir = createTempDir();
+    runAddDeclaration(dir, ['--title', 'Future', '--statement', 'Truth']);
+    runAddMilestone(dir, ['--title', 'Test MS', '--realizes', 'D-01']);
+
+    const result = runCreatePlan(dir, [
+      '--milestone', 'M-01',
+      '--actions', '[{"title":"Build thing","produces":"artifact"}]',
+    ]);
+
+    assert.ok(!('error' in result));
+    assert.equal(result.milestone, 'M-01');
+    assert.equal(result.actions.length, 1);
+    assert.equal(result.actions[0].id, 'A-01');
+    assert.equal(result.actions[0].title, 'Build thing');
+
+    // Verify PLAN.md exists on disk
+    const planPath = join(dir, result.folder, 'PLAN.md');
+    assert.ok(existsSync(planPath));
+
+    // Verify MILESTONES.md has hasPlan = true
+    const msContent = readFileSync(join(dir, '.planning', 'MILESTONES.md'), 'utf-8');
+    const { milestones } = parseMilestonesFile(msContent);
+    assert.equal(milestones[0].hasPlan, true);
+  });
+
+  it('auto-increments action IDs correctly', () => {
+    const dir = createTempDir();
+    runAddDeclaration(dir, ['--title', 'Future', '--statement', 'Truth']);
+    runAddMilestone(dir, ['--title', 'MS', '--realizes', 'D-01']);
+
+    const result = runCreatePlan(dir, [
+      '--milestone', 'M-01',
+      '--actions', '[{"title":"First","produces":"a"},{"title":"Second","produces":"b"}]',
+    ]);
+
+    assert.ok(!('error' in result));
+    assert.equal(result.actions[0].id, 'A-01');
+    assert.equal(result.actions[1].id, 'A-02');
   });
 });
 

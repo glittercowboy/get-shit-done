@@ -38,9 +38,9 @@ function runHelp() {
         usage: 'add-milestone --title "..." --realizes D-01[,D-02]',
       },
       {
-        name: 'add-action',
-        description: 'Add a new action to MILESTONES.md linked to milestones',
-        usage: 'add-action --title "..." --causes M-01[,M-02]',
+        name: 'create-plan',
+        description: 'Write action plan (PLAN.md) to milestone folder',
+        usage: 'create-plan --milestone M-XX --actions \'[{"title":"...","produces":"..."}]\'',
       },
       {
         name: 'load-graph',

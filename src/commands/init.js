@@ -32,6 +32,8 @@ function runInit(cwd, args) {
   const projectName = (args && args[0]) || basename(cwd);
   const planningDir = join(cwd, '.planning');
 
+  const milestonesDir = join(planningDir, 'milestones');
+
   const artifacts = [
     { name: 'FUTURE.md', path: join(planningDir, 'FUTURE.md') },
     { name: 'MILESTONES.md', path: join(planningDir, 'MILESTONES.md') },
@@ -41,9 +43,12 @@ function runInit(cwd, args) {
   const created = [];
   const existing = [];
 
-  // Create .planning/ directory if needed
+  // Create .planning/ and milestones/ directories if needed
   if (!existsSync(planningDir)) {
     mkdirSync(planningDir, { recursive: true });
+  }
+  if (!existsSync(milestonesDir)) {
+    mkdirSync(milestonesDir, { recursive: true });
   }
 
   // Check each artifact: create if missing, report if existing
@@ -58,7 +63,7 @@ function runInit(cwd, args) {
           content = writeFutureFile([], projectName);
           break;
         case 'MILESTONES.md':
-          content = writeMilestonesFile([], [], projectName);
+          content = writeMilestonesFile([], projectName);
           break;
         case 'config.json':
           content = JSON.stringify({ commit_docs: true }, null, 2) + '\n';

@@ -141,52 +141,35 @@ var require_milestones = __commonJS({
     }
     function parseMilestonesFile(content) {
       if (!content || !content.trim()) {
-        return { milestones: [], actions: [] };
+        return { milestones: [] };
       }
-      const milestonesMatch = content.match(/## Milestones\s*\n([\s\S]*?)(?=## Actions|$)/i);
-      const actionsMatch = content.match(/## Actions\s*\n([\s\S]*?)$/i);
+      const milestonesMatch = content.match(/## Milestones\s*\n([\s\S]*?)(?=## |$)/i);
       const milestoneRows = milestonesMatch ? parseMarkdownTable(milestonesMatch[1]) : [];
-      const actionRows = actionsMatch ? parseMarkdownTable(actionsMatch[1]) : [];
       const milestones = milestoneRows.map((row) => ({
         id: (row["ID"] || "").trim(),
         title: (row["Title"] || "").trim(),
         status: (row["Status"] || "PENDING").trim().toUpperCase(),
         realizes: splitMultiValue(row["Realizes"] || ""),
-        causedBy: splitMultiValue(row["Caused By"] || "")
+        hasPlan: (row["Plan"] || "").trim().toUpperCase() === "YES"
       })).filter((m) => m.id);
-      const actions = actionRows.map((row) => ({
-        id: (row["ID"] || "").trim(),
-        title: (row["Title"] || "").trim(),
-        status: (row["Status"] || "PENDING").trim().toUpperCase(),
-        causes: splitMultiValue(row["Causes"] || "")
-      })).filter((a) => a.id);
-      return { milestones, actions };
+      return { milestones };
     }
     function pad(str, width) {
       return str + " ".repeat(Math.max(0, width - str.length));
     }
-    function writeMilestonesFile(milestones, actions, projectName) {
-      const lines = [`# Milestones & Actions: ${projectName}`, ""];
+    function writeMilestonesFile(milestones, projectNameOrActions, maybeProjectName) {
+      const projectName = maybeProjectName || (typeof projectNameOrActions === "string" ? projectNameOrActions : "Project");
+      const lines = [`# Milestones: ${projectName}`, ""];
       lines.push("## Milestones", "");
-      const mHeaders = ["ID", "Title", "Status", "Realizes", "Caused By"];
+      const mHeaders = ["ID", "Title", "Status", "Realizes", "Plan"];
       const mRows = milestones.map((m) => [
         m.id,
         m.title,
         m.status,
         m.realizes.join(", "),
-        m.causedBy.join(", ")
+        m.hasPlan ? "YES" : "NO"
       ]);
       lines.push(...formatTable(mHeaders, mRows));
-      lines.push("");
-      lines.push("## Actions", "");
-      const aHeaders = ["ID", "Title", "Status", "Causes"];
-      const aRows = actions.map((a) => [
-        a.id,
-        a.title,
-        a.status,
-        a.causes.join(", ")
-      ]);
-      lines.push(...formatTable(aHeaders, aRows));
       lines.push("");
       return lines.join("\n");
     }
@@ -218,6 +201,7 @@ var require_init = __commonJS({
     function runInit2(cwd, args) {
       const projectName = args && args[0] || basename(cwd);
       const planningDir = join(cwd, ".planning");
+      const milestonesDir = join(planningDir, "milestones");
       const artifacts = [
         { name: "FUTURE.md", path: join(planningDir, "FUTURE.md") },
         { name: "MILESTONES.md", path: join(planningDir, "MILESTONES.md") },
@@ -227,6 +211,9 @@ var require_init = __commonJS({
       const existing = [];
       if (!existsSync(planningDir)) {
         mkdirSync(planningDir, { recursive: true });
+      }
+      if (!existsSync(milestonesDir)) {
+        mkdirSync(milestonesDir, { recursive: true });
       }
       for (const artifact of artifacts) {
         if (existsSync(artifact.path)) {
@@ -238,7 +225,7 @@ var require_init = __commonJS({
               content = writeFutureFile([], projectName);
               break;
             case "MILESTONES.md":
-              content = writeMilestonesFile([], [], projectName);
+              content = writeMilestonesFile([], projectName);
               break;
             case "config.json":
               content = JSON.stringify({ commit_docs: true }, null, 2) + "\n";
@@ -271,6 +258,122 @@ var require_init = __commonJS({
       };
     }
     module2.exports = { runInit: runInit2 };
+  }
+});
+
+// src/artifacts/plan.js
+var require_plan = __commonJS({
+  "src/artifacts/plan.js"(exports2, module2) {
+    "use strict";
+    function extractField(lines, field) {
+      const pattern = new RegExp(`^\\*\\*${field}:\\*\\*`, "i");
+      const line = lines.find((l) => pattern.test(l.trim()));
+      if (!line) return null;
+      return line.trim().replace(/^\*\*[^:]+:\*\*\s*/, "").trim();
+    }
+    function parsePlanFile(content) {
+      if (!content || !content.trim()) {
+        return { milestone: null, realizes: [], status: "PENDING", derived: "", actions: [] };
+      }
+      const headerMatch = content.match(/^# Plan:\s*(M-\d+)/m);
+      const milestone = headerMatch ? headerMatch[1] : null;
+      const headerSection = content.split(/^## /m)[0] || "";
+      const headerLines = headerSection.split("\n");
+      const realizesRaw = extractField(headerLines, "Realizes");
+      const realizes = realizesRaw ? realizesRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      const status = (extractField(headerLines, "Status") || "PENDING").toUpperCase();
+      const derived = extractField(headerLines, "Derived") || "";
+      const actionSections = content.split(/^### /m).slice(1);
+      const actions = actionSections.map((section) => {
+        const lines = section.trim().split("\n");
+        const actionHeaderMatch = lines[0].match(/^(A-\d+):\s*(.+)/);
+        if (!actionHeaderMatch) return null;
+        const [, id, title] = actionHeaderMatch;
+        const actionStatus = (extractField(lines, "Status") || "PENDING").toUpperCase();
+        const produces = extractField(lines, "Produces") || "";
+        const description = lines.slice(1).filter((l) => !l.trim().startsWith("**")).map((l) => l.trim()).filter(Boolean).join("\n");
+        return { id, title: title.trim(), status: actionStatus, produces, description };
+      }).filter(Boolean);
+      return { milestone, realizes, status, derived, actions };
+    }
+    function writePlanFile(milestoneId, milestoneTitle, realizes, actions) {
+      const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      const lines = [
+        `# Plan: ${milestoneId} -- ${milestoneTitle}`,
+        "",
+        `**Milestone:** ${milestoneId}`,
+        `**Realizes:** ${realizes.join(", ")}`,
+        `**Status:** PENDING`,
+        `**Derived:** ${today}`,
+        "",
+        "## Actions",
+        ""
+      ];
+      for (const action of actions) {
+        const id = action.id || "A-XX";
+        const status = action.status || "PENDING";
+        const produces = action.produces || "";
+        lines.push(`### ${id}: ${action.title}`);
+        lines.push(`**Status:** ${status}`);
+        if (produces) {
+          lines.push(`**Produces:** ${produces}`);
+        }
+        if (action.description) {
+          lines.push(action.description);
+        }
+        lines.push("");
+      }
+      return lines.join("\n");
+    }
+    module2.exports = { parsePlanFile, writePlanFile };
+  }
+});
+
+// src/artifacts/milestone-folders.js
+var require_milestone_folders = __commonJS({
+  "src/artifacts/milestone-folders.js"(exports2, module2) {
+    "use strict";
+    var { existsSync, mkdirSync, readdirSync, renameSync } = require("node:fs");
+    var { join, basename } = require("node:path");
+    function slugify(title) {
+      return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    }
+    function milestoneFolderName(id, title) {
+      return `${id}-${slugify(title)}`;
+    }
+    function getMilestoneFolderPath(planningDir, id, title) {
+      return join(planningDir, "milestones", milestoneFolderName(id, title));
+    }
+    function ensureMilestoneFolder(planningDir, id, title) {
+      const folderPath = getMilestoneFolderPath(planningDir, id, title);
+      if (!existsSync(folderPath)) {
+        mkdirSync(folderPath, { recursive: true });
+      }
+      return folderPath;
+    }
+    function findMilestoneFolder(planningDir, id) {
+      const milestonesDir = join(planningDir, "milestones");
+      if (!existsSync(milestonesDir)) return null;
+      const entries = readdirSync(milestonesDir, { withFileTypes: true });
+      const folder = entries.find((e) => e.isDirectory() && e.name.startsWith(id));
+      return folder ? join(milestonesDir, folder.name) : null;
+    }
+    function archiveMilestoneFolder(planningDir, id) {
+      const folder = findMilestoneFolder(planningDir, id);
+      if (!folder) return false;
+      const archiveDir = join(planningDir, "milestones", "_archived");
+      mkdirSync(archiveDir, { recursive: true });
+      renameSync(folder, join(archiveDir, basename(folder)));
+      return true;
+    }
+    module2.exports = {
+      slugify,
+      milestoneFolderName,
+      getMilestoneFolderPath,
+      ensureMilestoneFolder,
+      findMilestoneFolder,
+      archiveMilestoneFolder
+    };
   }
 });
 
@@ -644,28 +747,51 @@ var require_engine = __commonJS({
   }
 });
 
-// src/commands/status.js
-var require_status = __commonJS({
-  "src/commands/status.js"(exports2, module2) {
+// src/commands/load-graph.js
+var require_load_graph = __commonJS({
+  "src/commands/load-graph.js"(exports2, module2) {
     "use strict";
-    var { existsSync, readFileSync } = require("node:fs");
-    var { join, basename } = require("node:path");
-    var { execFileSync } = require("node:child_process");
+    var { existsSync, readFileSync, readdirSync } = require("node:fs");
+    var { join } = require("node:path");
     var { parseFutureFile } = require_future();
     var { parseMilestonesFile } = require_milestones();
+    var { parsePlanFile } = require_plan();
     var { DeclareDag } = require_engine();
-    function runStatus2(cwd) {
+    function loadActionsFromFolders(planningDir) {
+      const milestonesDir = join(planningDir, "milestones");
+      if (!existsSync(milestonesDir)) return [];
+      const allActions = [];
+      const entries = readdirSync(milestonesDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
+        const planPath = join(milestonesDir, entry.name, "PLAN.md");
+        if (!existsSync(planPath)) continue;
+        const content = readFileSync(planPath, "utf-8");
+        const { milestone, actions } = parsePlanFile(content);
+        for (const action of actions) {
+          allActions.push({
+            id: action.id,
+            title: action.title,
+            status: action.status,
+            produces: action.produces,
+            causes: milestone ? [milestone] : []
+          });
+        }
+      }
+      return allActions;
+    }
+    function runLoadGraph2(cwd) {
       const planningDir = join(cwd, ".planning");
       if (!existsSync(planningDir)) {
         return { error: "No Declare project found. Run /declare:init first." };
       }
-      const projectName = basename(cwd);
       const futurePath = join(planningDir, "FUTURE.md");
       const milestonesPath = join(planningDir, "MILESTONES.md");
       const futureContent = existsSync(futurePath) ? readFileSync(futurePath, "utf-8") : "";
       const milestonesContent = existsSync(milestonesPath) ? readFileSync(milestonesPath, "utf-8") : "";
       const declarations = parseFutureFile(futureContent);
-      const { milestones, actions } = parseMilestonesFile(milestonesContent);
+      const { milestones } = parseMilestonesFile(milestonesContent);
+      const actions = loadActionsFromFolders(planningDir);
       const dag = new DeclareDag();
       for (const d of declarations) {
         dag.addNode(d.id, "declaration", d.title, d.status || "PENDING");
@@ -682,9 +808,103 @@ var require_status = __commonJS({
             dag.addEdge(m.id, declId);
           }
         }
-        for (const actionId of m.causedBy) {
-          if (dag.getNode(actionId)) {
-            dag.addEdge(actionId, m.id);
+      }
+      for (const a of actions) {
+        for (const milestoneId of a.causes) {
+          if (dag.getNode(milestoneId)) {
+            dag.addEdge(a.id, milestoneId);
+          }
+        }
+      }
+      return {
+        declarations,
+        milestones,
+        actions,
+        stats: dag.stats(),
+        validation: dag.validate()
+      };
+    }
+    module2.exports = { runLoadGraph: runLoadGraph2, loadActionsFromFolders };
+  }
+});
+
+// src/commands/status.js
+var require_status = __commonJS({
+  "src/commands/status.js"(exports2, module2) {
+    "use strict";
+    var { existsSync, readFileSync } = require("node:fs");
+    var { join, basename } = require("node:path");
+    var { execFileSync } = require("node:child_process");
+    var { parseFutureFile } = require_future();
+    var { parseMilestonesFile } = require_milestones();
+    var { parsePlanFile } = require_plan();
+    var { findMilestoneFolder } = require_milestone_folders();
+    var { loadActionsFromFolders } = require_load_graph();
+    var { DeclareDag } = require_engine();
+    function detectStaleness(cwd, planningDir, milestones) {
+      const indicators = [];
+      for (const m of milestones) {
+        const folder = findMilestoneFolder(planningDir, m.id);
+        if (!folder) {
+          indicators.push({ milestone: m.id, issue: "NO_PLAN", detail: "No plan derived yet" });
+          continue;
+        }
+        const planPath = join(folder, "PLAN.md");
+        if (!existsSync(planPath)) {
+          indicators.push({ milestone: m.id, issue: "EMPTY_FOLDER", detail: "Folder exists but no PLAN.md" });
+          continue;
+        }
+        try {
+          const lastMod = execFileSync("git", ["log", "-1", "--format=%ct", "--", planPath], {
+            cwd,
+            encoding: "utf-8",
+            stdio: ["pipe", "pipe", "pipe"]
+          }).trim();
+          if (lastMod) {
+            const ageDays = (Date.now() - parseInt(lastMod, 10) * 1e3) / 864e5;
+            if (ageDays > 30) {
+              indicators.push({ milestone: m.id, issue: "STALE", detail: `Plan not updated in ${Math.floor(ageDays)} days` });
+            }
+          }
+        } catch {
+        }
+        const plan = parsePlanFile(readFileSync(planPath, "utf-8"));
+        if (m.status === "ACTIVE" && plan.actions.length > 0 && plan.actions.every((a) => a.status === "DONE")) {
+          indicators.push({ milestone: m.id, issue: "COMPLETABLE", detail: "All actions done, milestone still ACTIVE" });
+        }
+        if (m.status === "DONE" && plan.actions.some((a) => a.status !== "DONE")) {
+          indicators.push({ milestone: m.id, issue: "INCONSISTENT", detail: "Milestone marked DONE but has incomplete actions" });
+        }
+      }
+      return indicators;
+    }
+    function runStatus2(cwd) {
+      const planningDir = join(cwd, ".planning");
+      if (!existsSync(planningDir)) {
+        return { error: "No Declare project found. Run /declare:init first." };
+      }
+      const projectName = basename(cwd);
+      const futurePath = join(planningDir, "FUTURE.md");
+      const milestonesPath = join(planningDir, "MILESTONES.md");
+      const futureContent = existsSync(futurePath) ? readFileSync(futurePath, "utf-8") : "";
+      const milestonesContent = existsSync(milestonesPath) ? readFileSync(milestonesPath, "utf-8") : "";
+      const declarations = parseFutureFile(futureContent);
+      const { milestones } = parseMilestonesFile(milestonesContent);
+      const actions = loadActionsFromFolders(planningDir);
+      const dag = new DeclareDag();
+      for (const d of declarations) {
+        dag.addNode(d.id, "declaration", d.title, d.status || "PENDING");
+      }
+      for (const m of milestones) {
+        dag.addNode(m.id, "milestone", m.title, m.status || "PENDING");
+      }
+      for (const a of actions) {
+        dag.addNode(a.id, "action", a.title, a.status || "PENDING");
+      }
+      for (const m of milestones) {
+        for (const declId of m.realizes) {
+          if (dag.getNode(declId)) {
+            dag.addEdge(m.id, declId);
           }
         }
       }
@@ -709,11 +929,21 @@ var require_status = __commonJS({
         }
       } catch {
       }
+      const withPlan = milestones.filter((m) => m.hasPlan).length;
+      const coverage = {
+        total: milestones.length,
+        withPlan,
+        percentage: milestones.length > 0 ? Math.round(withPlan / milestones.length * 100) : 100
+      };
+      const staleness = detectStaleness(cwd, planningDir, milestones);
       let health = "healthy";
       if (!validation.valid) {
         const hasCycle = validation.errors.some((e) => e.type === "cycle");
         const hasBroken = validation.errors.some((e) => e.type === "broken_edge");
         health = hasCycle || hasBroken ? "errors" : "warnings";
+      }
+      if (staleness.length > 0 && health === "healthy") {
+        health = "warnings";
       }
       return {
         project: projectName,
@@ -729,7 +959,9 @@ var require_status = __commonJS({
           errors: validation.errors
         },
         lastActivity,
-        health
+        health,
+        coverage,
+        staleness
       };
     }
     module2.exports = { runStatus: runStatus2 };
@@ -764,9 +996,9 @@ var require_help = __commonJS({
             usage: 'add-milestone --title "..." --realizes D-01[,D-02]'
           },
           {
-            name: "add-action",
-            description: "Add a new action to MILESTONES.md linked to milestones",
-            usage: 'add-action --title "..." --causes M-01[,M-02]'
+            name: "create-plan",
+            description: "Write action plan (PLAN.md) to milestone folder",
+            usage: `create-plan --milestone M-XX --actions '[{"title":"...","produces":"..."}]'`
           },
           {
             name: "load-graph",
@@ -890,16 +1122,13 @@ var require_add_milestone = __commonJS({
       const futureContent = existsSync(futurePath) ? readFileSync(futurePath, "utf-8") : "";
       const milestonesContent = existsSync(milestonesPath) ? readFileSync(milestonesPath, "utf-8") : "";
       const declarations = parseFutureFile(futureContent);
-      const { milestones, actions } = parseMilestonesFile(milestonesContent);
+      const { milestones } = parseMilestonesFile(milestonesContent);
       const dag = new DeclareDag();
       for (const d of declarations) {
         dag.addNode(d.id, "declaration", d.title, d.status || "PENDING");
       }
       for (const m of milestones) {
         dag.addNode(m.id, "milestone", m.title, m.status || "PENDING");
-      }
-      for (const a of actions) {
-        dag.addNode(a.id, "action", a.title, a.status || "PENDING");
       }
       for (const declId of realizes) {
         if (!dag.getNode(declId)) {
@@ -912,7 +1141,7 @@ var require_add_milestone = __commonJS({
         title,
         status: "PENDING",
         realizes,
-        causedBy: []
+        hasPlan: false
       });
       for (const declId of realizes) {
         const decl = declarations.find((d) => d.id === declId);
@@ -922,7 +1151,7 @@ var require_add_milestone = __commonJS({
       }
       const futureOutput = writeFutureFile(declarations, projectName);
       writeFileSync(futurePath, futureOutput, "utf-8");
-      const milestonesOutput = writeMilestonesFile(milestones, actions, projectName);
+      const milestonesOutput = writeMilestonesFile(milestones, projectName);
       writeFileSync(milestonesPath, milestonesOutput, "utf-8");
       const config = loadConfig(cwd);
       let committed = false;
@@ -946,95 +1175,62 @@ var require_add_milestone = __commonJS({
 var require_add_action = __commonJS({
   "src/commands/add-action.js"(exports2, module2) {
     "use strict";
-    var { existsSync, readFileSync, writeFileSync, mkdirSync } = require("node:fs");
-    var { join, basename } = require("node:path");
-    var { parseMilestonesFile, writeMilestonesFile } = require_milestones();
-    var { DeclareDag } = require_engine();
-    var { commitPlanningDocs: commitPlanningDocs2, loadConfig } = require_commit();
-    var { parseFlag } = require_parse_args();
-    function runAddAction2(cwd, args) {
-      const title = parseFlag(args, "title");
-      const causesRaw = parseFlag(args, "causes");
-      if (!title) {
-        return { error: "Missing required flag: --title" };
-      }
-      if (!causesRaw) {
-        return { error: "Missing required flag: --causes" };
-      }
-      const causes = causesRaw.split(",").map((s) => s.trim()).filter(Boolean);
-      const planningDir = join(cwd, ".planning");
-      const milestonesPath = join(planningDir, "MILESTONES.md");
-      const projectName = basename(cwd);
-      if (!existsSync(planningDir)) {
-        mkdirSync(planningDir, { recursive: true });
-      }
-      const milestonesContent = existsSync(milestonesPath) ? readFileSync(milestonesPath, "utf-8") : "";
-      const { milestones, actions } = parseMilestonesFile(milestonesContent);
-      const dag = new DeclareDag();
-      for (const m of milestones) {
-        dag.addNode(m.id, "milestone", m.title, m.status || "PENDING");
-      }
-      for (const a of actions) {
-        dag.addNode(a.id, "action", a.title, a.status || "PENDING");
-      }
-      for (const msId of causes) {
-        if (!dag.getNode(msId)) {
-          return { error: `Milestone not found: ${msId}` };
-        }
-      }
-      const id = dag.nextId("action");
-      actions.push({
-        id,
-        title,
-        status: "PENDING",
-        causes
-      });
-      for (const msId of causes) {
-        const ms = milestones.find((m) => m.id === msId);
-        if (ms && !ms.causedBy.includes(id)) {
-          ms.causedBy.push(id);
-        }
-      }
-      const output = writeMilestonesFile(milestones, actions, projectName);
-      writeFileSync(milestonesPath, output, "utf-8");
-      const config = loadConfig(cwd);
-      let committed = false;
-      let hash;
-      if (config.commit_docs !== false) {
-        const result = commitPlanningDocs2(
-          cwd,
-          `declare: add ${id} "${title}"`,
-          [".planning/MILESTONES.md"]
-        );
-        committed = result.committed;
-        hash = result.hash;
-      }
-      return { id, title, causes, status: "PENDING", committed, hash };
+    function runAddAction2(_cwd, _args) {
+      return {
+        error: `add-action has been replaced by create-plan. Use: node declare-tools.cjs create-plan --milestone M-XX --actions '[{"title":"...","produces":"..."}]'`
+      };
     }
     module2.exports = { runAddAction: runAddAction2 };
   }
 });
 
-// src/commands/load-graph.js
-var require_load_graph = __commonJS({
-  "src/commands/load-graph.js"(exports2, module2) {
+// src/commands/create-plan.js
+var require_create_plan = __commonJS({
+  "src/commands/create-plan.js"(exports2, module2) {
     "use strict";
-    var { existsSync, readFileSync } = require("node:fs");
-    var { join } = require("node:path");
+    var { existsSync, readFileSync, writeFileSync } = require("node:fs");
+    var { join, basename } = require("node:path");
     var { parseFutureFile } = require_future();
-    var { parseMilestonesFile } = require_milestones();
+    var { parseMilestonesFile, writeMilestonesFile } = require_milestones();
+    var { writePlanFile } = require_plan();
+    var { loadActionsFromFolders } = require_load_graph();
+    var { ensureMilestoneFolder } = require_milestone_folders();
     var { DeclareDag } = require_engine();
-    function runLoadGraph2(cwd) {
+    var { commitPlanningDocs: commitPlanningDocs2, loadConfig } = require_commit();
+    var { parseFlag } = require_parse_args();
+    function runCreatePlan2(cwd, args) {
+      const milestoneId = parseFlag(args, "milestone");
+      const actionsRaw = parseFlag(args, "actions");
+      if (!milestoneId) {
+        return { error: "Missing required flag: --milestone" };
+      }
+      if (!actionsRaw) {
+        return { error: "Missing required flag: --actions" };
+      }
+      let actionDefs;
+      try {
+        actionDefs = JSON.parse(actionsRaw);
+        if (!Array.isArray(actionDefs)) {
+          return { error: "--actions must be a JSON array of [{title, produces}]" };
+        }
+      } catch {
+        return { error: "--actions must be valid JSON: " + actionsRaw };
+      }
       const planningDir = join(cwd, ".planning");
+      const milestonesPath = join(planningDir, "MILESTONES.md");
+      const futurePath = join(planningDir, "FUTURE.md");
+      const projectName = basename(cwd);
       if (!existsSync(planningDir)) {
         return { error: "No Declare project found. Run /declare:init first." };
       }
-      const futurePath = join(planningDir, "FUTURE.md");
-      const milestonesPath = join(planningDir, "MILESTONES.md");
       const futureContent = existsSync(futurePath) ? readFileSync(futurePath, "utf-8") : "";
       const milestonesContent = existsSync(milestonesPath) ? readFileSync(milestonesPath, "utf-8") : "";
       const declarations = parseFutureFile(futureContent);
-      const { milestones, actions } = parseMilestonesFile(milestonesContent);
+      const { milestones } = parseMilestonesFile(milestonesContent);
+      const targetMs = milestones.find((m) => m.id === milestoneId);
+      if (!targetMs) {
+        return { error: `Milestone not found: ${milestoneId}` };
+      }
       const dag = new DeclareDag();
       for (const d of declarations) {
         dag.addNode(d.id, "declaration", d.title, d.status || "PENDING");
@@ -1042,37 +1238,53 @@ var require_load_graph = __commonJS({
       for (const m of milestones) {
         dag.addNode(m.id, "milestone", m.title, m.status || "PENDING");
       }
-      for (const a of actions) {
+      const existingActions = loadActionsFromFolders(planningDir);
+      for (const a of existingActions) {
         dag.addNode(a.id, "action", a.title, a.status || "PENDING");
       }
-      for (const m of milestones) {
-        for (const declId of m.realizes) {
-          if (dag.getNode(declId)) {
-            dag.addEdge(m.id, declId);
-          }
-        }
-        for (const actionId of m.causedBy) {
-          if (dag.getNode(actionId)) {
-            dag.addEdge(actionId, m.id);
-          }
-        }
-      }
-      for (const a of actions) {
-        for (const milestoneId of a.causes) {
-          if (dag.getNode(milestoneId)) {
-            dag.addEdge(a.id, milestoneId);
-          }
-        }
+      const actions = actionDefs.map((def) => {
+        const id = dag.nextId("action");
+        dag.addNode(id, "action", def.title, "PENDING");
+        return {
+          id,
+          title: def.title,
+          status: "PENDING",
+          produces: def.produces || ""
+        };
+      });
+      const folder = ensureMilestoneFolder(planningDir, milestoneId, targetMs.title);
+      const planContent = writePlanFile(milestoneId, targetMs.title, targetMs.realizes, actions);
+      const planPath = join(folder, "PLAN.md");
+      writeFileSync(planPath, planContent, "utf-8");
+      targetMs.hasPlan = true;
+      const msOutput = writeMilestonesFile(milestones, projectName);
+      writeFileSync(milestonesPath, msOutput, "utf-8");
+      const relFolder = folder.replace(cwd + "/", "");
+      const filesToCommit = [
+        ".planning/MILESTONES.md",
+        join(relFolder, "PLAN.md")
+      ];
+      const config = loadConfig(cwd);
+      let committed = false;
+      let hash;
+      if (config.commit_docs !== false) {
+        const result = commitPlanningDocs2(
+          cwd,
+          `declare: create plan for ${milestoneId} "${targetMs.title}"`,
+          filesToCommit
+        );
+        committed = result.committed;
+        hash = result.hash;
       }
       return {
-        declarations,
-        milestones,
-        actions,
-        stats: dag.stats(),
-        validation: dag.validate()
+        milestone: milestoneId,
+        folder: relFolder,
+        actions: actions.map((a) => ({ id: a.id, title: a.title, produces: a.produces })),
+        committed,
+        hash
       };
     }
-    module2.exports = { runLoadGraph: runLoadGraph2 };
+    module2.exports = { runCreatePlan: runCreatePlan2 };
   }
 });
 
@@ -1084,6 +1296,7 @@ var { runHelp } = require_help();
 var { runAddDeclaration } = require_add_declaration();
 var { runAddMilestone } = require_add_milestone();
 var { runAddAction } = require_add_action();
+var { runCreatePlan } = require_create_plan();
 var { runLoadGraph } = require_load_graph();
 function parseCwdFlag(argv) {
   const idx = argv.indexOf("--cwd");
@@ -1122,7 +1335,7 @@ function main() {
   const args = process.argv.slice(2);
   const command = args[0];
   if (!command) {
-    console.log(JSON.stringify({ error: "No command specified. Use: commit, init, status, add-declaration, add-milestone, add-action, load-graph, help" }));
+    console.log(JSON.stringify({ error: "No command specified. Use: commit, init, status, add-declaration, add-milestone, create-plan, load-graph, help" }));
     process.exit(1);
   }
   try {
@@ -1180,6 +1393,13 @@ function main() {
         if (result.error) process.exit(1);
         break;
       }
+      case "create-plan": {
+        const cwdCreatePlan = parseCwdFlag(args) || process.cwd();
+        const result = runCreatePlan(cwdCreatePlan, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
       case "load-graph": {
         const cwdLoadGraph = parseCwdFlag(args) || process.cwd();
         const result = runLoadGraph(cwdLoadGraph);
@@ -1188,7 +1408,7 @@ function main() {
         break;
       }
       default:
-        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, add-action, load-graph, help` }));
+        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, create-plan, load-graph, help` }));
         process.exit(1);
     }
   } catch (err) {
