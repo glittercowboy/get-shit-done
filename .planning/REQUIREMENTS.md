@@ -15,26 +15,26 @@
 
 ### DAG Structure
 
-- [ ] **DAG-01**: System maintains a three-layer DAG: declarations (top) → milestones (middle) → actions (bottom)
-- [ ] **DAG-02**: DAG edges flow upward representing causation (actions cause milestones, milestones realize declarations)
+- [ ] **DAG-01**: System maintains a three-layer graph: declarations (top) → milestones (middle) → actions (bottom)
+- [ ] **DAG-02**: Graph edges flow upward representing causation (actions cause milestones, milestones realize declarations)
 - [ ] **DAG-03**: System derives milestones backward from declarations ("what must be true for this to be realized?")
 - [ ] **DAG-04**: System derives actions backward from milestones ("what must be done for this to be true?")
-- [ ] **DAG-05**: DAG is persisted as DAG.md in human-readable markdown tables, git-diffable
+- [ ] **DAG-05**: Graph is persisted as MILESTONES.md in human-readable markdown tables, git-diffable
 - [ ] **DAG-06**: User can trace any action through milestones to its source declaration (why-chain)
-- [ ] **DAG-07**: System provides ASCII/text-based visualization of the future DAG
+- [ ] **DAG-07**: System provides ASCII/text-based visualization of the derivation structure
 - [ ] **DAG-08**: System prioritizes actions by causal contribution to declarations (impact ordering, not sequence)
 
 ### Execution
 
-- [ ] **EXEC-01**: System executes actions respecting DAG topology via topological sort
-- [ ] **EXEC-02**: Independent branches execute in parallel (wave-based scheduling from DAG structure)
+- [ ] **EXEC-01**: System executes actions respecting topological order via topological sort
+- [ ] **EXEC-02**: Independent branches execute in parallel (wave-based scheduling from graph structure)
 - [ ] **EXEC-03**: System creates PLAN.md files for actions, forking GSD's planner patterns
 - [ ] **EXEC-04**: Executor verifies upward causation after each action (does this advance its milestone?)
 
 ### Integrity
 
 - [ ] **INTG-01**: Commitments are explicitly tracked with state machine (ACTIVE → KEPT/HONORED/BROKEN/RENEGOTIATED)
-- [ ] **INTG-02**: When commitment breaks, system activates honor protocol: acknowledge, inform affected DAG nodes, clean up consequences, renegotiate
+- [ ] **INTG-02**: When commitment breaks, system activates honor protocol: acknowledge, inform affected nodes, clean up consequences, renegotiate
 - [ ] **INTG-03**: Integrity is presented generatively (restoration-focused), never punitively (no scores, no judgment)
 
 ### Alignment
@@ -49,7 +49,7 @@
 - [ ] **INFR-01**: CLI integration via slash commands (`/declare:*`) for Claude Code
 - [ ] **INFR-02**: All artifacts stored in `.planning/` directory as readable markdown
 - [ ] **INFR-03**: Git integration with atomic commits for all state changes
-- [ ] **INFR-04**: Custom DAG engine (~300 lines) with zero runtime dependencies (bundled via esbuild)
+- [ ] **INFR-04**: Custom graph engine (~300 lines) with zero runtime dependencies (bundled via esbuild)
 - [ ] **INFR-05**: Fork boundary defined (FORK-BOUNDARY.md) before any GSD code changes
 
 ## v2 Requirements
@@ -58,7 +58,7 @@
 
 - **ONTL-01**: Clearing conversations — guided process through Vanto's Assess → Clear → Create cycle
 - **ONTL-02**: Default future detection — projects current trajectory vs declared future, surfaces the gap
-- **ONTL-03**: Integrity cascade warnings — when one commitment breaks, DAG traversal shows downstream risk
+- **ONTL-03**: Integrity cascade warnings — when one commitment breaks, graph traversal shows downstream risk
 - **ONTL-04**: Renegotiation protocol — structured flow for restoring integrity after breaks
 
 ### Team Mode
@@ -69,7 +69,7 @@
 
 ### Platform
 
-- **PLAT-01**: Web dashboard with DAG visualization
+- **PLAT-01**: Web dashboard with graph visualization
 - **PLAT-02**: GSD migration path (import existing `.planning/` structures)
 
 ## Out of Scope
@@ -89,41 +89,41 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FUTR-01 | — | Pending |
-| FUTR-02 | — | Pending |
-| FUTR-03 | — | Pending |
-| FUTR-04 | — | Pending |
-| FUTR-05 | — | Pending |
-| DAG-01 | — | Pending |
-| DAG-02 | — | Pending |
-| DAG-03 | — | Pending |
-| DAG-04 | — | Pending |
-| DAG-05 | — | Pending |
-| DAG-06 | — | Pending |
-| DAG-07 | — | Pending |
-| DAG-08 | — | Pending |
-| EXEC-01 | — | Pending |
-| EXEC-02 | — | Pending |
-| EXEC-03 | — | Pending |
-| EXEC-04 | — | Pending |
-| INTG-01 | — | Pending |
-| INTG-02 | — | Pending |
-| INTG-03 | — | Pending |
-| ALGN-01 | — | Pending |
-| ALGN-02 | — | Pending |
-| ALGN-03 | — | Pending |
-| ALGN-04 | — | Pending |
-| INFR-01 | — | Pending |
-| INFR-02 | — | Pending |
-| INFR-03 | — | Pending |
-| INFR-04 | — | Pending |
-| INFR-05 | — | Pending |
+| FUTR-01 | Phase 2 | Pending |
+| FUTR-02 | Phase 2 | Pending |
+| FUTR-03 | Phase 2 | Pending |
+| FUTR-04 | Phase 2 | Pending |
+| FUTR-05 | Phase 2 | Pending |
+| DAG-01 | Phase 1 | Pending |
+| DAG-02 | Phase 1 | Pending |
+| DAG-03 | Phase 2 | Pending |
+| DAG-04 | Phase 2 | Pending |
+| DAG-05 | Phase 1 | Pending |
+| DAG-06 | Phase 3 | Pending |
+| DAG-07 | Phase 3 | Pending |
+| DAG-08 | Phase 3 | Pending |
+| EXEC-01 | Phase 4 | Pending |
+| EXEC-02 | Phase 4 | Pending |
+| EXEC-03 | Phase 4 | Pending |
+| EXEC-04 | Phase 4 | Pending |
+| INTG-01 | Phase 5 | Pending |
+| INTG-02 | Phase 5 | Pending |
+| INTG-03 | Phase 5 | Pending |
+| ALGN-01 | Phase 6 | Pending |
+| ALGN-02 | Phase 6 | Pending |
+| ALGN-03 | Phase 6 | Pending |
+| ALGN-04 | Phase 6 | Pending |
+| INFR-01 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Pending |
+| INFR-03 | Phase 1 | Pending |
+| INFR-04 | Phase 1 | Pending |
+| INFR-05 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29 ⚠️
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-16*
-*Last updated: 2026-02-16 after initial definition*
+*Last updated: 2026-02-16 after roadmap revision*
