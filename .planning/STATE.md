@@ -44,8 +44,9 @@ Key research findings for v2.2:
 
 ### Pending Todos
 
-1 pending todo(s) in `.planning/todos/pending/`:
+2 pending todo(s) in `.planning/todos/pending/`:
 - **Automate full phase lifecycle with agents** (area: commands)
+- **Add phase-specific context files to GSD workflow** (area: workflows)
 
 ### Blockers/Concerns
 
