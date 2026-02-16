@@ -48,12 +48,11 @@ Plans:
   3. System derives milestones from declarations by asking "what must be true for this to be realized?" and populates MILESTONES.md
   4. System derives actions from milestones by asking "what must be done for this to be true?" and populates MILESTONES.md
   5. Declarations are stored in FUTURE.md as structured, human-readable markdown
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- Tooling subcommands (add-declaration, add-milestone, add-action, load-graph) with TDD and bundle rebuild
+- [ ] 02-02-PLAN.md -- Slash commands (/declare:future, /declare:derive), workflow prompts, and command installation
 
 ### Phase 3: Traceability + Navigation
 **Goal**: Users can understand, trace, and prioritize the structure the system has built
