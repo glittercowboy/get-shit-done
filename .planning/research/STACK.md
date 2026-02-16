@@ -1,483 +1,458 @@
-# Adversarial Agent Stack Research
+# Stack Research: External AI Agent Co-Planning Integration
 
-**Domain:** LLM-based adversarial/debate agents for code orchestration systems
-**Researched:** 2025-01-31
-**Research Focus:** Stack dimension for `gsd-adversary` agent implementation
-**Overall Confidence:** HIGH (based on 2024-2025 peer-reviewed research)
-
----
+**Domain:** CLI-based AI agent orchestration via bash invocation
+**Researched:** 2026-02-16
+**Confidence:** HIGH (CLI interfaces verified via official docs + npm registries)
 
 ## Executive Summary
 
-This document provides prescriptive guidance for implementing an adversarial review agent (`gsd-adversary`) within the GSD orchestrator-agent system. The research synthesizes findings from 2024-2025 academic papers on Multi-Agent Debate (MAD), Constitutional AI critique patterns, Devil's Advocate frameworks, and convergence detection techniques.
-
-**Key insight:** Recent research (ICLR 2025) reveals that naive multi-agent debate often *underperforms* single-agent approaches. Success requires specific patterns: heterogeneous agent design, structured critique frameworks, adaptive termination, and avoiding common anti-patterns like echo chambers and angel/devil role polarization.
+GSD v2.2 integrates three external AI CLIs (Codex, Gemini CLI, OpenCode) as co-planners invoked via bash from the orchestrator layer. All three tools support non-interactive execution with structured JSON output, making them viable for programmatic invocation. The integration requires zero new npm dependencies -- Node.js `child_process.execSync` (already used extensively in `gsd-tools.cjs`) handles everything. The key design constraint is output parsing: each CLI has a different JSON schema, requiring a thin normalization layer in `gsd-tools.cjs`.
 
 ---
 
-## Recommended Adversarial Patterns
+## Recommended Stack
 
-### 1. Structured Critique Framework (HIGH confidence)
+### Core Technologies (External CLIs -- User-Installed Prerequisites)
 
-**Use this pattern.** The adversary should evaluate proposals across five dimensions with explicit scoring and justification.
+| Technology | Package | Current Version | Purpose | Why Recommended |
+|------------|---------|-----------------|---------|-----------------|
+| **Codex CLI** | `@openai/codex` (npm) | Latest (Feb 2026) | Co-planning via `codex exec` | Best non-interactive mode: JSONL streaming, `--output-last-message`, `--output-schema` for structured responses. Rust binary distributed via npm. |
+| **Gemini CLI** | `@google/gemini-cli` (npm) | 0.28.2 (stable) | Co-planning via `gemini -p` | Native JSON output (`--output-format json`), `--yolo` for auto-approval, stdin piping. Node.js/TypeScript. |
+| **OpenCode** | `opencode-ai` (npm) | 1.2.5 | Co-planning via `opencode -p` | JSON output (`-f json`), auto-approved permissions in non-interactive mode, `--attach` for persistent server. TypeScript/Go hybrid. |
 
-| Critique Dimension | What to Challenge | Example Probe |
-|-------------------|-------------------|---------------|
-| **Assumptions** | Unstated premises that may fail | "What if [assumption X] is wrong? How does this change the outcome?" |
-| **Feasibility** | Practical viability under constraints | "What resources/time/complexity are underestimated?" |
-| **Completeness** | Gaps in coverage or oversight | "What scenarios/edge cases are missing?" |
-| **Logic** | Reasoning flaws or contradictions | "Does step N follow from step N-1? What's the causal chain?" |
-| **Risk** | Failure modes and their severity | "What's the worst-case outcome? How likely is it?" |
+**Installation is the user's responsibility.** GSD does not install these CLIs. It detects which are available and uses them.
 
-**Rationale:** This structured approach forces systematic evaluation rather than surface-level objection. Research shows unstructured "find problems" prompts produce inconsistent results, while dimension-specific probes yield actionable feedback.
+### GSD Internal Stack (No New Dependencies)
 
-**Implementation prompt pattern:**
-```markdown
-For the following [requirements/roadmap/plan], evaluate each dimension:
+| Technology | Version | Purpose | Why No Additions Needed |
+|------------|---------|---------|-------------------------|
+| **Node.js `child_process`** | Built-in | Spawn CLI processes | `execSync` already used in `gsd-tools.cjs` for git, npm, and find operations. Same pattern for AI CLIs. |
+| **`gsd-tools.cjs`** | Existing | CLI wrapper + normalization | Add new commands (`agent invoke`, `agent detect`) to existing tool. Consistent with GSD architecture. |
+| **`config.json`** | Existing | Per-checkpoint agent config | Extend existing `adversary.checkpoints` pattern with `co_planners` section. |
+| **Bash tool** | Existing | Orchestrator invocation | Commands/workflows already invoke bash for `gsd-tools.cjs`. Same pattern for agent invocation. |
 
-## 1. Assumptions Analysis
-- List 2-3 hidden assumptions
-- Rate risk if each assumption fails (LOW/MEDIUM/HIGH)
-- Suggest validation approach for high-risk assumptions
+### No SDKs Needed
 
-## 2. Feasibility Check
-- Score overall feasibility (1-10)
-- Identify underestimated constraints (time, complexity, dependencies)
-- Flag blockers that could halt progress
+| SDK | Why NOT to Use |
+|-----|----------------|
+| `@openai/codex-sdk` (v0.101.0) | For building Codex-like agents, not invoking Codex CLI. Wrong abstraction. |
+| `@opencode-ai/sdk` (v1.2.5) | Starts a full server + client. Massive overkill for "run prompt, get response." |
+| `@google/gemini-cli-core` | Internal package for Gemini CLI internals. Not a public API. |
 
-## 3. Completeness Review
-- Identify gaps in coverage
-- List missing edge cases or scenarios
-- Note absent stakeholder considerations
+**Rationale:** CLI invocation via `child_process` is simpler, more maintainable, and works identically across all three tools. SDKs add dependency management, API surface complexity, and version coupling for zero benefit in the "invoke and capture output" use case.
 
-## 4. Logic Validation
-- Trace the reasoning chain
-- Flag any leaps or unsupported claims
-- Identify circular dependencies
+---
 
-## 5. Risk Assessment
-- List top 3 failure modes
-- Rate probability and impact for each
-- Suggest mitigations for HIGH-impact risks
+## CLI Invocation Patterns
 
-## Summary
-- Overall objection level: [NONE/MINOR/MAJOR/BLOCKING]
-- Critical issues requiring resolution: [list]
-- Suggested improvements: [list]
+### Codex CLI (`codex exec`)
+
+**Non-interactive invocation:**
+```bash
+# Basic: prompt as argument, final response to stdout
+codex exec "Review this plan and suggest improvements: $(cat .planning/phases/01-core/01-01-PLAN.md)"
+
+# With JSON output (JSONL stream to stdout)
+codex exec --json "Review this plan..." 2>/dev/null
+
+# Capture final message to file
+codex exec --output-last-message /tmp/codex-response.md "Review this plan..."
+
+# Full auto mode (no approval prompts)
+codex exec --full-auto "Review this plan..."
+
+# Pipe prompt via stdin
+cat .planning/phases/01-core/01-01-PLAN.md | codex exec -
+
+# With structured output schema
+codex exec --output-schema schema.json "Analyze and return structured review..."
+
+# Ephemeral (don't persist session)
+codex exec --ephemeral --full-auto "Review this plan..."
+```
+
+**Output behavior:**
+- Default: Progress streams to `stderr`, final message to `stdout`
+- `--json`: JSONL events to `stdout` (types: `thread.started`, `turn.started`, `turn.completed`, `item.started`, `item.completed`, `error`)
+- `--output-last-message <path>`: Writes final message to file AND `stdout`
+
+**Key flags for GSD integration:**
+| Flag | Value | Purpose |
+|------|-------|---------|
+| `--ephemeral` | (none) | Don't persist session files |
+| `--full-auto` | (none) | No approval prompts |
+| `--output-last-message` | `<path>` | Capture final response to file |
+| `--json` | (none) | JSONL event stream |
+| `--output-schema` | `<path>` | Validate output against JSON schema |
+| `-m` / `--model` | `<model>` | Override model |
+| `-c` | `key=value` | Override config |
+
+**Auth:** Requires `codex login` (stores credentials locally). No env var needed after login.
+
+**Confidence:** HIGH -- verified via [official docs](https://developers.openai.com/codex/noninteractive/) and [CLI reference](https://developers.openai.com/codex/cli/reference/).
+
+---
+
+### Gemini CLI (`gemini -p`)
+
+**Non-interactive invocation:**
+```bash
+# Basic: prompt via -p flag, text response to stdout
+gemini -p "Review this plan and suggest improvements"
+
+# JSON output (structured object)
+gemini -p "Review this plan..." --output-format json
+
+# Streaming JSON (NDJSON events)
+gemini -p "Review this plan..." --output-format stream-json
+
+# Auto-approve all tool use
+gemini -p "Review this plan..." --yolo
+
+# With model selection
+gemini -p "Review this plan..." -m gemini-2.5-pro
+
+# Pipe context via stdin
+cat .planning/phases/01-core/01-01-PLAN.md | gemini -p "Review this plan"
+
+# Include project directories in context
+gemini -p "Review the architecture" --include-directories ./src,./lib
+```
+
+**JSON output structure:**
+```json
+{
+  "response": "string (the actual response text)",
+  "stats": {
+    "models": {
+      "gemini-2.5-pro": {
+        "api": { "requestCount": 1, "errors": 0 },
+        "tokens": { "prompt": 1234, "response": 567, "total": 1801 }
+      }
+    },
+    "tools": {
+      "totalCalls": 0,
+      "totalSuccess": 0
+    },
+    "files": {
+      "totalLinesAdded": 0,
+      "totalLinesRemoved": 0
+    }
+  }
+}
+```
+
+**Stream-JSON event types:** `init`, `message`, `tool_use`, `tool_result`, `error`, `result` (each with timestamp + type).
+
+**Key flags for GSD integration:**
+| Flag | Value | Purpose |
+|------|-------|---------|
+| `-p` / `--prompt` | `<text>` | Run in headless mode |
+| `--output-format` | `json\|stream-json\|text` | Output format |
+| `-y` / `--yolo` | (none) | Auto-approve all actions |
+| `-m` / `--model` | `<model>` | Model selection |
+| `--include-directories` | `<paths>` | Add directories to context |
+
+**Auth:** `GEMINI_API_KEY` env var or `GOOGLE_CLOUD_PROJECT` for Code Assist license.
+
+**Confidence:** HIGH -- verified via [official headless docs](https://geminicli.com/docs/cli/headless/) and [npm package](https://www.npmjs.com/package/@google/gemini-cli). Note: `--output-format` was preview-only in earlier versions but is confirmed in stable v0.28.x.
+
+---
+
+### OpenCode (`opencode -p`)
+
+**Non-interactive invocation:**
+```bash
+# Basic: prompt via -p flag
+opencode -p "Review this plan and suggest improvements"
+
+# JSON output
+opencode -p "Review this plan..." -f json
+
+# Quiet mode (no spinner, for scripts)
+opencode -p "Review this plan..." -f json -q
+
+# With model selection
+opencode -p "Review this plan..." -m anthropic/claude-sonnet-4
+
+# Attach to persistent server (avoids cold start)
+opencode serve  # run once
+opencode run --attach http://localhost:4096 "Review this plan..."
+
+# With file attachment
+opencode -p "Review this plan" --file .planning/phases/01-core/01-01-PLAN.md
+```
+
+**Auto-approval:** In non-interactive mode (`-p`), all permissions are auto-approved for the session. No explicit `--yolo` flag needed.
+
+**Key flags for GSD integration:**
+| Flag | Value | Purpose |
+|------|-------|---------|
+| `-p` / `--prompt` | `<text>` | Non-interactive mode |
+| `-f` / `--output-format` | `json\|text` | Output format |
+| `-q` / `--quiet` | (none) | Suppress spinner |
+| `-m` / `--model` | `<model>` | Model selection |
+| `--file` | `<path>` | Attach file(s) |
+| `--attach` | `<url>` | Connect to running server |
+
+**Auth:** Configured in `~/.config/opencode/config.json` with provider API keys.
+
+**Confidence:** MEDIUM -- CLI flags verified via [official docs](https://opencode.ai/docs/cli/) and [npm](https://www.npmjs.com/package/opencode-ai). Note: `opencode run` vs `opencode -p` syntax is inconsistent across docs. The `-p` flag is the confirmed working approach for non-interactive mode. The `opencode run` subcommand exists but may require `--non-interactive` flag which is still a feature request ([#10411](https://github.com/anomalyco/opencode/issues/10411)).
+
+---
+
+## Normalization Layer Design
+
+### Why Normalize
+
+Each CLI returns different JSON structures. GSD needs a consistent interface.
+
+**Codex:** Final message as plain text to stdout (or JSONL events with `--json`)
+**Gemini:** `{ "response": "...", "stats": {...} }` JSON object
+**OpenCode:** JSON events with `-f json`
+
+### Recommended Normalization (in `gsd-tools.cjs`)
+
+```javascript
+// Unified response format returned by `gsd-tools.cjs agent invoke`
+{
+  "agent": "codex|gemini|opencode",
+  "response": "string",           // The actual text response
+  "model": "string|null",         // Model used, if reported
+  "tokens": {                     // Token usage, if reported
+    "input": number|null,
+    "output": number|null
+  },
+  "duration_ms": number,          // Wall-clock time
+  "exit_code": number,            // Process exit code
+  "error": "string|null"          // Error message if failed
+}
+```
+
+### Extraction Logic Per CLI
+
+```javascript
+// Codex: stdout IS the response (when not using --json)
+const response = stdout.trim();
+
+// Gemini: parse JSON, extract .response field
+const parsed = JSON.parse(stdout);
+const response = parsed.response;
+const tokens = {
+  input: parsed.stats?.models?.[Object.keys(parsed.stats.models)[0]]?.tokens?.prompt,
+  output: parsed.stats?.models?.[Object.keys(parsed.stats.models)[0]]?.tokens?.response
+};
+
+// OpenCode: parse JSON output
+const parsed = JSON.parse(stdout);
+const response = parsed.response || parsed.content;
 ```
 
 ---
 
-### 2. Constructive Adversarial Stance (HIGH confidence)
+## Config Schema Extension
 
-**Use this pattern.** The adversary must be configured as a "constructive critic" not an obstructionist. This is the most critical design decision.
+### Proposed `config.json` Addition
 
-**System prompt pattern:**
-```markdown
-You are an Adversarial Reviewer for the GSD workflow system. Your role is to strengthen plans by identifying weaknesses—not to reject them.
-
-STANCE: Rigorous skeptic who wants the plan to succeed. Challenge to improve, not to obstruct.
-
-FOR EVERY CRITIQUE:
-1. State the specific concern with evidence
-2. Explain WHY it matters (impact if unaddressed)
-3. Suggest a concrete improvement
-
-PHRASING RULES:
-- NEVER: "This won't work" / "This is wrong" / "You forgot..."
-- ALWAYS: "Potential risk: [X]. Impact: [Y]. Consider: [Z]."
-- Quantify when possible: "Could add 20-30% complexity" not "significantly harder"
-
-OUTPUT FORMAT:
-Each objection must include:
-- **Issue:** What's the concern
-- **Evidence:** Why you believe this
-- **Impact:** What happens if unaddressed
-- **Suggestion:** How to fix or mitigate
-
-END WITH: Either "No blocking objections" or a numbered list of issues requiring resolution before proceeding.
+```json
+{
+  "co_planners": {
+    "enabled": false,
+    "timeout_ms": 120000,
+    "checkpoints": {
+      "research": [],
+      "requirements": [],
+      "roadmap": [],
+      "plan": [],
+      "verification": []
+    },
+    "agents": {
+      "codex": {
+        "command": "codex",
+        "available": null,
+        "model": null,
+        "extra_flags": []
+      },
+      "gemini": {
+        "command": "gemini",
+        "available": null,
+        "model": null,
+        "extra_flags": []
+      },
+      "opencode": {
+        "command": "opencode",
+        "available": null,
+        "model": null,
+        "extra_flags": []
+      }
+    }
+  }
+}
 ```
 
-**Rationale:** Research on LLM-powered Devil's Advocate (IUI 2024) found that destructive phrasing ("This is wrong") triggers defensive responses and reduces plan quality. Constructive phrasing ("Potential risk... Consider...") improves both critique acceptance and plan outcomes.
+**Pattern notes:**
+- `checkpoints` maps to workflow stages (mirrors `adversary.checkpoints`)
+- Each checkpoint value is an array of agent names: `["codex", "gemini"]` means invoke both
+- `available: null` means "detect at runtime" -- `gsd-tools.cjs agent detect` checks `which <command>`
+- `model: null` means "use CLI default" -- override with `model: "gemini-2.5-pro"` etc.
+- `timeout_ms` prevents hung processes (120s default, same as Bash tool timeout)
 
 ---
 
-### 3. Adversary Persona Styles (MEDIUM confidence)
+## `gsd-tools.cjs` New Commands
 
-**Use adaptive personas.** Different checkpoints benefit from different adversarial styles.
+### `agent detect`
 
-| Checkpoint | Persona | Focus | Prompt Modifier |
-|------------|---------|-------|-----------------|
-| **Requirements** | Rigorous Skeptic | Completeness, ambiguity | "You are a skeptical stakeholder who has seen many projects fail due to unclear requirements." |
-| **Roadmap** | Strategic Critic | Sequencing, dependencies, scope | "You are a technical lead who has seen scope creep destroy timelines." |
-| **Plans** | Implementation Devil | Feasibility, edge cases, complexity | "You are a senior engineer who must implement this. Find what will break." |
-| **Verification** | Quality Gatekeeper | Completeness of testing, risk coverage | "You are a QA lead who must sign off on production readiness." |
+Checks which CLIs are available on PATH.
 
-**Rationale:** Role-specific prompting (EMNLP 2024) outperforms generic adversarial instructions by 15-23% on critique quality metrics. Domain-specific personas generate more relevant objections.
-
----
-
-### 4. Convergence Detection (HIGH confidence)
-
-**Use explicit objection tracking with countdown termination.** Do NOT use simple majority voting or fixed rounds.
-
-**Recommended protocol:**
-
-```markdown
-CONVERGENCE RULES:
-
-1. Track objections across rounds:
-   - BLOCKING: Must be resolved before proceeding
-   - MAJOR: Should be addressed, may proceed with documented risk
-   - MINOR: Nice to have, can proceed
-   - NONE: No objections
-
-2. Termination conditions (any triggers exit):
-   - "No blocking objections" for 2 consecutive rounds
-   - All BLOCKING issues marked resolved
-   - Maximum 3 rounds reached (hard cap)
-
-3. Round progression:
-   - Round 1: Full critique across all dimensions
-   - Round 2: Re-evaluate only unresolved issues
-   - Round 3: Final pass, must decide PROCEED or ESCALATE
-
-4. If max rounds reached with unresolved BLOCKING issues:
-   - Return ESCALATE with summary for human decision
+```bash
+node gsd-tools.cjs agent detect
+# Output: {"codex": true, "gemini": true, "opencode": false}
 ```
 
-**Rationale:** Research on Adaptive Stability Detection (NeurIPS 2025) shows fixed-round debates either stop too early (missing issues) or waste computation (continuing past convergence). The "2 consecutive clean rounds" pattern from the KS-test stability detection literature provides optimal balance. The 3-round hard cap prevents infinite loops while allowing sufficient iteration.
+**Implementation:** `which codex`, `which gemini`, `which opencode` via `execSync`.
 
-**Anti-pattern avoided:** Perplexity-based or statistical convergence detection adds complexity without benefit for structured critique tasks. Use explicit objection state tracking instead.
+### `agent invoke <agent> --prompt <text> [--timeout <ms>] [--model <model>]`
 
----
+Invokes an agent and returns normalized JSON.
 
-### 5. Chain-of-Verification Pattern (HIGH confidence)
-
-**Use CoVe for fact-checking claims in plans/requirements.**
-
-```markdown
-VERIFICATION PROTOCOL:
-
-1. IDENTIFY CLAIMS: List all factual assertions in the document
-   - "The API supports X"
-   - "This can be done in Y time"
-   - "Library Z provides feature W"
-
-2. GENERATE VERIFICATION QUESTIONS:
-   For each claim, ask:
-   - Is this claim verifiable?
-   - What would prove it wrong?
-   - What source would confirm it?
-
-3. EVALUATE CLAIMS:
-   - VERIFIED: Source confirms
-   - UNVERIFIED: No source found, flag for validation
-   - CONTRADICTED: Source disagrees, flag as BLOCKING
-
-4. REPORT:
-   - List unverified claims that affect feasibility
-   - Flag contradicted claims as blocking issues
+```bash
+node gsd-tools.cjs agent invoke gemini \
+  --prompt "Review this plan for feasibility issues" \
+  --timeout 120000 \
+  --model gemini-2.5-pro
 ```
 
-**Rationale:** Chain-of-Verification (Meta AI, 2024) reduces hallucination rates by 30-50% compared to direct critique. Separating claim identification from verification improves accuracy.
+**Implementation:** Builds the CLI command, runs via `execSync` with timeout, parses output, normalizes to unified format.
 
----
+### `agent invoke-all --checkpoint <name> --prompt <text>`
 
-## What NOT To Do (Anti-Patterns)
+Invokes all agents configured for a checkpoint, returns array of responses.
 
-### Anti-Pattern 1: Angel/Devil Role Polarization (CRITICAL)
-
-**Do NOT assign opposing angel/devil or affirmative/negative roles.**
-
-**Why:** ICLR 2025 research shows Multi-Persona debate with explicit opposing roles "significantly underperforms other baselines." The problem: once the adversary is marked "wrong," it has no opportunity to continue constructive dialogue. The system degenerates into position-taking rather than truth-seeking.
-
-**Instead:** Use a single adversarial agent with a "constructive skeptic" stance that can acknowledge valid points while continuing to probe weaknesses.
-
----
-
-### Anti-Pattern 2: Echo Chamber / Conformity Cascades
-
-**Do NOT have the adversary see the orchestrator's assessment before generating critique.**
-
-**Why:** Research identifies a "tyranny of the majority" effect—if shown that others agree with a position, LLM agents conform even when the position is wrong. This defeats the purpose of adversarial review.
-
-**Instead:** The adversary should receive ONLY the artifact being reviewed (requirements, plan, etc.), not the orchestrator's evaluation or prior agent assessments.
-
----
-
-### Anti-Pattern 3: Open-Ended "Find Problems" Prompts
-
-**Do NOT use prompts like "Review this and find any issues."**
-
-**Why:** Unstructured critique prompts produce inconsistent results—sometimes surface-level, sometimes exhaustive, often missing critical dimensions entirely.
-
-**Instead:** Use the structured 5-dimension critique framework (assumptions, feasibility, completeness, logic, risk) with explicit scoring requirements.
-
----
-
-### Anti-Pattern 4: Excessive Debate Rounds
-
-**Do NOT allow more than 3 rounds of adversarial review.**
-
-**Why:** ICLR 2025 meta-analysis: "we didn't observe obvious trends in performance concerning more agents or more debating rounds." More rounds add tokens without adding value. After 3 rounds, issues are either resolved or require human escalation.
-
-**Instead:** Hard cap at 3 rounds with explicit escalation path for unresolved blocking issues.
-
----
-
-### Anti-Pattern 5: Homogeneous Thinking
-
-**Do NOT use identical prompts for all checkpoints.**
-
-**Why:** Same-prompt adversarial review across requirements, roadmap, and plans misses checkpoint-specific concerns. Requirements need completeness focus; plans need feasibility focus.
-
-**Instead:** Use checkpoint-specific personas and probe questions (see Adversary Persona Styles above).
-
----
-
-### Anti-Pattern 6: Advisory-Only Without Teeth
-
-**CAUTION:** Making the adversary purely advisory risks it being ignored.
-
-**Mitigation:** While Claude makes final decisions, the workflow should require explicit acknowledgment of blocking issues:
-- If adversary flags BLOCKING: Claude must either resolve or document why proceeding anyway
-- Unacknowledged blocking issues should trigger escalation or audit trail
-
----
-
-## Prompt Templates
-
-### Template 1: Requirements Adversary
-
-```markdown
-<role>
-You are the Requirements Adversary for GSD. Your job is to find gaps, ambiguities, and risks in project requirements before implementation begins.
-
-Stance: Rigorous skeptic who has seen projects fail from unclear requirements. Challenge to improve.
-</role>
-
-<process>
-Analyze the requirements document across these dimensions:
-
-1. COMPLETENESS
-   - What user scenarios are missing?
-   - What error cases aren't handled?
-   - What non-functional requirements are absent?
-
-2. CLARITY
-   - What terms are ambiguous?
-   - What could be interpreted multiple ways?
-   - What needs examples to be clear?
-
-3. FEASIBILITY
-   - What might be technically harder than assumed?
-   - What dependencies are unstated?
-   - What constraints might not be realistic?
-
-4. CONSISTENCY
-   - Do any requirements contradict each other?
-   - Are priorities clear when requirements conflict?
-
-5. TESTABILITY
-   - Can each requirement be verified?
-   - What acceptance criteria are missing?
-</process>
-
-<output_format>
-## Objections
-
-### [BLOCKING/MAJOR/MINOR] Issue Title
-- **Problem:** What's wrong
-- **Evidence:** Why you believe this
-- **Impact:** What happens if unaddressed
-- **Suggestion:** How to fix
-
-[Repeat for each issue]
-
-## Summary
-- Blocking issues: [count]
-- Major issues: [count]
-- Minor issues: [count]
-- Verdict: [PROCEED / REVISE / ESCALATE]
-</output_format>
+```bash
+node gsd-tools.cjs agent invoke-all \
+  --checkpoint plan \
+  --prompt "Review this plan for feasibility issues"
 ```
 
-### Template 2: Plan Adversary
-
-```markdown
-<role>
-You are the Plan Adversary for GSD. Your job is to stress-test implementation plans before execution begins.
-
-Stance: Senior engineer who must implement this. Find what will break.
-</role>
-
-<process>
-Analyze the implementation plan:
-
-1. ASSUMPTIONS CHECK
-   - What does this plan assume about the codebase?
-   - What does it assume about dependencies/APIs?
-   - What does it assume about complexity?
-   - Rate each assumption: SAFE / RISKY / UNVERIFIED
-
-2. EDGE CASES
-   - What inputs could break this?
-   - What race conditions are possible?
-   - What happens under failure conditions?
-
-3. DEPENDENCY ANALYSIS
-   - Are task dependencies correct?
-   - What could block progress?
-   - Are there circular dependencies?
-
-4. COMPLEXITY ASSESSMENT
-   - What's underestimated?
-   - What will take longer than expected?
-   - What has hidden complexity?
-
-5. RISK IDENTIFICATION
-   - What's the worst failure mode?
-   - What's irreversible if wrong?
-   - What needs a rollback plan?
-</process>
-
-<output_format>
-## Objections
-
-### [BLOCKING/MAJOR/MINOR] Issue Title
-- **Problem:** What's wrong
-- **Evidence:** Why you believe this
-- **Impact:** What happens if unaddressed
-- **Suggestion:** How to fix
-
-[Repeat for each issue]
-
-## Unverified Assumptions
-[List assumptions that need validation before proceeding]
-
-## Summary
-- Blocking issues: [count]
-- Verdict: [PROCEED / REVISE / ESCALATE]
-</output_format>
-```
-
-### Template 3: Convergence Protocol
-
-```markdown
-<adversary_iteration>
-Round: [1/2/3]
-Previous blocking issues: [list or "none"]
-Status: [INITIAL / REASSESSING / FINAL]
-
-<instructions>
-{% if round == 1 %}
-Perform full critique across all dimensions.
-{% elif round == 2 %}
-Reassess only previously flagged issues.
-- Mark each as: RESOLVED / PARTIALLY_ADDRESSED / UNRESOLVED
-- Add any new blocking issues discovered
-{% else %}
-Final review. Must reach verdict:
-- PROCEED: All blocking issues resolved
-- PROCEED_WITH_RISK: Blocking issues documented, owner accepts risk
-- ESCALATE: Unresolved blocking issues require human decision
-{% endif %}
-</instructions>
-</adversary_iteration>
-```
+**Implementation:** Reads `config.json`, gets checkpoint agent list, invokes each, collects results.
 
 ---
 
-## Technology Stack
+## Installation Requirements
 
-### Required Tools
+### User Prerequisites (NOT managed by GSD)
 
-| Tool | Purpose | Why |
-|------|---------|-----|
-| **Task tool** | Spawn adversary as subagent | Isolates adversary context from orchestrator |
-| **Write** | Persist critique artifacts | Creates audit trail of objections/resolutions |
-| **Read** | Access artifacts under review | Must read plans/requirements without seeing orchestrator assessment |
+```bash
+# Codex CLI
+pnpm add -g @openai/codex
+codex login
 
-### No Additional Dependencies
+# Gemini CLI
+pnpm add -g @google/gemini-cli
+# Set GEMINI_API_KEY or authenticate via gcloud
 
-The adversary agent requires no external libraries or services. It's pure prompt engineering within the existing Task tool spawning pattern.
+# OpenCode
+pnpm add -g opencode-ai
+# Configure providers in ~/.config/opencode/config.json
+```
+
+### GSD Installation Changes
+
+**None.** No new npm dependencies. No changes to `bin/install.js`. No new hooks. The integration lives entirely in:
+
+1. New commands in `gsd-tools.cjs` (agent detect, invoke, invoke-all)
+2. Config schema extension in `config.json` template
+3. Workflow/command file updates to invoke agents at checkpoints
 
 ---
 
-## Integration Points
+## Alternatives Considered
 
-### Checkpoint Integration
-
-| GSD Phase | Trigger Adversary? | Adversary Mode |
-|-----------|-------------------|----------------|
-| `/gsd:new-project` requirements | YES | Requirements Adversary |
-| `/gsd:new-milestone` roadmap | YES | Roadmap Adversary |
-| `/gsd:plan-phase` | YES | Plan Adversary |
-| `/gsd:execute-phase` | NO | Execution is atomic |
-| `/gsd:verify-work` | OPTIONAL | Verification Adversary |
-
-### Workflow Integration Pattern
-
-```
-Orchestrator generates artifact
-    ↓
-Spawn gsd-adversary with artifact (NOT orchestrator assessment)
-    ↓
-Adversary returns critique with objection levels
-    ↓
-IF blocking issues:
-    Orchestrator revises artifact
-    Re-spawn adversary (round 2)
-    ↓
-    IF still blocking after round 3:
-        Return ESCALATE to user
-    ELSE:
-        Proceed with documented risks
-ELSE:
-    Proceed to next phase
-```
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `execSync` for invocation | `spawn` with streaming | Co-planning is request/response, not streaming. `execSync` is simpler, blocks correctly, timeout is built-in. |
+| Plain CLI invocation | OpenCode SDK (`@opencode-ai/sdk`) | SDK starts a full server. Massive overkill. CLI does the same thing in one command. |
+| Plain CLI invocation | Codex SDK (`@openai/codex-sdk`) | SDK is for building agents, not invoking one. Wrong tool. |
+| Normalize in `gsd-tools.cjs` | Normalize in each workflow file | Duplicated logic across 5+ workflow files. Single source of truth is better. |
+| `--output-last-message` for Codex | `--json` + jq parsing | `--output-last-message` is cleaner for "just get the response" use case. |
+| `--output-format json` for Gemini | Parse text output | JSON gives structure (response + stats). Text requires regex/heuristic parsing. |
+| Config-driven checkpoint mapping | Hardcoded agent selection | Users want control over which agents run where. Config mirrors adversary pattern. |
+| User installs CLIs | GSD auto-installs CLIs | Installing global npm packages is not GSD's job. Respect user's tool choices. |
 
 ---
 
-## Confidence Assessment
+## What NOT to Use
 
-| Recommendation | Confidence | Rationale |
-|---------------|------------|-----------|
-| Structured 5-dimension critique | HIGH | Multiple papers confirm structured > unstructured |
-| Constructive adversarial stance | HIGH | IUI 2024 devil's advocate research |
-| Max 3 rounds with explicit termination | HIGH | ICLR 2025 meta-analysis, stability detection research |
-| Checkpoint-specific personas | MEDIUM | Extrapolated from role-specific prompting research |
-| Objection-level tracking | MEDIUM | Adapted from KS-test convergence detection |
-| Avoid angel/devil polarization | HIGH | ICLR 2025 Multi-Persona failure analysis |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| Any external npm dependency | Unnecessary. `child_process` handles everything. | `execSync` from Node.js built-in `child_process` |
+| Codex `--json` JSONL for basic use | Complex to parse, designed for streaming UIs | `--output-last-message` for simple response capture |
+| Gemini `--output-format stream-json` | Designed for real-time monitoring, not batch | `--output-format json` for single structured response |
+| OpenCode `opencode run` subcommand | Non-interactive flag is still a feature request | `opencode -p` which is the working non-interactive mode |
+| OpenCode `opencode serve` + `--attach` | Adds server lifecycle management complexity | Direct `opencode -p` invocation per request |
+| Async `spawn` with event handlers | Co-planning is synchronous: invoke, wait, synthesize | `execSync` with timeout |
+| API keys in config.json | Security risk. Each CLI manages its own auth. | Let each CLI use its own auth mechanism |
+
+---
+
+## Stack Patterns by Variant
+
+**If user has only one CLI installed:**
+- Use it at all checkpoints where co-planning is enabled
+- Config: `"checkpoints": { "plan": ["codex"] }`
+
+**If user has multiple CLIs:**
+- Can configure different agents at different checkpoints
+- Config: `"checkpoints": { "research": ["gemini"], "plan": ["codex", "gemini"] }`
+- Multiple agents at same checkpoint = invoke all, synthesize responses
+
+**If user has no CLIs installed:**
+- Co-planning disabled (graceful degradation)
+- `agent detect` returns all false, skip invocation
+- Log informational message about available agents
+
+**If CLI invocation times out:**
+- `execSync` timeout kills the process
+- Return error in normalized format: `{ "error": "timeout after 120000ms" }`
+- Orchestrator proceeds without that agent's input (advisory, not blocking)
+
+---
+
+## Version Compatibility
+
+| Package | Min Version | Why | Notes |
+|---------|-------------|-----|-------|
+| `@openai/codex` | Any with `exec` subcommand | `codex exec` is the core API | Rust binary, distributed via npm. Versions auto-update. |
+| `@google/gemini-cli` | >= 0.28.0 | `--output-format json` in stable | Earlier versions had this in preview only. |
+| `opencode-ai` | >= 1.0.0 | `-p` flag for non-interactive | Pre-1.0 had different CLI interface. |
+| Node.js | >= 18 | Already GSD requirement | `execSync` timeout param, built-in `which` |
 
 ---
 
 ## Sources
 
 ### Primary Sources (HIGH confidence)
-- [Multi-Agent Debate: Performance, Efficiency, and Scaling Challenges](https://d2jud02ci9yv69.cloudfront.net/2025-04-28-mad-159/blog/mad/) - ICLR 2025
-- [Multi-Agent Debate for LLM Judges with Adaptive Stability Detection](https://arxiv.org/html/2510.12697v1) - NeurIPS 2025
-- [Devil's Advocate: Anticipatory Reflection for LLM Agents](https://arxiv.org/abs/2405.16334) - EMNLP 2024
-- [Enhancing AI-Assisted Group Decision Making through LLM-Powered Devil's Advocate](https://dl.acm.org/doi/10.1145/3640543.3645199) - IUI 2024
-- [Chain-of-Verification Reduces Hallucination](https://aclanthology.org/2024.findings-acl.212.pdf) - ACL Findings 2024
-- [Constitutional AI: Harmlessness from AI Feedback](https://arxiv.org/abs/2212.08073) - Anthropic 2022
+- [Codex CLI Reference](https://developers.openai.com/codex/cli/reference/) -- Full flag documentation
+- [Codex Non-Interactive Mode](https://developers.openai.com/codex/noninteractive/) -- exec subcommand docs
+- [Gemini CLI Headless Mode](https://geminicli.com/docs/cli/headless/) -- JSON output structure, flags
+- [Gemini CLI npm](https://www.npmjs.com/package/@google/gemini-cli) -- Version 0.28.2 confirmed
+- [OpenCode CLI Docs](https://opencode.ai/docs/cli/) -- Non-interactive mode, output formats
+- [OpenCode npm](https://www.npmjs.com/package/opencode-ai) -- Version 1.2.5 confirmed
 
 ### Secondary Sources (MEDIUM confidence)
-- [Improving Factuality and Reasoning through Multiagent Debate](https://arxiv.org/abs/2305.14325) - 2023
-- [Talk Isn't Always Cheap: Understanding Failure Modes in Multi-Agent Debate](https://arxiv.org/pdf/2509.05396) - 2024
-- [Adaptive Heterogeneous Multi-Agent Debate](https://link.springer.com/article/10.1007/s44443-025-00353-3) - 2025
-- [Self-Verification Prompting](https://learnprompting.org/docs/advanced/self_criticism/self_verification) - Learn Prompting
-- [Chain-of-Verification Prompting](https://learnprompting.org/docs/advanced/self_criticism/chain_of_verification) - Learn Prompting
+- [Codex GitHub](https://github.com/openai/codex) -- Repository structure, exec.md
+- [Gemini CLI GitHub](https://github.com/google-gemini/gemini-cli) -- Issue tracker, release notes
+- [OpenCode GitHub (anomalyco)](https://github.com/anomalyco/opencode) -- Current org, v1.2.6 release
+- [Gemini JSON output issue #9009](https://github.com/google-gemini/gemini-cli/issues/9009) -- JSON output availability status
+- [OpenCode non-interactive feature #10411](https://github.com/anomalyco/opencode/issues/10411) -- `opencode run --non-interactive` status
+
+### Verification Notes
+- Gemini `--output-format json` was initially preview-only but confirmed working in stable v0.28.x per release notes
+- OpenCode repository moved from `sst/opencode` to `opencode-ai/opencode` to `anomalyco/opencode` (company rebrand, not archive)
+- OpenCode npm package name remains `opencode-ai` despite GitHub org changes
+- Codex CLI is a Rust binary distributed via npm (not a Node.js package)
 
 ---
-
-## Open Questions for Implementation
-
-1. **Escalation UX:** How should blocking issues that survive 3 rounds be presented to the user? Interactive prompt? Written report?
-
-2. **Audit Trail:** Should objection/resolution history be persisted to `.planning/adversary/` or inline in STATE.md?
-
-3. **Opt-Out:** Should users be able to skip adversarial review for simple phases? Risk: defeats the purpose. Benefit: reduces friction.
-
-4. **Verification Adversary:** Is post-execution adversarial review valuable, or redundant with gsd-verifier? Consider merging.
+*Stack research for: External AI Agent Co-Planning Integration*
+*Researched: 2026-02-16*

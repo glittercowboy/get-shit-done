@@ -1,374 +1,436 @@
-# Domain Pitfalls: Adversarial AI Agents
+# Domain Pitfalls: External AI Agent Co-Planning Integration
 
-**Domain:** Adversarial/debate-based AI agent systems
-**Researched:** 2026-01-31
-**Overall Confidence:** HIGH (verified across multiple peer-reviewed sources)
+**Domain:** Adding external AI CLI agents (Codex CLI, Gemini CLI, OpenCode) to an existing Claude-based orchestration system
+**Researched:** 2026-02-16
+**Confidence:** MEDIUM-HIGH (verified with official docs and GitHub issues; some areas LOW due to rapidly evolving CLIs)
 
 ## Executive Summary
 
-Adversarial AI agents commonly fail through predictable patterns: sycophancy (rubber-stamping), over-aggressiveness (blocking everything), convergence failures (infinite loops or premature termination), and same-model collusion (shared blind spots). Research consistently shows that debate mechanics alone cannot compensate for weak reasoning foundations, and that the strongest agent's accuracy effectively upper-bounds team performance.
+Integrating external AI CLIs as co-planners into GSD's existing Claude-based orchestration introduces five categories of failure: bash process management failures (hanging, orphaned processes, output parsing breakdowns), multi-model quality variance and conflicting recommendations, prompt incompatibility across model families, coexistence friction with the existing adversary system, and configuration complexity explosion. The most dangerous pitfalls are silent failures where a CLI hangs indefinitely without error output, and "synthesis collapse" where Claude's synthesizer picks the most agreeable recommendation rather than the best one. These pitfalls are well-documented in both GitHub issue trackers and multi-agent systems research.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause system failures or defeat the purpose of adversarial review.
+### Pitfall 1: CLI Process Hanging and Orphaned Children
 
-### Pitfall 1: Sycophancy and Conformity Bias (The Rubber-Stamp Problem)
-
-**What goes wrong:** The adversary capitulates to the primary agent's position rather than genuinely challenging it. Weaker models are "almost entirely swayed by the group" with some achieving only 3.6% correction rates against incorrect consensus.
+**What goes wrong:**
+External AI CLIs invoked via bash hang indefinitely, consuming the orchestrator's context window timeout budget and potentially blocking all downstream work. Codex CLI has documented issues where `bash -lc` wrapper processes create orphaned children that keep stdout/stderr pipes open forever. Gemini CLI hangs in non-interactive mode when it attempts to call tools that are disallowed, when a command triggers an interactive prompt, or when the `DEBUG` environment variable is set. OpenCode's `run` command can stall on cold boot if no persistent server is running.
 
 **Why it happens:**
-- RLHF training rewards agreeable responses over truthful disagreement
-- Majority opinion strongly suppresses independent correction
-- Agents lack confidence to maintain dissenting positions under pressure
-- "Conformity exceeds Obstinacy" in most LLM debate scenarios
+- Codex wraps commands in `bash -lc`, and timeout only kills the wrapper PID, not child processes (GitHub issue #4337, #7852)
+- Gemini CLI freezes when non-interactive mode encounters tool calls or interactive shell prompts with no stdin to respond (GitHub issue #12337, #10909, #16567)
+- Shell initialization scripts (`.bashrc`, `.zshrc`) can hang the login shell that Codex spawns
+- Rate limiting or quota exhaustion causes indefinite "Working..." states with no error output (Codex issue #6512)
+- All three CLIs lack standardized exit codes for timeout vs. error vs. success in their non-interactive modes
 
-**Consequences:**
-- Adversary provides false validation, defeating its purpose
-- Flawed plans pass review unchallenged
-- Creates dangerous illusion of validation without substance
+**How to avoid:**
+- Wrap every CLI invocation with an explicit `timeout` command: `timeout 120 codex exec --json "prompt"`
+- Use process groups (`setsid`) so the entire tree can be killed on timeout
+- Set `BASH_ENV=/dev/null` and use `--noprofile --norc` to prevent shell init hangs
+- For Codex: use `--skip-git-repo-check` when operating on read-only review tasks
+- For Gemini: always pass `--output-format json` or `--output-format stream-json` to get parseable output
+- For OpenCode: use `opencode serve` + `opencode run --attach` to avoid cold boot per invocation
+- Implement a "liveness probe" pattern: if no output received within N seconds, kill and retry or skip
 
 **Warning signs:**
-- Adversary rarely or never blocks/challenges proposals
-- Challenges are always "soft" (suggestions vs. objections)
-- Convergence happens in 1-2 rounds consistently
-- Adversary echoes primary agent's reasoning
+- Bash tool calls that never return (Claude's own context window fills waiting)
+- Orchestrator reaches 70%+ context usage without completing co-planning step
+- stderr contains shell initialization output (profile loading, conda activation, etc.)
+- Process list shows orphaned node/python processes from previous CLI invocations
 
-**Prevention:**
-- Use explicit "devil's advocate" framing with strong instructions to find flaws
-- Require adversary to articulate specific objections before approval
-- Track challenge rate metrics (target: 30-70% initial challenge rate)
-- Use different model families for adversary vs. primary agent
+**Phase to address:** Phase 1 (Foundation) -- process wrapper must be the first thing built and battle-tested before any real co-planning runs
 
-**Phase to address:** Agent prompt design (Phase 1), Calibration testing (Phase 2)
-
-**Sources:** [ICLR 2025 MAD Study](https://d2jud02ci9yv69.cloudfront.net/2025-04-28-mad-159/blog/mad/), [Sycophancy Research](https://arxiv.org/html/2502.08177v2), [Identity Bias Study](https://arxiv.org/html/2510.07517)
+**Sources:**
+- [Codex CLI: Commands hang indefinitely when timeout occurs (Issue #4337)](https://github.com/openai/codex/issues/4337)
+- [Codex CLI: --full-auto flags cause indefinite hang with orphaned processes (Issue #7852)](https://github.com/openai/codex/issues/7852)
+- [Codex CLI: Implement default timeout (Issue #4775)](https://github.com/openai/codex/issues/4775)
+- [Gemini CLI: Consistently hangs in non-interactive mode (Issue #16567)](https://github.com/google-gemini/gemini-cli/issues/16567)
+- [Gemini CLI: Hangs when calling disallowed tools (Issue #12337)](https://github.com/google-gemini/gemini-cli/issues/12337)
+- [Gemini CLI: Prevent freezing in non-interactive mode (PR #14580)](https://github.com/google-gemini/gemini-cli/pull/14580)
 
 ---
 
-### Pitfall 2: Over-Aggressiveness (The Gridlock Problem)
+### Pitfall 2: Synthesis Collapse (Sycophantic Merging)
 
-**What goes wrong:** Adversary blocks everything, creating stalemate. Research shows Multi-Persona approaches that "explicitly instruct the devil agent to counter whatever the angel agent says" cause severe performance drops.
+**What goes wrong:**
+Claude synthesizes feedback from multiple external agents but gravitates toward the most agreeable or Claude-similar recommendation rather than the best one. When Codex (GPT-based), Gemini, and OpenCode (variable backend) all provide different recommendations, Claude's synthesizer conflates "convergence" with "correctness" and produces a watered-down consensus that loses the unique insights each model offered.
 
 **Why it happens:**
-- Overly strong adversarial instructions create reflexive opposition
-- No mechanism to recognize when objections have been adequately addressed
-- Adversary rewards blocking over constructive critique
-- Judge/arbiter cannot resolve persistent disagreement
+- Claude's RLHF training biases toward agreement and smooth resolution
+- The synthesizer sees three different opinions as conflict to resolve rather than diversity to leverage
+- Cognition's research shows "actions carry implicit decisions, and conflicting decisions carry bad results" -- the synthesizer tries to eliminate conflict rather than surface it
+- Without a structured reconciliation protocol, Claude defaults to weighted averaging of positions
+- GPT-family models tend to be more verbose and assertive; Gemini more concise -- Claude may interpret assertiveness as confidence
+- Research shows "adding more agents is not a silver bullet" and can degrade accuracy through "Coordination Tax"
 
-**Consequences:**
-- No work gets approved; productivity collapses
-- Legitimate proposals blocked alongside flawed ones
-- Users bypass or disable adversarial review entirely
-- "Once the judge determines the devil's side is correct, the angel has no opportunity to continue debating"
+**How to avoid:**
+- Structure synthesis as a deliberate step with explicit rules: "For each recommendation point, identify where agents AGREE, where they DISAGREE, and where they raise unique points not mentioned by others"
+- Require the synthesizer to preserve disagreements, not resolve them -- surface them to the orchestrator
+- Use a "best of each" pattern rather than "average of all": extract the strongest contribution from each agent
+- Tag each recommendation with its source model so the orchestrator can weight appropriately
+- Implement a "novel insight" detector: if only one agent raised a point, it deserves MORE attention, not less
+- Never let the synthesizer silently drop a recommendation -- require explicit "included/excluded with rationale"
 
 **Warning signs:**
-- Challenge rate exceeds 90%
-- Same objections repeated across multiple rounds
-- Primary agent's responses become defensive/adversarial
-- Convergence never achieved, always hits max rounds
+- Synthesis output is shorter than any individual agent's input
+- All three agents raised different concerns but synthesis mentions only common ones
+- Synthesis language is hedging ("could consider", "might want to") rather than specific
+- The synthesized artifact looks like Claude would have produced it alone (no new insights)
 
-**Prevention:**
-- Require objections to be specific and actionable (not general skepticism)
-- Implement "burden of proof" rules (adversary must justify each objection)
-- Use graduated challenge levels (concern, objection, blocker)
-- Give primary agent structured rebuttal opportunities
-- Set reasonable max rounds (3-5) with escalation path
+**Phase to address:** Phase 2 (Synthesis Protocol) -- the merging logic must be tested with deliberately conflicting inputs before it handles real artifacts
 
-**Phase to address:** Interaction protocol design (Phase 1), Round limit tuning (Phase 2)
-
-**Sources:** [MAD Performance Study](https://d2jud02ci9yv69.cloudfront.net/2025-04-28-mad-159/blog/mad/), [Can LLM Agents Really Debate?](https://arxiv.org/html/2511.07784)
+**Sources:**
+- [Cognition: Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents)
+- [TDS: Why Your Multi-Agent System is Failing (17x Error Trap)](https://towardsdatascience.com/why-your-multi-agent-system-is-failing-escaping-the-17x-error-trap-of-the-bag-of-agents/)
+- [Microsoft: AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
 
 ---
 
-### Pitfall 3: Same-Model Collusion (Shared Blind Spots)
+### Pitfall 3: Output Format Fragility
 
-**What goes wrong:** When adversary and primary agent are instances of the same model, they share identical training biases, knowledge gaps, and reasoning patterns. Both miss the same flaws.
+**What goes wrong:**
+Each CLI returns output in a different format, and format changes across versions break the orchestrator's parser without warning. Codex returns JSONL events in `--json` mode, Gemini returns a single JSON object in `--output-format json` mode (or NDJSON in `stream-json`), and OpenCode returns "raw JSON events" in `--format json` mode. When a CLI updates its output schema (Codex had a regression in v0.4.44-0.4.46 that broke basic commands), the entire co-planning pipeline silently produces garbage.
 
 **Why it happens:**
-- Same training data creates identical knowledge cutoffs
-- Shared RLHF biases toward similar response patterns
-- Models from same family exhibit correlated failure modes
-- "Intense competitive relationships may render interactions untrustworthy"
+- All three CLIs are pre-1.0 and actively changing output formats
+- No formal schema versioning in any CLI's JSON output
+- Codex uses event-based JSONL (multiple line types: `thread.started`, `turn.completed`, etc.) while Gemini uses single-object JSON with `response`/`stats`/`error` fields -- fundamentally different parsing strategies
+- OpenCode documentation does not even specify the JSON schema for `--format json`
+- stderr and stdout mixing varies by CLI and mode
+- Gemini's `--output-format json` writes once at completion; Codex's `--json` streams continuously -- a parser designed for one will break on the other
 
-**Consequences:**
-- Systematic blind spots go undetected
-- False confidence in validation ("two agents agreed")
-- Debate becomes echo chamber despite adversarial framing
-- "Cooperation among agents may cause a domino effect, where one compromised agent jeopardizes others"
+**How to avoid:**
+- Build a CLI-specific adapter layer with one adapter per CLI, each responsible for normalizing output to a common internal format
+- Parse output defensively: expect the "happy path" JSON but gracefully handle raw text, partial JSON, or unexpected fields
+- Pin CLI versions in the installation/documentation and test against those specific versions
+- Include a "format probe" step: before real co-planning, send a trivial prompt to verify the CLI returns parseable output
+- Write integration tests that run against actual CLI binaries (not mocked output)
+- Extract the "final answer" text from each CLI separately: Codex's final message is in the last `turn.completed` event, Gemini's is in `response` field, OpenCode's format is undocumented
 
 **Warning signs:**
-- Both agents consistently miss similar types of issues
-- Debates converge quickly without substantive exchange
-- Neither agent questions assumptions from training data
-- Post-deployment issues cluster in predictable domains
+- Parser returns empty/null when CLI clearly ran successfully (format changed)
+- JSON parse errors in logs after a CLI update
+- One CLI consistently returns less useful output than others (format mismatch, not quality)
+- Output contains ANSI escape codes or TUI rendering artifacts (non-interactive mode not fully clean)
 
-**Prevention:**
-- Use different model families (Claude vs. GPT vs. Gemini)
-- Introduce heterogeneous agent configurations
-- Provide adversary with different context/documentation
-- Include external knowledge retrieval for adversary
-- Periodically audit for correlated failures
+**Phase to address:** Phase 1 (Foundation) -- adapter layer must exist before any real orchestration, and must include automated format validation tests
 
-**Phase to address:** Architecture design (Phase 1), Model selection (Phase 1), Blind spot testing (Phase 3)
-
-**Sources:** [Multi-Agent Security Study](https://dl.acm.org/doi/10.1145/3716628), [RedDebate Paper](https://arxiv.org/html/2506.11083), [SIPRI Agent Interaction Analysis](https://www.sipri.org/commentary/essay/2025/its-too-late-why-world-interacting-ai-agents-demands-new-safeguards)
+**Sources:**
+- [Codex Non-Interactive Mode Docs](https://developers.openai.com/codex/noninteractive/)
+- [Gemini CLI Headless Mode Docs](https://google-gemini.github.io/gemini-cli/docs/cli/headless.html)
+- [OpenCode CLI Docs](https://opencode.ai/docs/cli/)
+- [Codex Plugin Regression (Issue #7410)](https://github.com/openai/codex/issues/7410)
+- [Gemini CLI: Structured JSON Output request (Issue #8022)](https://github.com/google-gemini/gemini-cli/issues/8022)
 
 ---
 
-### Pitfall 4: Superficial Challenges (Attacking Answers, Not Reasoning)
+### Pitfall 4: Prompt Incompatibility Across Model Families
 
-**What goes wrong:** Adversary challenges final conclusions without examining reasoning steps. Research shows MAD frameworks "overly assign weight to the final answer instead of the reasoning steps."
+**What goes wrong:**
+Prompts optimized for Claude (XML-structured, context-first, instruction-rich) produce poor results when sent to GPT-based Codex or Gemini. Claude's existing GSD prompts use XML tags (`<role>`, `<process>`, `<execution_context>`) extensively -- GPT models process these differently and Gemini may ignore or misinterpret them. The result is that external agents provide low-quality feedback not because the model is weak, but because the prompt was wrong for that model.
 
 **Why it happens:**
-- Easier to critique outcomes than trace logic chains
-- Token efficiency favors surface-level review
-- No explicit instruction to examine reasoning process
-- "Agents debate full responses rather than reasoning components"
+- Claude was specifically trained on XML-tagged prompts; GPT models prefer markdown/delimiter-based structure; Gemini handles both but with different effectiveness
+- Context placement matters differently: Claude prefers documents at the top of the prompt, GPT prefers instructions first then context
+- GSD's existing prompts assume Claude-specific behaviors: `<task>` XML parsing, structured return formats, tool-use patterns
+- Token efficiency varies: the same prompt may be well within Claude's budget but too large for a smaller Codex model's effective window
+- System prompt handling differs: Claude's system prompt is persistent; Codex's `codex exec` treats the whole prompt as user input; Gemini's `--prompt` flag is a single string
+- Codex in `--full-auto` mode with `--json` has its own permission model that may reject operations a Claude subagent would perform
 
-**Consequences:**
-- Correct conclusions with flawed reasoning pass review
-- Wrong conclusions from sound reasoning get rejected
-- Root causes of problems remain unaddressed
-- Technical debt accumulates despite review
+**How to avoid:**
+- Create model-family-specific prompt templates: `prompt-claude.md`, `prompt-codex.md`, `prompt-gemini.md`
+- For Codex/GPT: use markdown headers and delimiters instead of XML tags; place instructions before context
+- For Gemini: use either XML tags or markdown headers consistently; keep prompts concise
+- Strip GSD-internal references (`@file` syntax, tool names) from prompts sent to external CLIs -- they have no meaning outside Claude Code
+- Dramatically reduce prompt size for external agents: they are reviewers, not full-context planners -- send the artifact to review plus focused instructions, not the entire GSD context
+- Test each prompt template with a trivial artifact first to verify the model produces structured, parseable output
 
 **Warning signs:**
-- Challenges focus on "what" not "why"
-- Adversary cannot explain what reasoning flaw led to the problem
-- Approved items fail in edge cases not covered by conclusion
-- Debates resolve quickly without discussing approach
+- External agent output is generic/unhelpful despite the artifact having real issues
+- Codex returns "I don't understand the XML tags" or parses them as literal content
+- Gemini response ignores structure and gives a wall of unformatted text
+- External agents echo back the prompt structure instead of responding to it
+- Token counts for external invocations are much higher than expected (prompt bloat)
 
-**Prevention:**
-- Require adversary to evaluate reasoning steps explicitly
-- Structure challenges as: "This reasoning step [X] leads to problem [Y]"
-- Include chain-of-thought review in adversary prompt
-- Ask adversary to identify weakest reasoning link, not just wrong answers
-- Implement "reasoning audit" as separate challenge dimension
+**Phase to address:** Phase 2 (Prompt Templates) -- must be developed and tested per-model before the synthesis protocol can work. This is a prerequisite for every other integration step.
 
-**Phase to address:** Prompt engineering (Phase 1), Challenge taxonomy (Phase 2)
-
-**Sources:** [MAD Challenges Study](https://d2jud02ci9yv69.cloudfront.net/2025-04-28-mad-159/blog/mad/), [LLM Debate Analysis](https://arxiv.org/html/2511.07784)
+**Sources:**
+- [Prompt Engineering Best Practices Comparison Matrix](https://www.dataunboxed.io/blog/prompt-engineering-best-practices-complete-comparison-matrix)
+- [Mastering Claude Prompts: XML vs Markdown](https://algorithmunmasked.com/2025/05/14/mastering-claude-prompts-xml-vs-markdown-formatting-for-optimal-results/)
+- [Gemini Prompt Design Strategies](https://ai.google.dev/gemini-api/docs/prompting-strategies)
+- [Codex Prompting Guide](https://cookbook.openai.com/examples/gpt-5/gpt-5-1-codex-max_prompting_guide)
 
 ---
 
-### Pitfall 5: Convergence Failures (Infinite Loops or Premature Termination)
+### Pitfall 5: Adversary System Interference
 
-**What goes wrong:** Debate either never converges (infinite loops hitting max rounds) or terminates too early before genuine resolution. Both waste resources or provide false validation.
+**What goes wrong:**
+The existing `gsd-adversary` (Claude-based) and the new external co-planners operate at the same checkpoints but with different roles, creating confusion about whose feedback takes priority, redundant work, and potential deadlock. If both the adversary and an external agent flag the same issue with contradictory recommendations, the orchestrator has no clear resolution protocol.
 
 **Why it happens:**
-- Fixed round counts ignore actual convergence state
-- No stability detection mechanism
-- "Debate itself is not inherently corrective" without directed interventions
-- Single low-variance round can trigger premature stop
+- The adversary system was designed for a Claude-only world where all agents share the same reasoning patterns
+- Co-planners add diverse perspectives (the whole point) but the checkpoint system doesn't distinguish between adversarial challenges and co-planning recommendations
+- If co-planners run BEFORE the adversary, the adversary may challenge the co-planners' contributions rather than the original artifact
+- If co-planners run AFTER the adversary, they may undermine changes the adversary successfully advocated for
+- The adversary's BLOCKING/MAJOR/MINOR severity system doesn't map to co-planner "suggestions"
+- Context budget: running both the adversary AND co-planners at every checkpoint may blow the context window
 
-**Consequences:**
-- Infinite loops: wasted compute, user frustration, timeout errors
-- Premature termination: unresolved issues passed through
-- Unpredictable review times break workflow integration
-- "Fixed-round debates risk either premature stopping before consensus or unnecessary computation after convergence"
+**How to avoid:**
+- Define clear ordering: co-planners review the DRAFT artifact, Claude synthesizes, THEN adversary reviews the SYNTHESIZED artifact
+- Keep the adversary and co-planners as separate, sequential steps -- never merge their roles
+- Co-planners produce RECOMMENDATIONS (constructive additions); adversary produces CHALLENGES (constructive criticism) -- different output formats, different handling
+- Make co-planning optional per checkpoint (configurable): some checkpoints benefit from diverse input, others (like verification) do not
+- Budget context explicitly: co-planning step gets X% of context, adversary step gets Y%, synthesis gets Z%
+- If co-planners and adversary conflict, the adversary's BLOCKING challenges take precedence (safety > innovation)
 
 **Warning signs:**
-- Review times vary wildly (1 round to max rounds)
-- Max rounds hit frequently (>30% of reviews)
-- Items approved on round 1 later found flawed
-- Back-and-forth without position changes
+- Adversary challenges the co-planners' recommendations rather than the artifact
+- Same issue flagged by both systems with contradictory fixes
+- Checkpoint takes 3x longer than without co-planning (context bloat)
+- Claude synthesizer starts "negotiating" between adversary and co-planners instead of making decisions
+- Co-planning is skipped/disabled because it "takes too long" (integration friction)
 
-**Prevention:**
-- Implement adaptive stability detection (KS statistic across rounds)
-- Require stability for 2+ consecutive rounds before termination
-- Set hard maximum (5-10 rounds) as safety bound
-- Track position changes per round (no change = convergence signal)
-- Use heuristic: "majority support should not decrease across q consecutive rounds"
+**Phase to address:** Phase 2 (Integration Protocol) -- the ordering and role separation must be designed before any real checkpoint runs both systems
 
-**Phase to address:** Convergence detection (Phase 2), Round management (Phase 2)
-
-**Sources:** [Adaptive Stability Detection](https://arxiv.org/html/2510.12697v1), [ICLR MAD Study](https://d2jud02ci9yv69.cloudfront.net/2025-04-28-mad-159/blog/mad/)
+**Sources:**
+- Existing GSD `gsd-adversary.md` agent definition (codebase)
+- Existing GSD `checkpoints.md` reference (codebase)
+- [Cognition: Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents)
 
 ---
 
 ## Moderate Pitfalls
 
-Mistakes that reduce effectiveness or create technical debt.
+### Pitfall 6: Authentication and Credential Sprawl
 
-### Pitfall 6: Quality Assessment Gaps
-
-**What goes wrong:** Adversary cannot reliably distinguish sound arguments from persuasive but flawed ones. "Weaker models struggle to recognize sound reasoning from peers."
-
-**Why it happens:**
-- Persuasive language triggers acceptance regardless of logic
-- Models susceptible to logical fallacies (68% opinion change rate with fallacious arguments)
-- No ground truth available during debate
-- Quality judgment requires meta-reasoning capabilities
-
-**Prevention:**
-- Use stronger model for adversary role
-- Require adversary to explain why an argument is sound/unsound
-- Include explicit fallacy detection in adversary prompt
-- Cross-validate with external knowledge sources
-
-**Phase to address:** Model selection (Phase 1), Evaluation criteria (Phase 2)
-
----
-
-### Pitfall 7: Majority Pressure Suppression
-
-**What goes wrong:** In multi-agent scenarios, minority positions (even correct ones) get suppressed by majority pressure. "Weak agents rarely successfully overturn initial majorities."
+**What goes wrong:**
+Each external CLI requires its own authentication: Codex needs `CODEX_API_KEY`, Gemini needs Google Cloud authentication or API key, OpenCode needs provider-specific API keys configured. Users must manage 3+ additional sets of credentials, and any one failing silently degrades the co-planning pipeline.
 
 **Why it happens:**
-- Social conformity patterns from training data
-- Confidence display creates bandwagon effect
-- "Making confidences visible can induce over-confidence cascades"
+- Each CLI has a different auth mechanism (env var, OAuth, config file)
+- Auth failures in non-interactive mode may not produce clear error messages
+- Codex specifically notes `CODEX_API_KEY` is "only supported in `codex exec`" mode
+- Rate limits differ per provider and are not communicated consistently
+- Quota exhaustion causes Codex to hang indefinitely (Issue #6512) rather than exit with error
 
-**Prevention:**
-- Hide inter-agent confidence scores
-- Allow private reasoning before group discussion
-- Weight novel objections higher than confirmations
-- Implement "anti-conformity" mechanisms
+**How to avoid:**
+- Build an auth preflight check: before co-planning starts, verify each configured CLI can authenticate with a trivial prompt
+- Make each CLI optional: if auth fails, skip that co-planner and log a warning rather than blocking
+- Document auth setup clearly in user onboarding (which env vars, where to get keys)
+- Store auth validation results in session state so the preflight only runs once per session
+- Handle rate limits with exponential backoff and a fallback to "skip this agent"
 
-**Phase to address:** Information flow design (Phase 1), Visibility controls (Phase 2)
+**Warning signs:**
+- Co-planning step silently produces output from only 1-2 agents instead of 3
+- Intermittent failures correlate with time of day (rate limiting)
+- Users report "co-planning never works" but the real issue is missing env vars
+
+**Phase to address:** Phase 1 (Foundation) -- auth preflight check should be part of the process wrapper
 
 ---
 
-### Pitfall 8: Context Window Degradation
+### Pitfall 7: Context Isolation Between Co-Planners
 
-**What goes wrong:** Over long interactions, adversary loses track of original instructions and constraints. "Even basic instructions can fall apart during long interactions."
+**What goes wrong:**
+Each external CLI runs in isolation with no knowledge of what other co-planners said. If Codex recommends approach A and Gemini recommends approach B that's incompatible with A, neither knows about the conflict. Only the synthesizer sees both, but by then the recommendations are finalized.
 
 **Why it happens:**
-- Earlier context gets compressed/forgotten as window fills
-- Instruction following degrades with token distance
-- Multi-round debates compound context length
+- This is the fundamental "Flappy Bird problem" from Cognition's research: sub-agents making implicit decisions without shared context
+- CLI-based invocation is inherently stateless -- each call is independent
+- No mechanism to pass one CLI's output as input to another CLI in the same review cycle
+- Sequential invocation would add latency; parallel invocation prevents information sharing
 
-**Prevention:**
-- Re-inject core instructions each round
-- Keep individual rounds compact
-- Summarize previous rounds rather than including full history
-- Use system prompts that persist across rounds
+**How to avoid:**
+- Accept isolation as a feature, not a bug: diverse, independent perspectives are the VALUE of co-planning
+- Put the reconciliation burden entirely on the synthesizer with explicit instructions to detect incompatible recommendations
+- If needed, implement a two-pass pattern: Round 1 gets independent reviews, Round 2 sends each agent a summary of others' feedback and asks "anything to revise?"
+- Keep the synthesizer's prompt focused: "Your job is to detect conflicts and preserve diversity, not create consensus"
 
-**Phase to address:** Context management (Phase 2), Round structure (Phase 2)
+**Warning signs:**
+- Synthesized output contains contradictions (e.g., "use library X" in one section and "use library Y" in another)
+- External agents' recommendations are mutually exclusive but synthesis includes both
+- Users report confusion about which recommendation to follow
+
+**Phase to address:** Phase 2 (Synthesis Protocol)
+
+**Sources:**
+- [Cognition: Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents)
 
 ---
 
-### Pitfall 9: Role Confusion and Artificial Opposition
+### Pitfall 8: Cost and Latency Explosion
 
-**What goes wrong:** Rigid "devil's advocate" role creates opposition for its own sake rather than truth-seeking. Performance drops when "devil agent has no opportunity to continue debating" after losing.
+**What goes wrong:**
+Running 3 external AI CLIs per checkpoint turns a 30-second adversary review into a 3-5 minute multi-model review cycle. Token costs multiply: each external model processes the full artifact plus prompt, and Claude processes all their outputs for synthesis. Users disable co-planning because it's too slow and expensive for routine work.
 
 **Why it happens:**
-- Role assignment creates identity commitment
-- Losing debate feels like failure, not progress
-- No graceful way to "concede good point"
+- Each CLI invocation has cold start latency (especially OpenCode without `serve`)
+- External models process the full artifact independently (3x the token cost of a single review)
+- Synthesis adds another Claude invocation on top of the reviews
+- Network latency to 3 different API providers adds up
+- Some models (Gemini with thinking mode) take significantly longer for complex prompts
 
-**Prevention:**
-- Frame as "challenger seeking to strengthen" not "opponent seeking to defeat"
-- Allow adversary to acknowledge valid points explicitly
-- Define success as "finding real issues OR confirming quality"
-- Permit role flexibility as debate evolves
+**How to avoid:**
+- Make co-planning configurable per checkpoint type: full co-planning for ROADMAP and REQUIREMENTS (high-stakes), Claude-only for PLANS and VERIFICATION (routine)
+- Run external CLIs in parallel (all 3 simultaneously), not sequentially
+- Use a "budget mode" that invokes only 1 external CLI (configurable which one)
+- Cache common preflight results to avoid redundant work
+- Set hard latency budgets: if a CLI hasn't responded in 120 seconds, kill it and proceed without
+- Consider using cheaper/faster model tiers for routine reviews (Gemini Flash, GPT-4o-mini via Codex model flag)
 
-**Phase to address:** Prompt framing (Phase 1), Success metrics (Phase 2)
+**Warning signs:**
+- Checkpoint review time exceeds 5 minutes consistently
+- Users skip co-planning steps ("just plan it")
+- Monthly API costs spike unexpectedly
+- Context window fills before synthesis completes
 
----
-
-## Minor Pitfalls
-
-Mistakes that cause inefficiency but are easily correctable.
-
-### Pitfall 10: Fixed Round Inefficiency
-
-**What goes wrong:** Running predetermined number of rounds regardless of convergence wastes compute on resolved debates.
-
-**Prevention:** Implement early stopping when positions stabilize (no changes for 2 consecutive rounds).
-
-**Phase to address:** Optimization (Phase 3)
+**Phase to address:** Phase 3 (Optimization) -- but latency budgets should be set in Phase 1
 
 ---
 
-### Pitfall 11: Monolithic Response Handling
+### Pitfall 9: Silent Quality Degradation from Model Misconfiguration
 
-**What goes wrong:** Treating entire response as single unit prevents targeted critique.
+**What goes wrong:**
+An external CLI is configured to use a weaker model than intended (e.g., Codex defaults to a smaller model, Gemini uses Flash instead of Pro) and produces superficial reviews that the synthesizer treats as valid input. The co-planning system appears to work but adds noise rather than signal.
 
-**Prevention:** Structure responses into reviewable sections (assumptions, approach, implementation, risks).
+**Why it happens:**
+- Each CLI has different default models and the user may not override them
+- Model names and tiers change across CLI versions
+- OpenCode supports multiple providers with different quality levels
+- No quality gate verifies that external agent output meets a minimum standard
+- The synthesizer cannot distinguish between a thoughtful review and a generic one
 
-**Phase to address:** Response format (Phase 1)
+**How to avoid:**
+- Explicitly configure the model for each CLI in a central config file (e.g., `.planning/config.json`)
+- Implement output quality heuristics: minimum response length, must contain specific sections, must reference the artifact
+- Log which model each CLI actually used (parseable from JSON output for Codex and Gemini)
+- Provide sensible defaults with documentation: "For co-planning, use Codex with `--model o3`, Gemini with `--model gemini-2.5-pro`"
 
----
+**Warning signs:**
+- External agent reviews are generic ("looks good", "consider edge cases") without specific artifact references
+- One CLI consistently produces shorter, less useful output than others
+- Synthesis output is not meaningfully different from Claude-only planning
 
-### Pitfall 12: Missing Escalation Path
-
-**What goes wrong:** No clear resolution when adversary and primary fundamentally disagree.
-
-**Prevention:** Define escalation to human/external arbiter after max rounds without convergence.
-
-**Phase to address:** Workflow integration (Phase 2)
-
----
-
-## Phase-Specific Warnings
-
-| Phase | Likely Pitfall | Mitigation | Priority |
-|-------|---------------|------------|----------|
-| Agent Design | Sycophancy from weak prompts | Explicit devil's advocate framing, require specific objections | HIGH |
-| Agent Design | Over-aggressive blocking | Burden of proof rules, graduated challenge levels | HIGH |
-| Agent Design | Superficial challenges | Require reasoning-step analysis, not just conclusion critique | HIGH |
-| Model Selection | Same-model collusion | Different model families, heterogeneous configs | HIGH |
-| Interaction Protocol | Infinite loops | Adaptive stability detection, hard max rounds | MEDIUM |
-| Interaction Protocol | Premature termination | Multi-round stability requirement | MEDIUM |
-| Calibration | Role confusion | "Strengthen" framing, allow graceful concession | MEDIUM |
-| Integration | Missing escalation | Human arbiter path after max rounds | LOW |
-| Optimization | Fixed round waste | Early stopping on convergence | LOW |
+**Phase to address:** Phase 1 (Configuration) and Phase 3 (Quality gates)
 
 ---
 
-## Anti-Patterns to Explicitly Avoid
+## Technical Debt Patterns
 
-### Anti-Pattern: Debate as Inference-Time Scaling
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Parsing CLI output with regex instead of JSON parser | Quick implementation | Breaks on format changes, edge cases | Never -- always use proper JSON parsing |
+| Hardcoding CLI paths (`/usr/local/bin/codex`) | Avoids path resolution logic | Breaks on different systems, package managers | Never -- use `which`/`command -v` |
+| Skipping auth preflight checks | Faster startup | Silent failures, confusing error messages | Only in development, never in production |
+| Sending full GSD context to external CLIs | No prompt adaptation needed | Wasted tokens, poor output quality, prompt leakage | Never -- always use adapted prompts |
+| Single timeout value for all CLIs | Simple configuration | Some CLIs need more time; one slow CLI blocks fast ones | Early prototyping only -- differentiate by Phase 2 |
+| Treating all agent output equally in synthesis | Simple merge logic | Weaker models' noise dilutes stronger models' signal | Never -- weight by model quality or output quality metrics |
 
-**Trap:** Treating adversarial debate as compute multiplier for accuracy.
-**Reality:** "Current MAD methods fail to consistently outperform simpler single-agent strategies, even with increased computational resources."
-**Instead:** Use debate for catching blind spots and surface assumptions, not boosting accuracy.
+## Integration Gotchas
 
-### Anti-Pattern: Unanimous Agreement as Success
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Codex CLI | Using `codex exec` without `--json` and parsing stdout as plain text | Always use `--json` for JSONL output, extract `turn.completed` events |
+| Codex CLI | Not setting `--skip-git-repo-check` for read-only review tasks | Set the flag when the CLI doesn't need git access |
+| Codex CLI | Ignoring the `--sandbox` flag, causing Codex to modify files | Use default read-only sandbox for review tasks |
+| Gemini CLI | Using `--output-format text` and parsing unstructured prose | Use `--output-format json` and parse the `response` field |
+| Gemini CLI | Not passing `--yolo` or `--approval-mode` for non-interactive use | Configure approval mode to prevent tool-use hangs |
+| Gemini CLI | Forgetting that `DEBUG` env var causes freezing in non-interactive mode | Ensure `DEBUG` is unset or empty before invoking |
+| OpenCode | Not using `opencode serve` + `--attach` pattern | Use persistent server to avoid cold boot penalty |
+| OpenCode | Assuming JSON output format is documented/stable | Treat as experimental; validate output structure defensively |
+| All CLIs | Running in user's shell profile (loading aliases, conda, nvm, etc.) | Use `env -i` or `--noprofile --norc` to get clean environment |
+| All CLIs | Not killing process groups on timeout | Use `setsid` + `kill(-pgid)` to terminate entire process tree |
 
-**Trap:** Measuring success by quick convergence to agreement.
-**Reality:** Quick agreement often signals sycophancy or shared blind spots.
-**Instead:** Track challenge diversity and substantive resolution.
+## Performance Traps
 
-### Anti-Pattern: Adversary as Gatekeeper
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Sequential CLI invocation | 3x latency of single agent | Run all 3 CLIs in parallel with `&` and `wait` | Always slower than necessary |
+| Cold boot per invocation | 5-15 second startup overhead per call | Use persistent server (OpenCode) or session resume (Codex) | Every invocation |
+| Full artifact in prompt | High token cost, slow response | Send only relevant sections + focused review instructions | Artifacts > 2000 tokens |
+| Unbounded output parsing | Parsing hangs on unexpectedly large output | Set output token limits in CLI flags; truncate if needed | When models produce verbose output |
+| Synchronous synthesis | Claude waits for all CLIs before starting synthesis | Start synthesis as soon as first result arrives (progressive) | > 2 concurrent CLI calls |
 
-**Trap:** Giving adversary veto power over all decisions.
-**Reality:** Creates gridlock and encourages gaming/bypassing.
-**Instead:** Make adversary advisory; primary agent (or human) makes final call.
+## Security Mistakes
 
----
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Passing API keys as CLI arguments | Visible in process list (`ps aux`) | Use environment variables, never command-line flags |
+| Sending proprietary code to external models | IP leakage through third-party APIs | Document which models see which code; allow per-project opt-out |
+| Codex `--sandbox danger-full-access` for review tasks | External agent can modify/delete files | Always use read-only sandbox for co-planning |
+| Logging full CLI output including prompts | Sensitive context in log files | Sanitize logs; only log metadata and extracted recommendations |
+| Not validating external agent output for injection | Malicious or hallucinated file paths/commands in recommendations | Never execute recommendations directly; treat as advisory text only |
 
-## Implementation Recommendations for gsd-adversary
+## "Looks Done But Isn't" Checklist
 
-Based on research findings, the `gsd-adversary` agent should:
+- [ ] **Process wrapper:** Handles timeout, orphaned children, and clean shell environment -- verify by killing a hanging CLI mid-run and confirming no orphaned processes remain
+- [ ] **Output parsing:** Handles all three CLI formats correctly -- verify by running integration tests against actual CLI binaries, not mocked output
+- [ ] **Auth preflight:** Detects missing credentials before co-planning starts -- verify by unsetting one API key and confirming graceful degradation
+- [ ] **Prompt templates:** Model-specific prompts produce structured, parseable output -- verify by sending the same artifact to all 3 CLIs and checking output quality
+- [ ] **Synthesis protocol:** Preserves disagreements and novel insights -- verify by sending deliberately conflicting inputs and checking that conflicts surface in output
+- [ ] **Adversary integration:** Co-planners and adversary operate in correct order without interfering -- verify by running a checkpoint with both systems and checking that adversary reviews the synthesized artifact
+- [ ] **Configuration:** Per-checkpoint co-planning toggle works -- verify by disabling co-planning for one checkpoint type and confirming it's skipped
+- [ ] **Graceful degradation:** System works with 0, 1, 2, or 3 external CLIs available -- verify by removing CLIs one at a time and confirming planning still completes
 
-1. **Be advisory, not authoritative** - Claude makes final decisions (avoids gridlock)
-2. **Challenge reasoning steps, not just conclusions** - Prevents superficial review
-3. **Use graduated challenge levels** - Concern < Objection < Blocker (prevents over-aggression)
-4. **Require specific, actionable objections** - "This assumption [X] fails when [Y]"
-5. **Allow graceful acknowledgment** - "Valid point, challenge withdrawn"
-6. **Track convergence via position stability** - Not fixed rounds
-7. **Set reasonable bounds** - Max 5 rounds, min 1 substantive challenge attempted
-8. **Consider model diversity** - Different model family if same-model blind spots emerge
+## Recovery Strategies
 
----
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| CLI hanging indefinitely | LOW | Kill process group, retry with shorter timeout, fall back to Claude-only |
+| Output format breaks after CLI update | MEDIUM | Roll back CLI version, update adapter, pin version in docs |
+| Synthesis collapse (sycophantic merge) | MEDIUM | Re-run synthesis with stronger instructions, manually review agent outputs |
+| Prompt incompatibility producing garbage | LOW | Swap to fallback prompt template, reduce prompt complexity |
+| Adversary/co-planner conflict | LOW | Skip co-planning for that checkpoint, use adversary-only path |
+| Auth credential failure | LOW | Skip that CLI, continue with remaining agents |
+| Cost explosion | MEDIUM | Switch to budget mode (1 CLI), reduce checkpoints using co-planning |
+| Quality degradation from weak model | MEDIUM | Reconfigure model tier, add output quality gate, audit recent outputs |
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| CLI process hanging | Phase 1 (Foundation) | Integration test: invoke each CLI with timeout, verify clean termination |
+| Synthesis collapse | Phase 2 (Synthesis Protocol) | Test with deliberately conflicting inputs, verify disagreements preserved |
+| Output format fragility | Phase 1 (Foundation) | Adapter tests against real CLI binaries for each supported version |
+| Prompt incompatibility | Phase 2 (Prompt Templates) | Send same artifact to all CLIs, verify structured output quality |
+| Adversary interference | Phase 2 (Integration Protocol) | Run checkpoint with both systems, verify correct ordering and separation |
+| Auth credential sprawl | Phase 1 (Foundation) | Preflight test with missing credentials, verify graceful degradation |
+| Context isolation | Phase 2 (Synthesis Protocol) | Verify synthesizer detects incompatible recommendations |
+| Cost/latency explosion | Phase 3 (Optimization) | Benchmark full checkpoint time, set budgets, implement parallel execution |
+| Silent quality degradation | Phase 3 (Quality Gates) | Implement output quality heuristics, audit per-model contribution value |
 
 ## Sources
 
-### Primary Research (HIGH confidence)
-- [Can LLM Agents Really Debate?](https://arxiv.org/html/2511.07784) - ICLR 2025 controlled study
-- [Multi-LLM-Agents Debate: Performance, Efficiency, and Scaling Challenges](https://d2jud02ci9yv69.cloudfront.net/2025-04-28-mad-159/blog/mad/) - ICLR Blogposts 2025
-- [Multi-Agent Debate for LLM Judges with Adaptive Stability Detection](https://arxiv.org/html/2510.12697v1) - Convergence mechanisms
-- [RedDebate: Safer Responses Through Multi-Agent Red Teaming](https://arxiv.org/html/2506.11083) - Safety-focused debate design
+### Official Documentation (HIGH confidence)
+- [Codex CLI Non-Interactive Mode](https://developers.openai.com/codex/noninteractive/)
+- [Codex CLI Features](https://developers.openai.com/codex/cli/features/)
+- [Gemini CLI Headless Mode](https://google-gemini.github.io/gemini-cli/docs/cli/headless.html)
+- [Gemini CLI Configuration](https://google-gemini.github.io/gemini-cli/docs/get-started/configuration.html)
+- [OpenCode CLI Documentation](https://opencode.ai/docs/cli/)
 
-### Supporting Research (MEDIUM confidence)
-- [AI Agents Under Threat: Security Challenges Survey](https://dl.acm.org/doi/10.1145/3716628) - ACM Computing Surveys 2025
-- [When Identity Skews Debate: Anonymization for Bias-Reduced Reasoning](https://arxiv.org/html/2510.07517) - Identity bias analysis
-- [SycEval: Evaluating LLM Sycophancy](https://arxiv.org/html/2502.08177v2) - Sycophancy measurement
-- [SIPRI: Interacting AI Agents Demand New Safeguards](https://www.sipri.org/commentary/essay/2025/its-too-late-why-world-interacting-ai-agents-demands-new-safeguards) - Agent interaction risks
+### GitHub Issues (HIGH confidence -- verified real-world failures)
+- [Codex: Commands hang indefinitely on timeout (Issue #4337)](https://github.com/openai/codex/issues/4337)
+- [Codex: --full-auto orphaned child processes (Issue #7852)](https://github.com/openai/codex/issues/7852)
+- [Codex: Default timeout missing (Issue #4775)](https://github.com/openai/codex/issues/4775)
+- [Codex: Hangs when out of credits (Issue #6512)](https://github.com/openai/codex/issues/6512)
+- [Codex: Plugin regression breaks commands (Issue #7410)](https://github.com/openai/codex/issues/7410)
+- [Gemini CLI: Hangs in non-interactive mode (Issue #16567)](https://github.com/google-gemini/gemini-cli/issues/16567)
+- [Gemini CLI: Hangs on disallowed tools (Issue #12337)](https://github.com/google-gemini/gemini-cli/issues/12337)
+- [Gemini CLI: Interactive prompts block agent (Issue #10909)](https://github.com/google-gemini/gemini-cli/issues/10909)
+- [Gemini CLI: DEBUG env var causes freeze (PR #14580)](https://github.com/google-gemini/gemini-cli/pull/14580)
 
-### Practitioner Resources (MEDIUM confidence)
-- [Microsoft AI Agent Failure Modes Taxonomy](https://www.microsoft.com/en-us/security/blog/2025/04/24/new-whitepaper-outlines-the-taxonomy-of-failure-modes-in-ai-agents/)
-- [CSA Agentic AI Red Teaming Guide](https://cloudsecurityalliance.org/artifacts/agentic-ai-red-teaming-guide)
+### Multi-Agent Research (MEDIUM-HIGH confidence)
+- [Cognition: Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents)
+- [TDS: 17x Error Trap of the Bag of Agents](https://towardsdatascience.com/why-your-multi-agent-system-is-failing-escaping-the-17x-error-trap-of-the-bag-of-agents/)
+- [Microsoft: AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
+
+### Prompt Engineering Comparison (MEDIUM confidence)
+- [Prompt Engineering Best Practices Comparison Matrix](https://www.dataunboxed.io/blog/prompt-engineering-best-practices-complete-comparison-matrix)
+- [Claude XML vs Markdown Formatting](https://algorithmunmasked.com/2025/05/14/mastering-claude-prompts-xml-vs-markdown-formatting-for-optimal-results/)
+- [Gemini Prompt Design Strategies](https://ai.google.dev/gemini-api/docs/prompting-strategies)
+- [Codex Prompting Guide](https://cookbook.openai.com/examples/gpt-5/gpt-5-1-codex-max_prompting_guide)
+
+---
+*Pitfalls research for: External AI Agent Co-Planning Integration into GSD*
+*Researched: 2026-02-16*

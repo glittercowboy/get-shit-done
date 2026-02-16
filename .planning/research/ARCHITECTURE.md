@@ -1,495 +1,767 @@
-# Architecture: Adversarial Agent Integration
+# Architecture Research: External AI Agent Co-Planning Integration
 
-**Domain:** GSD meta-prompting system extension
-**Researched:** 2026-01-31
-**Overall Confidence:** HIGH (based on existing codebase patterns + industry best practices)
+**Domain:** CLI-based AI agent co-planning for GSD workflow system
+**Researched:** 2026-02-16
+**Confidence:** HIGH (existing architecture well-understood, external CLI APIs verified via official docs)
 
 ## Executive Summary
 
-The adversarial agent integrates as a **parallel verification layer** within the existing orchestrator-agent architecture. It follows the same spawning pattern as `gsd-plan-checker` and `gsd-verifier` but with a distinct role: **oppositional review** rather than structural validation.
+External AI co-planners integrate as a **new invocation layer** between the orchestrator commands and the external environment. Unlike internal subagents (spawned via Task tool with markdown prompts), co-planners are invoked via Bash tool calls to external CLI processes and return text/JSON. The architecture adds a thin CLI abstraction in `gsd-tools.cjs` and extends the existing checkpoint pattern from the adversary system.
 
-Key architectural insight: The adversary is NOT a replacement for existing verification agents. It complements them by challenging assumptions and feasibility, while they verify completeness and structure. Both patterns coexist.
+Key architectural insight: Co-planners are NOT subagents. They are **external process invocations** that return text. The orchestrator treats their output like any other data input -- read it, synthesize it, decide. This is fundamentally simpler than the adversary's debate loop because co-planners are single-shot: invoke once per checkpoint, no iterative rounds.
 
-## Where Adversary Fits in Existing Layers
+Second key insight: Co-planners and the adversary serve **different roles** at shared checkpoints. Co-planners provide additive perspective (blind spot detection), while the adversary provides structured adversarial challenge (stress testing). Co-planners run FIRST (improve the artifact), adversary runs SECOND (challenge the improved artifact).
+
+## Where Co-Planners Fit in Existing Layers
 
 ### Layer Placement
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    USER-FACING LAYER (Commands)                  │
-│   /gsd:new-project   /gsd:plan-phase   /gsd:execute-phase       │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ spawns via Task()
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    ORCHESTRATION LAYER (Workflows)               │
-│   Manages debate loop, collects responses, enforces max rounds   │
-│   NEW: Debate coordination logic in workflow files               │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ spawns
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    SUBAGENT LAYER (Agents)                       │
-│                                                                  │
-│   EXISTING:              NEW:                EXISTING:           │
-│   ┌──────────────┐      ┌──────────────┐    ┌──────────────┐    │
-│   │ gsd-planner  │      │ gsd-adversary│    │ gsd-verifier │    │
-│   │ gsd-researcher│     │              │    │ gsd-plan-    │    │
-│   │ gsd-executor │      │ (oppositional│    │   checker    │    │
-│   │ gsd-roadmapper│     │   review)    │    │              │    │
-│   └──────────────┘      └──────────────┘    └──────────────┘    │
-│                                                                  │
-│   Creates artifacts      Challenges         Validates structure  │
-│                          assumptions                              │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                    USER-FACING LAYER (Commands)                      │
+│   /gsd:new-project   /gsd:plan-phase   /gsd:execute-phase           │
+│   /gsd:new-milestone  /gsd:verify-work  /gsd:settings               │
+└───────────────────────────┬─────────────────────────────────────────┘
+                            │ spawns via Task() + invokes via Bash
+                            v
+┌─────────────────────────────────────────────────────────────────────┐
+│                    ORCHESTRATION LAYER (Workflows)                    │
+│   Manages agent spawning, co-planner invocation, synthesis           │
+│   Reads config.json for checkpoint agent assignments                 │
+│   Builds prompts, parses responses, merges feedback                  │
+├───────────────────┬─────────────────────────────────────────────────┤
+│                   │                                                  │
+│   spawns via      │  invokes via Bash (gsd-tools.cjs abstraction)   │
+│   Task()          │                                                  │
+│                   │                                                  │
+│        v          │           v                                      │
+├───────────────────┴─────────────────────────────────────────────────┤
+│  SUBAGENT LAYER        │    EXTERNAL PROCESS LAYER                   │
+│  (Task tool)           │    (Bash tool -> CLI)                       │
+│                        │                                             │
+│  ┌──────────────┐      │    ┌─────────────┐  ┌───────────────┐      │
+│  │ gsd-planner  │      │    │ codex exec  │  │ gemini -p     │      │
+│  │ gsd-researcher│     │    │ (OpenAI)    │  │ (Google)      │      │
+│  │ gsd-executor │      │    ├─────────────┤  ├───────────────┤      │
+│  │ gsd-adversary│      │    │ opencode run│  │ claude -p     │      │
+│  │ gsd-verifier │      │    │ (multi-LLM) │  │ (self-review) │      │
+│  │ gsd-roadmapper│     │    └─────────────┘  └───────────────┘      │
+│  └──────────────┘      │                                             │
+│                        │    Invoked via gsd-tools.cjs                │
+│  Creates/challenges    │    Returns normalized JSON                  │
+│  artifacts             │    Advisory only, no file access            │
+├────────────────────────┴─────────────────────────────────────────────┤
+│                    NORMALIZATION LAYER (gsd-tools.cjs)                │
+│   coplanner config | coplanner invoke | coplanner parse              │
+│   Normalizes CLI-specific JSON to unified format                     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Relationship to Existing Verification Agents
+### Relationship to Existing Agents
 
-| Agent | Role | When | What it Checks |
-|-------|------|------|----------------|
-| `gsd-plan-checker` | Structural validation | After PLAN.md created | Task completeness, dependencies, scope |
-| `gsd-verifier` | Post-execution validation | After phase execution | Artifacts exist, are substantive, are wired |
-| `gsd-adversary` (NEW) | Oppositional review | At 4 checkpoints | Assumptions, feasibility, completeness of THINKING |
+| Component | Type | Mechanism | Role | Stateful? |
+|-----------|------|-----------|------|-----------|
+| `gsd-planner` | Internal subagent | Task tool | Creates plans | No (fresh context) |
+| `gsd-adversary` | Internal subagent | Task tool | Challenges artifacts | No (round state in orchestrator) |
+| `gsd-verifier` | Internal subagent | Task tool | Validates execution | No (fresh context) |
+| `gsd-roadmapper` | Internal subagent | Task tool | Creates roadmap | No (fresh context) |
+| **codex** | External process | Bash -> CLI | Reviews artifacts | No (`--ephemeral`) |
+| **gemini** | External process | Bash -> CLI | Reviews artifacts | No (headless mode) |
+| **opencode** | External process | Bash -> CLI | Reviews artifacts | No (`run` mode) |
+| **claude** | External process | Bash -> CLI | Reviews artifacts | No (`-p` mode) |
 
-**Critical distinction**:
-- Plan-checker asks "Is this plan complete?"
-- Verifier asks "Did we build what we planned?"
-- Adversary asks "Should we be building this at all? Are we missing something fundamental?"
+**Critical distinctions:**
+- Internal subagents receive markdown prompts, have access to GSD tools, operate within Claude's context ecosystem
+- External co-planners receive text prompts via CLI stdin, have their own tool access, operate in isolated processes
+- Both are advisory: Claude synthesizes all input and makes final decisions
+- Co-planners are single-shot (no iterative rounds). Adversary has a debate loop.
 
-## Data Flow for Debate Loop
+### Key Design Decision: NOT a Separate Agent
 
-### Sequence Diagram
+External agent invocation should be **inline in orchestrator commands**, not a separate `gsd-external-agent.md` subagent. Rationale:
 
+1. **Context preservation**: The orchestrator already has the artifact in context when it needs external review. Spawning a subagent to spawn a bash call adds indirection with no benefit.
+2. **Pattern consistency**: The adversary is a subagent because it needs a fresh context window with its own system prompt for adversarial reasoning. External CLI tools already get a fresh context by nature of being separate processes.
+3. **Simplicity**: Bash invocation from the orchestrator is simpler than Task (spawn subagent) -> Bash (invoke CLI).
+
+## Component Boundaries
+
+### 1. Normalization Layer (`gsd-tools.cjs` additions)
+
+**Responsibility:** Detect available CLIs, invoke them with correct flags, normalize output.
+
+**New commands:**
 ```
-Command (Orchestrator)           Adversary Agent          Claude (in Command)
-         │                              │                        │
-         │  ──────────────────────────▶ │                        │
-         │     Task(artifact, type,     │                        │
-         │          round=1)            │                        │
-         │                              │                        │
-         │  ◀────────────────────────── │                        │
-         │     Challenges[] OR          │                        │
-         │     "no objections"          │                        │
-         │                              │                        │
-         │  ───────────────────────────────────────────────────▶ │
-         │     (if challenges)                                   │
-         │     Present challenges,                               │
-         │     formulate defense                                 │
-         │                              │                        │
-         │  ◀─────────────────────────────────────────────────── │
-         │     Defense + revised artifact                        │
-         │                              │                        │
-         │  ──────────────────────────▶ │                        │
-         │     Task(revised_artifact,   │                        │
-         │          defense, round=2)   │                        │
-         │                              │                        │
-    ┌────┴────┐                         │                        │
-    │ Loop    │                         │                        │
-    │ until   │ ◀──────────────────────▶│◀───────────────────────│
-    │ converge│    (max 3 rounds)       │                        │
-    │ or max  │                         │                        │
-    └────┬────┘                         │                        │
-         │                              │                        │
-         │  Proceed with artifact                                │
-         ▼                              ▼                        ▼
+coplanner config <checkpoint>         -> { agents: [...], timeout, maxTokens }
+coplanner invoke <agent>              -> { agent, status, feedback, error }
+  --prompt-file <path> [--timeout N]
+coplanner parse <agent>               -> { agent, status, feedback, error }
+  --response <text>
 ```
 
-### Message Structure
+**NOT responsible for:**
+- Deciding when to invoke (orchestrator decides based on config)
+- Synthesizing responses (orchestrator synthesizes)
+- Managing config (config.json is source of truth)
 
-**Command to Adversary (Initial):**
-```markdown
-<artifact_type>requirements | roadmap | plan | verification</artifact_type>
-
-<artifact>
-{Full content of REQUIREMENTS.md, ROADMAP.md, PLAN.md, or VERIFICATION.md}
-</artifact>
-
-<project_context>
-{PROJECT.md summary - what we're building, constraints, core value}
-</project_context>
-
-<round>1</round>
-<max_rounds>3</max_rounds>
+**Boundaries:**
+```
+IN:  agent name, prompt file path, timeout, model override
+OUT: normalized JSON response (same schema regardless of agent)
 ```
 
-**Command to Adversary (Subsequent rounds):**
-```markdown
-<artifact_type>requirements</artifact_type>
+### 2. Config Extension (`config.json`)
 
-<artifact>
-{Updated artifact content}
-</artifact>
+**Responsibility:** Store user preferences for which agents run at which checkpoints.
 
-<previous_challenges>
-{Adversary's challenges from last round}
-</previous_challenges>
+**NOT responsible for:**
+- Runtime detection (gsd-tools handles `command -v`)
+- Invocation logic (orchestrator + gsd-tools handle this)
 
-<defense>
-{Claude's defense explaining why challenges were addressed or rejected}
-</defense>
+### 3. Orchestrator Integration (Commands/Workflows)
 
-<round>2</round>
-<max_rounds>3</max_rounds>
+**Responsibility:** Read config, build prompts with artifact context, invoke co-planners via gsd-tools, synthesize feedback, revise artifacts.
+
+**NOT responsible for:**
+- CLI-specific flags (normalization layer handles this)
+- JSON parsing of CLI output (normalization layer handles this)
+- Tool availability detection (normalization layer checks this)
+
+## Config Schema Design
+
+### Proposed `co_planners` Section
+
+```json
+{
+  "co_planners": {
+    "enabled": false,
+    "agents": {
+      "codex": {
+        "enabled": false,
+        "command": "codex exec",
+        "flags": "--json --ephemeral --full-auto --skip-git-repo-check",
+        "model": null
+      },
+      "gemini": {
+        "enabled": false,
+        "command": "gemini -p",
+        "flags": "--output-format json",
+        "model": null
+      },
+      "opencode": {
+        "enabled": false,
+        "command": "opencode run",
+        "flags": "--format json",
+        "model": null
+      },
+      "claude": {
+        "enabled": false,
+        "command": "claude -p",
+        "flags": "--output-format json --allowedTools Read",
+        "model": null
+      }
+    },
+    "checkpoints": {
+      "research": [],
+      "requirements": [],
+      "roadmap": [],
+      "plan": [],
+      "execution_review": [],
+      "verification": []
+    },
+    "timeout_seconds": 120,
+    "max_artifact_tokens": 50000
+  }
+}
 ```
 
-**Adversary Response (Challenges found):**
-```markdown
-## CHALLENGES
+### Schema Design Rationale
 
-**Round:** 2/3
+**`enabled: false` default:** Co-planners are opt-in, not opt-out. Unlike the adversary (which defaults to enabled because it uses the same Claude model), co-planners require external CLI tools to be installed and authenticated. Defaulting to disabled avoids errors for users without these tools.
 
-### Challenge 1: [Category]
-**Concern:** [What's problematic]
-**Evidence:** [Why this is a real issue]
-**Severity:** critical | significant | minor
-**Recommendation:** [What to do about it]
+**`agents` section with `command` and `flags`:** Stores CLI invocation details per tool. This decouples the orchestrator from CLI-specific syntax -- if Codex changes a flag name, only the config needs updating. `model: null` means use the tool's default; override with e.g. `"gpt-5-codex"` or `"gemini-2.5-flash"`.
 
-### Challenge 2: [Category]
-...
+**`checkpoints` as arrays of agent names:** Unlike the adversary (single agent, boolean per checkpoint), co-planners support multiple agents at a single checkpoint. Arrays naturally express "which agents participate here." Empty array = no agents at that checkpoint.
 
-### Defense Assessment
+**`timeout_seconds: 120`:** External CLI calls can hang due to network issues, authentication problems, or API rate limits. Default 120s prevents blocking the workflow indefinitely.
 
-| Previous Challenge | Status | Notes |
-|-------------------|--------|-------|
-| [Challenge 1] | addressed | [how] |
-| [Challenge 2] | rejected | [why rejection is valid/invalid] |
-| [Challenge 3] | unaddressed | [still a concern] |
+**`max_artifact_tokens: 50000`:** Caps content sent to external agents (characters, roughly 12.5K tokens). Prevents token limit issues with smaller context window models.
 
-### Convergence Assessment
+### Config Precedence Chain
 
-**Status:** continue | converging | deadlock
-**Remaining concerns:** [count]
-**Recommendation:** [continue debate | accept with noted risks | escalate to user]
+```
+co_planners.enabled === false          -> Skip all (global kill switch)
+agents.{name}.enabled === false        -> Skip that agent even if listed in checkpoint
+checkpoints.{name} is empty []        -> No external agents at that checkpoint
+Tool not installed (command -v fails)  -> Skip with warning (graceful degradation)
+Tool times out                         -> Skip with warning, continue workflow
 ```
 
-**Adversary Response (No objections):**
-```markdown
-## NO OBJECTIONS
+### Config Reading Pattern
 
-**Round:** 2/3
+Follows the established `node -e` pattern from adversary config:
 
-All challenges from previous round have been adequately addressed.
-
-### Summary
-- [Challenge 1]: Addressed by [how]
-- [Challenge 2]: Rejected with valid rationale [why]
-
-### Confidence
-The artifact is sound. Proceeding is appropriate.
-```
-
-## Integration with Existing Commands
-
-### Checkpoint Locations
-
-| Command | Checkpoint | After | Before |
-|---------|------------|-------|--------|
-| `/gsd:new-project` | Requirements | REQUIREMENTS.md written | Roadmap spawned |
-| `/gsd:new-project` | Roadmap | ROADMAP.md written | User approval prompt |
-| `/gsd:plan-phase` | Plans | PLAN.md written | Plan-checker spawned |
-| `/gsd:execute-phase` or `/gsd:verify-work` | Verification | VERIFICATION.md written | Presenting results |
-
-### Integration Pattern (per command)
-
-**Pattern 1: Sequential (Adversary before existing verification)**
-```
-Artifact created → Adversary debate → Existing verification → Commit
-```
-Use for: Requirements, Roadmap (no existing verification agent)
-
-**Pattern 2: Parallel then Sequential (Adversary alongside existing verification)**
-```
-Artifact created → [Adversary debate] + [Plan-checker] → Merge results → Commit
-                         │                    │
-                         │ (in parallel)      │
-                         ▼                    ▼
-```
-Use for: Plans (could run adversary and plan-checker in parallel for speed)
-
-**Recommended: Sequential for simplicity**
-```
-Artifact created → Plan-checker → Adversary debate → Commit
-```
-This ensures:
-1. Structural issues caught first (plan-checker)
-2. Then assumptions challenged (adversary)
-3. Simpler orchestration logic
-
-### Workflow Additions
-
-Each command's workflow file needs:
-
-```markdown
-## N. Adversary Review (Optional)
-
-**Check config:**
 ```bash
-ADVERSARY_ENABLED=$(cat .planning/config.json 2>/dev/null | grep -o '"adversary"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "false")
+CHECKPOINT_NAME="requirements"
+COPLANNER_CONFIG=$(node -e "
+  try {
+    const c = JSON.parse(require('fs').readFileSync('.planning/config.json', 'utf8'));
+    const cp = c.co_planners || {};
+    if (cp.enabled === false) { console.log(JSON.stringify({ agents: [], timeout: 120, maxTokens: 50000 })); process.exit(0); }
+    const agentNames = cp.checkpoints?.[process.argv[1]] || [];
+    const timeout = cp.timeout_seconds || 120;
+    const maxTokens = cp.max_artifact_tokens || 50000;
+    const agents = agentNames
+      .filter(a => cp.agents?.[a]?.enabled !== false && cp.agents?.[a]?.command)
+      .map(a => ({
+        name: a,
+        command: cp.agents[a].command,
+        flags: cp.agents[a].flags || '',
+        model: cp.agents[a].model || null
+      }));
+    console.log(JSON.stringify({ agents, timeout, maxTokens }));
+  } catch(e) { console.log(JSON.stringify({ agents: [], timeout: 120, maxTokens: 50000 })); }
+" "$CHECKPOINT_NAME" 2>/dev/null || echo '{"agents":[],"timeout":120,"maxTokens":50000}')
 ```
 
-**If adversary enabled:**
+Or preferably via the gsd-tools abstraction:
 
-Initialize debate state:
+```bash
+COPLANNER_CONFIG=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner config "$CHECKPOINT_NAME")
 ```
-round = 1
-max_rounds = 3
-challenges = []
+
+## Data Flow
+
+### Single Co-Planner at Checkpoint
+
 ```
+Orchestrator                  gsd-tools.cjs              External CLI
+     │                              │                         │
+     │ coplanner invoke gemini      │                         │
+     │   --prompt-file /tmp/xx.md   │                         │
+     │----------------------------->│                         │
+     │                              │ command -v gemini       │
+     │                              │ (check availability)    │
+     │                              │                         │
+     │                              │ timeout 120s            │
+     │                              │ cat /tmp/xx.md |        │
+     │                              │   gemini -p \           │
+     │                              │   --output-format json  │
+     │                              │------------------------>│
+     │                              │                         │
+     │                              │ { response, stats }     │
+     │                              │<------------------------|
+     │                              │                         │
+     │  { agent: "gemini",          │                         │
+     │    status: "success",        │                         │
+     │    feedback: "...",          │                         │
+     │    error: null }             │                         │
+     │<-----------------------------|                         │
+     │                                                        │
+     │ Claude synthesizes                                     │
+     │ feedback into artifact revision                        │
+     v
+```
+
+### Multiple Co-Planners at Checkpoint (Parallel)
+
+```
+Orchestrator
+     │
+     │ Reads config: ["codex", "gemini"] for requirements checkpoint
+     │
+     │ Builds prompt file (shared)
+     │
+     ├── Bash call 1: coplanner invoke codex --prompt-file /tmp/xx.md
+     │                    │
+     │                    └──> codex exec - --json --ephemeral --full-auto
+     │
+     ├── Bash call 2: coplanner invoke gemini --prompt-file /tmp/xx.md
+     │                    │
+     │                    └──> gemini -p --output-format json
+     │
+     │ (Both run in parallel as separate Bash tool calls)
+     │
+     │ Collect responses:
+     │   codex: { agent: "codex", feedback: "..." }
+     │   gemini: { agent: "gemini", feedback: "..." }
+     │
+     │ Claude synthesizes both responses
+     │   - Address valid HIGH concerns from either
+     │   - Note suggestions from both
+     │   - Reject incompatible recommendations
+     │
+     │ Revise artifact on disk
+     v
+```
+
+### Co-Planner + Adversary at Same Checkpoint
+
+```
+Orchestrator
+     │
+     │-- 1. Create artifact (e.g., REQUIREMENTS.md)
+     │
+     │-- 2. Co-planner review (additive perspective)
+     │       codex: "Consider adding session expiration requirement"
+     │       gemini: "Missing non-functional performance requirements"
+     │
+     │-- 3. Claude synthesizes co-planner input
+     │       - Adds AUTH-04 (session expiration) from codex
+     │       - Adds PERF-01 (response time) from gemini
+     │       - Revises REQUIREMENTS.md on disk
+     │
+     │-- 4. Adversary debate loop (stress test)
+     │       adversary round 1: "MAJOR: Auth requirements assume
+     │                           single-tenant but PROJECT.md says multi-tenant"
+     │
+     │-- 5. Claude defends/revises (existing pattern)
+     │       - Addresses adversary challenge
+     │       - Revises REQUIREMENTS.md on disk
+     │
+     │-- 6. [Optional] Adversary rounds 2-3
+     │
+     │-- 7. User approval of final artifact
+     v
+```
+
+**Ordering rationale:** Co-planners run FIRST (refine the artifact with additional perspective), adversary runs SECOND (challenge the refined artifact). This way the adversary reviews the best version, not the raw draft.
+
+## CLI Invocation Specifics
+
+### Codex CLI (OpenAI)
+
+**Invocation:**
+```bash
+timeout ${TIMEOUT}s cat "$PROMPT_FILE" | \
+  codex exec - --json --ephemeral --full-auto --skip-git-repo-check 2>/dev/null
+```
+
+**Key flags:**
+| Flag | Purpose | Required? |
+|------|---------|-----------|
+| `-` (stdin) | Read prompt from stdin | Yes (avoids shell escaping issues) |
+| `--json` | JSON Lines output to stdout, progress to stderr | Yes (machine-readable) |
+| `--ephemeral` | No session persistence | Yes (review-only, no state needed) |
+| `--full-auto` | No approval prompts | Yes (non-interactive) |
+| `--skip-git-repo-check` | Works outside git repos | Yes (review-only, no file changes) |
+| `-m MODEL` | Model override | Optional |
+
+**Output format:** JSON Lines on stdout. Each line is a JSON event. Parse for `turn.completed` events to extract the final assistant message.
+
+**Authentication:** `CODEX_API_KEY` environment variable or `codex login`.
+
+**Confidence:** HIGH -- verified via developers.openai.com/codex/noninteractive and developers.openai.com/codex/cli/reference
+
+### Gemini CLI (Google)
+
+**Invocation:**
+```bash
+timeout ${TIMEOUT}s cat "$PROMPT_FILE" | \
+  gemini -p --output-format json 2>/dev/null
+```
+
+**Key flags:**
+| Flag | Purpose | Required? |
+|------|---------|-----------|
+| `-p` / `--prompt` | Headless mode | Yes |
+| `--output-format json` | Structured JSON output | Yes (machine-readable) |
+| `-m MODEL` | Model selection | Optional (default: gemini-2.5-flash) |
+| `-y` / `--yolo` | Auto-approve actions | Not needed for review-only |
+
+**Output format:** Single JSON object with `response` field (text answer) and `stats` (token usage, latency).
+
+**Authentication:** `gemini auth` or Google Cloud credentials.
+
+**Confidence:** HIGH -- verified via google-gemini.github.io/gemini-cli/docs/cli/headless.html
+
+### OpenCode CLI
+
+**Invocation:**
+```bash
+timeout ${TIMEOUT}s cat "$PROMPT_FILE" | \
+  opencode run --format json 2>/dev/null
+```
+
+**Key flags:**
+| Flag | Purpose | Required? |
+|------|---------|-----------|
+| `run` | Non-interactive mode | Yes |
+| `--format json` | JSON output | Yes (machine-readable) |
+| `-m PROVIDER/MODEL` | Model selection | Optional |
+
+**Output format:** JSON event stream. Parse for assistant response content.
+
+**Authentication:** Per-provider API keys (configured in OpenCode settings).
+
+**Confidence:** MEDIUM -- verified via opencode.ai/docs/cli. Stdin piping in `run` mode has fewer documented examples than Codex/Gemini. May need integration testing.
+
+### Claude Code Self-Review (`claude -p`)
+
+**Invocation:**
+```bash
+timeout ${TIMEOUT}s cat "$PROMPT_FILE" | \
+  claude -p --output-format json --allowedTools "Read" 2>/dev/null
+```
+
+**Key flags:**
+| Flag | Purpose | Required? |
+|------|---------|-----------|
+| `-p` / `--print` | Headless mode | Yes |
+| `--output-format json` | JSON output with `result` field | Yes |
+| `--allowedTools "Read"` | Limit tool access (review-only) | Recommended |
+| `--append-system-prompt` | Add review instructions | Optional |
+
+**Output format:** JSON with `result` field (text response), `session_id`, usage metadata.
+
+**Authentication:** Same Anthropic API key as parent Claude Code process.
+
+**Confidence:** HIGH -- verified via code.claude.com/docs/en/headless
+
+### Prompt Passing Strategy
+
+**Challenge:** Large artifacts with special characters will break when passed as shell arguments.
+
+**Solution: Temp file + stdin pipe (all CLI tools support this):**
+
+```bash
+# Build prompt file
+PROMPT_FILE=$(mktemp)
+cat > "$PROMPT_FILE" <<'REVIEW_HEADER'
+You are reviewing a requirements document for a software project.
+
+## Project Context
+[project_summary]
+
+## Artifact to Review
+REVIEW_HEADER
+cat .planning/REQUIREMENTS.md | head -c "$MAX_CHARS" >> "$PROMPT_FILE"
+cat >> "$PROMPT_FILE" <<'REVIEW_FOOTER'
+
+## Review Instructions
+[checkpoint-specific instructions]
+REVIEW_FOOTER
+
+# Invoke
+REVIEW=$(timeout ${TIMEOUT}s cat "$PROMPT_FILE" | $CLI_COMMAND $CLI_FLAGS 2>/dev/null)
+rm -f "$PROMPT_FILE"
+```
+
+**Why not shell arguments:** Breaks with special characters, quotes, long content. Not portable.
+**Why not file references:** Only works for tools with file access. Not all tools can read project files in review-only mode.
+
+## Response Normalization
+
+Each CLI tool returns a different JSON format. The normalization layer in `gsd-tools.cjs` standardizes to:
+
+```json
+{
+  "agent": "codex",
+  "status": "success",
+  "feedback": "full text of review response...",
+  "error": null
+}
+```
+
+### Parsing per tool:
+
+| CLI Tool | Raw Output | Extract Feedback From |
+|----------|------------|----------------------|
+| Codex | JSON Lines (multiple events) | Last `turn.completed` event -> message text |
+| Gemini | `{ "response": "...", "stats": {...} }` | `.response` field |
+| OpenCode | JSON event stream | Assistant message content |
+| Claude | `{ "result": "...", "session_id": "..." }` | `.result` field |
+
+### Error states:
+
+| Condition | `status` | `feedback` | `error` |
+|-----------|----------|------------|---------|
+| Success | `"success"` | Review text | `null` |
+| Tool not found | `"unavailable"` | `""` | `"codex not found"` |
+| Timeout | `"timeout"` | `""` | `"exceeded 120s"` |
+| Auth failure | `"auth_error"` | `""` | `"authentication required"` |
+| Parse failure | `"parse_error"` | Raw stdout | `"failed to parse JSON"` |
+
+## Integration Points by Command
+
+### Checkpoint Map
+
+| Checkpoint | Command | Insertion Point | Before Step |
+|------------|---------|----------------|-------------|
+| `research` | `new-project` | After Phase 6 (synthesis done) | Phase 7 (requirements) |
+| `requirements` | `new-project` / `new-milestone` | After Phase 7 (REQUIREMENTS.md written) | Phase 7.5 (adversary) |
+| `roadmap` | `new-project` / `new-milestone` | After Phase 8 (ROADMAP.md written) | Phase 8.5 (adversary) |
+| `plan` | `plan-phase` | After Step 11 (checker passed) | Step 12.5 (adversary) |
+| `execution_review` | `execute-phase` | After Step 5 (waves complete) | Step 7 (verifier) |
+| `verification` | `execute-phase` | After Step 7 (verifier done) | Step 7.5 (adversary) |
+
+### Modified vs New Files
+
+| File | Action | Scope of Change |
+|------|--------|----------------|
+| `commands/gsd/new-project.md` | **MODIFY** | Add co-planner blocks at 3 insertion points |
+| `commands/gsd/new-milestone.md` | **MODIFY** | Add co-planner blocks (same pattern as new-project) |
+| `commands/gsd/plan-phase.md` | **MODIFY** | Add co-planner block at 1 insertion point |
+| `commands/gsd/execute-phase.md` | **MODIFY** | Add co-planner blocks at 2 insertion points |
+| `commands/gsd/settings.md` | **MODIFY** | Add co-planner settings questions (3 new AskUserQuestion blocks) |
+| `get-shit-done/references/co-planners.md` | **NEW** | Reference doc: invocation patterns, config reading, prompt templates, response parsing |
+| `get-shit-done/templates/config.json` | **MODIFY** | Add `co_planners` section with defaults |
+| `get-shit-done/bin/gsd-tools.cjs` | **MODIFY** | Add `coplanner config`, `coplanner invoke`, `coplanner parse` commands |
+| `docs/concepts/co-planning.md` | **NEW** | User-facing concept doc |
+| `docs/reference/commands.md` | **MODIFY** | Document co-planner integration in relevant commands |
+
+**No new agent files needed.** External agents are invoked via Bash inline in orchestrator commands.
+
+### Workflow Pattern at Each Checkpoint
+
+```markdown
+## N.5. Co-Planner Review (Optional)
+
+**Read co-planner config:**
+
+```bash
+COPLANNER_CONFIG=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner config "$CHECKPOINT_NAME")
+AGENTS=$(echo "$COPLANNER_CONFIG" | node -e "
+  const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+  d.agents.forEach(a=>console.log(a.name));
+")
+```
+
+**If no agents configured:** Skip to next step.
+
+**If agents configured:**
 
 Display banner:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- GSD ► ADVERSARIAL REVIEW
+ GSD > CO-PLANNER REVIEW
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-◆ Challenging [artifact type]...
+Reviewing {artifact_type} with: {agent_names}
 ```
 
-### Debate Loop
+1. Build prompt file with artifact + review instructions
+2. For each agent (parallel Bash calls if multiple):
+   ```bash
+   REVIEW=$(node gsd-tools.cjs coplanner invoke {agent} --prompt-file "$PROMPT_FILE")
+   ```
+3. Collect all responses
+4. Synthesize: Claude evaluates each piece of feedback
+   - Address valid HIGH concerns (revise artifact on disk)
+   - Note MEDIUM/LOW suggestions
+   - Reject incompatible recommendations with rationale
+5. Display summary:
+   ```
+   {agent}: {N} concerns addressed, {M} noted
+   ```
+6. If artifact revised: set `COPLANNER_REVISED=true`
 
-```
-while round <= max_rounds:
-    # Read current artifact
-    artifact_content = read(artifact_path)
-
-    # Spawn adversary
-    response = Task(
-        prompt = adversary_prompt(artifact_content, challenges, defense, round),
-        subagent_type = "gsd-adversary",
-        model = "{adversary_model}",
-        description = "Challenge {artifact_type} (round {round})"
-    )
-
-    # Parse response
-    if response contains "## NO OBJECTIONS":
-        break  # Converged
-
-    # Extract challenges
-    new_challenges = parse_challenges(response)
-
-    if round < max_rounds:
-        # Claude formulates defense
-        defense = formulate_defense(new_challenges, artifact_content)
-
-        # Update artifact if needed
-        if defense requires artifact changes:
-            update_artifact(artifact_path, changes)
-
-    round += 1
-
-# After loop
-if round > max_rounds and challenges remain:
-    # Claude makes final decision
-    present_unresolved_challenges()
-    final_decision = claude_decides(challenges)
-    log_decision_to_state()
-```
+**Proceed to adversary review or user approval.**
 ```
 
-## Component Boundaries
+## Prompt Architecture
 
-### gsd-adversary Agent
+### Review Prompt Template
 
-**Responsibilities:**
-- Receive artifact + type + optional previous defense
-- Generate challenges based on artifact type
-- Assess previous defense (if provided)
-- Return structured challenges or "no objections"
+```markdown
+You are reviewing a {artifact_type} for a software project.
 
-**NOT responsible for:**
-- Updating artifacts (command does this)
-- Making final decisions (Claude in command does this)
-- Blocking workflow (advisory only)
+## Project Context
+{project_name}: {one_paragraph_summary}
 
-**Boundaries:**
+## Artifact to Review
+---
+{artifact_content}
+---
+
+## Review Instructions
+Analyze this {artifact_type} and provide:
+
+1. **Concerns**: Issues that should be addressed, each with:
+   - Severity: HIGH (must address) / MEDIUM (should address) / LOW (nice to address)
+   - What: The specific issue
+   - Where: Which section/requirement/phase
+   - Suggestion: How to address it
+
+2. **Missing Elements**: What was overlooked
+
+3. **Overall Assessment**: APPROVE (no significant concerns) or REVISE (concerns need attention)
+
+Be constructive and specific. Focus on actionable feedback.
 ```
-IN:  artifact content, type, round number, previous challenges, defense
-OUT: new challenges OR "no objections" + assessment
-```
 
-### Command (Orchestrator) Responsibilities
+**Design decisions:**
+- Includes project context but NOT full project history (targeted prompts produce better reviews)
+- Does NOT include adversary challenges (prevents echo chamber)
+- Does NOT include other co-planner responses (independent perspectives)
+- Severity levels match adversary vocabulary (HIGH/MEDIUM/LOW maps to BLOCKING/MAJOR/MINOR)
+- Overall assessment provides quick signal for orchestrator
 
-**Responsibilities:**
-- Check if adversary is enabled in config
-- Manage debate loop state (round counter, challenges list)
-- Spawn adversary agent with appropriate context
-- Present challenges to Claude for defense formulation
-- Update artifacts based on defense
-- Make final decisions on unresolved challenges
-- Log decisions to STATE.md
+### Prompt Size Constraints
 
-### Workflow File Responsibilities
+Keep prompts under 32K tokens to be safe across all providers. For large artifacts:
+- Truncate artifact at `max_artifact_tokens` (default 50K characters)
+- Prepend a summary header so external agent has context even for truncated content
+- Include only the target artifact + brief project summary (1 paragraph)
 
-**Responsibilities:**
-- Define checkpoint location in process flow
-- Specify adversary prompt template for artifact type
-- Define convergence criteria
-- Handle timeout/max rounds
+## Settings Integration
 
-## Challenge Categories by Artifact Type
+### New Questions in `settings.md`
 
-### Requirements Challenges
-- **Completeness**: Are there obvious requirements missing for this type of product?
-- **Feasibility**: Can this actually be built with stated constraints?
-- **Conflicts**: Do requirements contradict each other?
-- **Scope creep**: Are "requirements" actually implementation details?
-- **User focus**: Are these framed from user perspective or system perspective?
+Insert after adversary settings block as a new round:
 
-### Roadmap Challenges
-- **Phase ordering**: Does this sequence make sense? Dependencies respected?
-- **Scope per phase**: Is any phase too large or too small?
-- **Coverage**: Do all requirements map to phases?
-- **Risk distribution**: Are risky items front-loaded or buried?
-- **Milestone clarity**: Are phase goals testable?
+```javascript
+// Round 3 - Co-planner settings
 
-### Plan Challenges
-- **Task decomposition**: Are tasks atomic enough? Too granular?
-- **Verification gaps**: Can completion be verified objectively?
-- **Missing wiring**: Are integrations explicitly planned?
-- **Assumption exposure**: What's being assumed about dependencies?
-- **Complexity hiding**: Are there "implement X" tasks that hide complexity?
+// Auto-detect tools first:
+// DETECTED_TOOLS=$(command -v codex && echo codex; command -v gemini && echo gemini; ...)
 
-### Verification Challenges
-- **Coverage**: Were all must-haves actually checked?
-- **False positives**: Could passing checks hide real issues?
-- **Human verification**: Are the right things flagged for human review?
-- **Regression risk**: Could this pass while breaking something else?
-
-## Build Order Considerations
-
-### Implementation Phases
-
-**Phase 1: Core Agent**
-Create `agents/gsd-adversary.md` with:
-- Role definition
-- Challenge generation logic per artifact type
-- Structured return format
-- NO integration yet (can test standalone)
-
-**Phase 2: Config Extension**
-Update config.json schema to include:
-```json
 {
-  "workflow": {
-    "adversary": true|false
-  }
+  question: "Enable external AI co-planning?",
+  header: "Co-Planners",
+  multiSelect: false,
+  options: [
+    { label: "No (Default)", description: "Use only Claude for planning and review" },
+    { label: "Yes", description: "Send artifacts to external AI CLIs for review" }
+  ]
+}
+
+// ONLY show if co-planners = "Yes":
+{
+  question: "Which AI tools? (detected: {detected_tools})",
+  header: "Tools",
+  multiSelect: true,
+  options: [
+    { label: "Codex CLI", description: "OpenAI codex exec" },
+    { label: "Gemini CLI", description: "Google gemini -p" },
+    { label: "OpenCode CLI", description: "opencode run" },
+    { label: "Claude Code", description: "claude -p (self-review, fresh context)" }
+  ]
+  // Pre-select detected tools
+}
+
+// ONLY show if co-planners = "Yes":
+{
+  question: "Which checkpoints should get external review?",
+  header: "Checkpoints",
+  multiSelect: true,
+  options: [
+    { label: "Research", description: "Review research findings" },
+    { label: "Requirements", description: "Review requirements document" },
+    { label: "Roadmap", description: "Review roadmap phases" },
+    { label: "Plan", description: "Review execution plans" },
+    { label: "Execution Review", description: "Review completed work" },
+    { label: "Verification", description: "Review verification conclusions" }
+  ]
 }
 ```
-Update `/gsd:new-project` to ask about adversary preference.
-Update `/gsd:settings` to toggle adversary.
 
-**Phase 3: new-project Integration**
-Add adversary checkpoints to `/gsd:new-project`:
-1. After REQUIREMENTS.md (before roadmap)
-2. After ROADMAP.md (before user approval)
-
-**Phase 4: plan-phase Integration**
-Add adversary checkpoint to `/gsd:plan-phase`:
-- After plans created, before/after plan-checker
-
-**Phase 5: verify-work Integration**
-Add adversary checkpoint to `/gsd:verify-work`:
-- After verification conclusions
-
-**Phase 6: Documentation**
-- Update docs/reference/agents.md
-- Update docs/reference/commands.md
-- Add workflow toggle documentation
-
-### Dependency Graph
+### Display in Settings Summary
 
 ```
-Phase 1: gsd-adversary.md (standalone)
-    │
-    ├──▶ Phase 2: config.json schema + settings
-    │        │
-    │        └──▶ Phase 3: new-project integration
-    │                  │
-    │                  └──▶ Phase 4: plan-phase integration
-    │                            │
-    │                            └──▶ Phase 5: verify-work integration
-    │
-    └──────────────────────────────▶ Phase 6: documentation (can parallel after Phase 1)
+| Setting              | Value |
+|----------------------|-------|
+| Co-Planners          | {On/Off} |
+| Co-Planner Tools     | {codex, gemini, ...} |
+| Co-Planner Checkpoints | {requirements, roadmap, ...} |
 ```
 
-### Testing Strategy
+## Display Format
 
-**Phase 1 Testing (Agent in isolation):**
-- Manually spawn agent with test artifacts
-- Verify challenge generation for each artifact type
-- Verify "no objections" path
-- Verify structured return parsing
+Follows existing GSD UI patterns:
 
-**Phase 2-5 Testing (Integration):**
-- Run full workflow with adversary enabled
-- Verify debate loop terminates (convergence or max rounds)
-- Verify STATE.md captures decisions
-- Verify artifacts updated correctly
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Adversary as Blocker
-**What:** Requiring adversary approval to proceed
-**Why bad:** Creates workflow deadlock, defeats "advisory only" design
-**Instead:** Claude always has final say; adversary informs but doesn't block
-
-### Anti-Pattern 2: Infinite Debate
-**What:** No convergence criteria or max rounds
-**Why bad:** Context exhaustion, user frustration
-**Instead:** Max 3 rounds, then Claude decides with logged rationale
-
-### Anti-Pattern 3: Generic Challenges
-**What:** Same challenge patterns regardless of artifact type
-**Why bad:** Reduces signal quality, wastes rounds
-**Instead:** Artifact-specific challenge templates in agent
-
-### Anti-Pattern 4: Challenge Without Evidence
-**What:** "This seems wrong" without specifics
-**Why bad:** Claude can't formulate defense
-**Instead:** Every challenge must include evidence and recommendation
-
-### Anti-Pattern 5: Adversary During Execution
-**What:** Spawning adversary while executor is running
-**Why bad:** Disrupts atomic commit flow, creates inconsistent state
-**Instead:** Adversary only at pre-defined checkpoints between workflow stages
-
-## Model Profile for Adversary
-
-| Profile | Model | Rationale |
-|---------|-------|-----------|
-| quality | opus | Deep reasoning for complex challenges |
-| balanced | sonnet | Good challenge quality, reasonable cost |
-| budget | haiku | Quick challenges, lower depth |
-
-**Recommendation:** Start with sonnet (balanced). Adversary needs good reasoning but doesn't need Opus-level depth for most challenges.
-
-## Configuration Schema Extension
-
-```json
-{
-  "workflow": {
-    "research": true,
-    "plan_check": true,
-    "verifier": true,
-    "adversary": false  // NEW - default off for backward compatibility
-  },
-  "adversary": {        // NEW - adversary-specific settings
-    "max_rounds": 3,
-    "checkpoints": ["requirements", "roadmap", "plans", "verification"]
-  }
-}
 ```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD > CO-PLANNER REVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reviewing requirements with: codex, gemini
+
+codex:
+  + AUTH-04 (session expiration) -- HIGH, addressed
+  ~ Rate limiting on login endpoints -- MEDIUM, noted
+  - Remove mobile support -- rejected (contradicts project scope)
+
+gemini:
+  + PERF-01 (response time target) -- MEDIUM, addressed
+  ~ Accessibility requirements section -- LOW, noted
+
+Artifact revised with 2 additions.
+```
+
+Key: `+` = concern addressed (artifact revised), `~` = noted for consideration, `-` = rejected with rationale.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: External Agent as File Writer
+**What:** Giving external agents write access to modify project artifacts directly.
+**Why it is wrong:** Violates Claude-as-orchestrator principle. Creates merge conflicts. Loses audit trail.
+**Do this instead:** External agents provide feedback text. Claude synthesizes and applies changes.
+
+### Anti-Pattern 2: Blocking on External Agent Failure
+**What:** Erroring out when an external CLI tool is unavailable or times out.
+**Why it is wrong:** External tools are optional enhancements. Workflow should never depend on them.
+**Do this instead:** Graceful degradation. Log the warning, continue without that agent's input.
+
+### Anti-Pattern 3: Replacing Adversary with External Agents
+**What:** Disabling adversary and using external agents for challenge-style reviews.
+**Why it is wrong:** External agents provide general feedback. Adversary provides structured, severity-classified challenges with debate loops. Different roles.
+**Do this instead:** Use both. External agents add perspective first. Adversary stress-tests the result after.
+
+### Anti-Pattern 4: Sharing Responses Between Co-Planners
+**What:** Passing one co-planner's response to another co-planner.
+**Why it is wrong:** Creates echo chamber. Second reviewer anchored by first reviewer's opinions.
+**Do this instead:** Each co-planner receives only the original artifact. Claude synthesizes independently.
+
+### Anti-Pattern 5: Passing Full Project Context
+**What:** Sending PROJECT.md + REQUIREMENTS.md + ROADMAP.md + all research to every external call.
+**Why it is wrong:** Exceeds token limits. Most context is irrelevant. Dilutes review focus.
+**Do this instead:** Send the target artifact + 1-paragraph project summary.
+
+### Anti-Pattern 6: Co-Planning During Execution
+**What:** Invoking co-planners while executor agent is running.
+**Why it is wrong:** Disrupts atomic commit flow, creates inconsistent feedback on in-progress work.
+**Do this instead:** Co-plan during planning and verification only, never during execution.
+
+## Scaling Considerations
+
+| Concern | 1 agent | 2-3 agents | 4 agents all checkpoints |
+|---------|---------|------------|--------------------------|
+| Latency per checkpoint | ~30-60s | ~30-60s (parallel) | ~30-60s (parallel) |
+| Token cost | 1x | ~2-3x | ~4x per checkpoint |
+| Synthesis complexity | Simple | Medium (merge and compare) | Needs structured comparison |
+| Config complexity | Simple | Manageable | Needs validation |
+
+### Scaling Priorities
+
+1. **First bottleneck: Latency.** External CLI tools take 15-60 seconds. Parallel invocation mitigates when multiple agents configured. Default 120s timeout prevents blocking.
+2. **Second bottleneck: Token cost.** Each call consumes tokens on that provider. Per-checkpoint agent selection controls cost.
+3. **Third bottleneck: Synthesis complexity.** Conflicting feedback from multiple agents requires orchestrator judgment. Structured prompts and standardized review format mitigate this.
+
+## Suggested Build Order
+
+| Phase | Component | Depends On | Rationale |
+|-------|-----------|------------|-----------|
+| 1 | Config schema (`co_planners` in config.json template) | Nothing | Everything reads config. Must exist first. |
+| 2 | `gsd-tools.cjs` extensions (`coplanner config/invoke/parse`) | Config schema | Provides the CLI abstraction layer. |
+| 3 | Reference doc (`co-planners.md`) | Config + tools | Documents patterns used by all command modifications. |
+| 4 | Settings integration (`settings.md`) | Config schema | Allows users to configure before workflow runs. |
+| 5 | Single checkpoint: `requirements` in `new-project.md` | Config + tools + reference | **Critical proof point.** Proves the full pattern end-to-end. |
+| 6 | Remaining 5 checkpoints across commands | Proven pattern from phase 5 | Mechanical replication of proven pattern. |
+| 7 | Documentation (`co-planning.md`, command docs) | All above | User-facing docs. |
+
+**Build order rationale:** Phase 5 is the critical proof point. If the pattern works for requirements co-planning in new-project, the same pattern applies mechanically to all other checkpoints. Front-load infrastructure (1-4), prove with one integration (5), replicate (6), document (7).
 
 ## Sources
 
-- **HIGH confidence**: Existing GSD architecture analysis (`.planning/codebase/ARCHITECTURE.md`)
-- **HIGH confidence**: Existing agent patterns (`gsd-plan-checker.md`, `gsd-verifier.md`)
-- **HIGH confidence**: Existing command workflows (`plan-phase.md`, `new-project.md`)
-- **MEDIUM confidence**: Industry patterns for adversarial review (multi-agent debate, reflection patterns)
-- **HIGH confidence**: PROJECT.md requirements for adversary integration
+- [Codex CLI Non-Interactive Mode](https://developers.openai.com/codex/noninteractive/) -- Official OpenAI docs (HIGH confidence)
+- [Codex CLI Reference](https://developers.openai.com/codex/cli/reference/) -- Complete flag reference (HIGH confidence)
+- [Gemini CLI Headless Mode](https://google-gemini.github.io/gemini-cli/docs/cli/headless.html) -- Official Google docs (HIGH confidence)
+- [Gemini CLI Configuration](https://google-gemini.github.io/gemini-cli/docs/get-started/configuration.html) -- Config reference (HIGH confidence)
+- [OpenCode CLI Docs](https://opencode.ai/docs/cli/) -- Official OpenCode docs (MEDIUM confidence -- less headless documentation)
+- [Claude Code Headless Mode](https://code.claude.com/docs/en/headless) -- Official Anthropic docs (HIGH confidence)
+- Existing GSD codebase: `commands/gsd/new-project.md`, `commands/gsd/plan-phase.md`, `commands/gsd/execute-phase.md`, `commands/gsd/settings.md`, `agents/gsd-adversary.md`, `get-shit-done/references/planning-config.md`, `get-shit-done/templates/config.json`, `get-shit-done/bin/gsd-tools.cjs`
 
 ---
-
-*Architecture research: 2026-01-31*
-*Researcher: gsd-project-researcher (Architecture dimension)*
+*Architecture research for: External AI Agent Co-Planning Integration (v2.2)*
+*Researched: 2026-02-16*
