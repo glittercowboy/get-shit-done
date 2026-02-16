@@ -257,10 +257,10 @@ Phase 7 (Autonomous Optimization) --> Phase 8 (Notifications & Observability)
 **Plans:** 4 plans
 
 Plans:
-- [ ] 09-01-PLAN.md - Header extraction core (markdown-it, gray-matter, token counting)
-- [ ] 09-02-PLAN.md - PreToolUse hook integration (cache, settings.json, additionalContext)
-- [ ] 09-03-PLAN.md - CLI commands and TokenBudgetMonitor integration
-- [ ] 09-04-PLAN.md - Circuit breaker safety and hook registration
+- [ ] 09-01-PLAN.md - Header extraction core (markdown-it, gray-matter, SummaryGenerator)
+- [ ] 09-02-PLAN.md - Task Context Skill and routing extensions (SKILL.md, compress summary CLI)
+- [ ] 09-03-PLAN.md - PreToolUse hook integration (config, doc-compression-hook, settings.json)
+- [ ] 09-04-PLAN.md - Circuit breaker safety and CLI commands (enable/disable/status/metrics)
 
 ### Phase 10: Module repository consolidation - Move external modules (validator, circuit-breaker, escalation, feedback, learning) into repo with installation script and proper structure
 
