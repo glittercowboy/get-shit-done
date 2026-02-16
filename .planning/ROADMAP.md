@@ -12,8 +12,9 @@ Declare replaces linear phase-based planning with a structure rooted in declared
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Graph engine, artifact layer, CLI shell, and fork boundary
-- [ ] **Phase 2: Future Declaration + Backward Derivation** - Users declare futures; system derives milestones and actions backward
+- [x] **Phase 1: Foundation** - Graph engine, artifact layer, CLI shell, and fork boundary
+- [x] **Phase 2: Future Declaration + Backward Derivation** - Users declare futures; system derives milestones and actions backward
+- [x] **Phase 02.1: Artifact Separation and Command Split** (INSERTED) - Per-milestone PLAN.md folders, milestones-only derivation, new /declare:actions
 - [ ] **Phase 3: Traceability + Navigation** - Why-chains, visualization, and impact-based prioritization
 - [ ] **Phase 4: Execution Pipeline** - Topology-aware execution with wave scheduling
 - [ ] **Phase 5: Integrity System** - Commitment tracking and honor protocol
@@ -34,9 +35,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Fork boundary, project scaffolding, and DeclareDag graph engine with tests
-- [ ] 01-02-PLAN.md -- Artifact persistence (FUTURE.md + MILESTONES.md parsers/writers) and declare-tools.js CLI entry point
-- [ ] 01-03-PLAN.md -- Slash commands (/declare:init, /declare:status, /declare:help), esbuild bundle, and integration verification
+- [x] 01-01-PLAN.md -- Fork boundary, project scaffolding, and DeclareDag graph engine with tests
+- [x] 01-02-PLAN.md -- Artifact persistence (FUTURE.md + MILESTONES.md parsers/writers) and declare-tools.js CLI entry point
+- [x] 01-03-PLAN.md -- Slash commands (/declare:init, /declare:status, /declare:help), esbuild bundle, and integration verification
 
 ### Phase 2: Future Declaration + Backward Derivation
 **Goal**: Users can declare a set of futures and the system derives milestones and actions backward from those declarations
@@ -51,8 +52,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Tooling subcommands (add-declaration, add-milestone, add-action, load-graph) with TDD and bundle rebuild
-- [ ] 02-02-PLAN.md -- Slash commands (/declare:future, /declare:milestones), workflow prompts, and command installation
+- [x] 02-01-PLAN.md -- Tooling subcommands (add-declaration, add-milestone, add-action, load-graph) with TDD and bundle rebuild
+- [x] 02-02-PLAN.md -- Slash commands (/declare:future, /declare:milestones), workflow prompts, and command installation
 
 ### Phase 02.1: Artifact Separation and Command Split (INSERTED)
 
@@ -68,9 +69,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 02.1-01-PLAN.md -- Artifact layer: milestones.js rewrite, plan.js parser/writer, milestone-folders.js, load-graph update, tests
-- [ ] 02.1-02-PLAN.md -- CLI subcommands: create-plan, add-milestone update, status staleness, init update, bundle rebuild
-- [ ] 02.1-03-PLAN.md -- Slash commands: /declare:milestones checkbox UI, /declare:actions, /declare:status coverage
+- [x] 02.1-01-PLAN.md -- Artifact layer: milestones.js rewrite, plan.js parser/writer, milestone-folders.js, load-graph update, tests
+- [x] 02.1-02-PLAN.md -- CLI subcommands: create-plan, add-milestone update, status staleness, init update, bundle rebuild
+- [x] 02.1-03-PLAN.md -- Slash commands: /declare:milestones checkbox UI, /declare:actions, /declare:status coverage
 
 ### Phase 3: Traceability + Navigation
 **Goal**: Users can understand, trace, and prioritize the structure the system has built
@@ -137,8 +138,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Planned | - |
-| 2. Future Declaration + Backward Derivation | 0/3 | Not started | - |
+| 1. Foundation | 3/3 | Complete | 2026-02-15 |
+| 2. Future Declaration + Backward Derivation | 2/2 | Complete | 2026-02-15 |
+| 02.1. Artifact Separation + Command Split | 3/3 | Complete | 2026-02-16 |
 | 3. Traceability + Navigation | 0/2 | Not started | - |
 | 4. Execution Pipeline | 0/2 | Not started | - |
 | 5. Integrity System | 0/2 | Not started | - |
