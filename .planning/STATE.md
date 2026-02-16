@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 02.1 of 6 (Artifact Separation and Command Split)
-Plan: 1 of 3 in current phase (02.1-01 done)
-Status: Executing
-Last activity: 2026-02-16 — Completed 02.1-01 (artifact layer rewrite)
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase 02.1 complete
+Last activity: 2026-02-16 — Completed 02.1-03 (slash commands rewrite)
 
-Progress: [████████░░] 33%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 8
 - Average duration: 4min
-- Total execution time: 0.3 hours
+- Total execution time: 0.5 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [████████░░] 33%
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 14min | 5min |
 | 02-future-declaration-backward-derivation | 2/2 | 6min | 3min |
+| 02.1-artifact-separation-and-command-split | 3/3 | 11min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3min), 01-02 (3min), 01-03 (8min), 02-01 (3min), 02-02 (3min)
+- Last 5 plans: 02-02 (3min), 02.1-01 (4min), 02.1-02 (4min), 02.1-03 (3min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -66,6 +67,10 @@ Recent decisions affecting current work:
 - [02.1-01]: writeMilestonesFile backward compat bridge: accepts 2 or 3 args for gradual migration
 - [02.1-01]: add-action deprecated immediately (returns create-plan suggestion)
 - [02.1-01]: Milestones have hasPlan boolean field instead of causedBy array
+- [02.1-02]: create-plan writes entire PLAN.md at once (not individual actions)
+- [02.1-02]: 30-day threshold for STALE detection; COMPLETABLE/INCONSISTENT for consistency checks
+- [02.1-03]: AskUserQuestion for checkbox milestone confirmation (batch selection per declaration)
+- [02.1-03]: Action derivation separated into /declare:actions (not bundled with milestones)
 
 ### Pending Todos
 
@@ -83,5 +88,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 02.1-01-PLAN.md (artifact layer rewrite). Wave 1 complete, starting Wave 2.
-Resume file: .planning/phases/02.1-artifact-separation-and-command-split/02.1-01-SUMMARY.md
+Stopped at: Phase 02.1 complete — all 3 plans executed (artifact layer, CLI subcommands, slash commands).
+Resume file: .planning/phases/02.1-artifact-separation-and-command-split/02.1-03-SUMMARY.md
