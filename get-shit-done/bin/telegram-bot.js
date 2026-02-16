@@ -1,0 +1,269 @@
+#!/usr/bin/env node
+
+/**
+ * Telegram Bot Server
+ *
+ * Telegraf bot for sending blocking questions to users and receiving responses
+ * during autonomous execution.
+ */
+
+require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Check for Telegram bot token
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.log('TELEGRAM_BOT_TOKEN not set. Telegram notifications disabled.');
+  console.log('To enable:');
+  console.log('  1. Create bot: Telegram -> @BotFather -> /newbot');
+  console.log('  2. Set TELEGRAM_BOT_TOKEN in .env file');
+  console.log('  3. Get your chat ID: Send /start to @userinfobot');
+  console.log('  4. Set TELEGRAM_OWNER_ID in .env file');
+
+  // Export disabled stubs
+  module.exports = {
+    sendBlockingQuestion: async () => ({ type: 'disabled', content: 'Telegram not configured' }),
+    startBot: () => {},
+    stopBot: () => {},
+    bot: null
+  };
+  return;
+}
+
+const { Telegraf } = require('telegraf');
+const conversation = require('./telegram-conversation.js');
+
+// Initialize bot
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const OWNER_ID = process.env.TELEGRAM_OWNER_ID;
+
+// Store owner chat ID if provided via /start
+let ownerChatId = OWNER_ID ? parseInt(OWNER_ID, 10) : null;
+
+/**
+ * Command: /start
+ * Welcome message and store chat ID
+ */
+bot.command('start', (ctx) => {
+  ownerChatId = ctx.chat.id;
+  ctx.reply(
+    '👋 GSD Telegram Bot Ready!\n\n' +
+    'I\'ll send you blocking questions during autonomous execution.\n\n' +
+    `Your chat ID: ${ctx.chat.id}\n\n` +
+    'Commands:\n' +
+    '/status - Show pending questions count\n' +
+    '/pending - List all pending questions\n' +
+    '/cancel <questionId> - Cancel a pending question\n\n' +
+    'To respond to a question, just send the question ID followed by your answer.'
+  );
+});
+
+/**
+ * Command: /status
+ * Show pending questions count
+ */
+bot.command('status', (ctx) => {
+  const pending = conversation.getPendingQuestions();
+  ctx.reply(
+    `📊 Status:\n` +
+    `Pending questions: ${pending.length}\n` +
+    `Bot running: ✓\n\n` +
+    `Use /pending to see details.`
+  );
+});
+
+/**
+ * Command: /pending
+ * List all pending questions with IDs
+ */
+bot.command('pending', (ctx) => {
+  const pending = conversation.getPendingQuestions();
+
+  if (pending.length === 0) {
+    ctx.reply('No pending questions. All clear! ✓');
+    return;
+  }
+
+  let message = `📋 Pending Questions (${pending.length}):\n\n`;
+
+  pending.forEach((q, index) => {
+    const age = Math.round((Date.now() - new Date(q.askedAt).getTime()) / 1000 / 60);
+    message += `${index + 1}. ${q.questionId}\n`;
+    message += `   ${q.question}\n`;
+    message += `   Asked: ${age}m ago\n`;
+    if (q.choices) {
+      message += `   Choices: ${q.choices.join(', ')}\n`;
+    }
+    message += '\n';
+  });
+
+  message += 'To respond, send: <questionId> <your answer>';
+
+  ctx.reply(message);
+});
+
+/**
+ * Command: /cancel <questionId>
+ * Cancel a pending question
+ */
+bot.command('cancel', (ctx) => {
+  const args = ctx.message.text.split(' ').slice(1);
+  if (args.length === 0) {
+    ctx.reply('Usage: /cancel <questionId>');
+    return;
+  }
+
+  const questionId = args[0];
+  const cancelled = conversation.cancelQuestion(questionId, 'Cancelled by user via /cancel');
+
+  if (cancelled) {
+    ctx.reply(`✓ Cancelled question: ${questionId}`);
+  } else {
+    ctx.reply(`Question not found: ${questionId}\n\nUse /pending to see active questions.`);
+  }
+});
+
+/**
+ * Message handler: Handle text messages as responses to questions
+ */
+bot.on('text', (ctx) => {
+  const text = ctx.message.text;
+
+  // Skip commands
+  if (text.startsWith('/')) {
+    return;
+  }
+
+  // Try to extract question ID from message
+  // Format: "q_1234567890_abc123 my answer here"
+  const questionIdMatch = text.match(/^(q_\d+_[a-z0-9]+)\s+(.+)$/i);
+
+  if (!questionIdMatch) {
+    // Check if there's exactly one pending question (implicit response)
+    const pending = conversation.getPendingQuestions();
+    if (pending.length === 1) {
+      const questionId = pending[0].questionId;
+      const response = { type: 'text', content: text };
+      const handled = conversation.handleResponse(questionId, response);
+
+      if (handled) {
+        ctx.reply('✓ Got it! Resuming execution...');
+        return;
+      }
+    }
+
+    ctx.reply(
+      'No pending question found.\n\n' +
+      'To respond to a question, send:\n' +
+      '<questionId> <your answer>\n\n' +
+      'Use /pending to see active questions.'
+    );
+    return;
+  }
+
+  const questionId = questionIdMatch[1];
+  const answer = questionIdMatch[2];
+
+  const response = { type: 'text', content: answer };
+  const handled = conversation.handleResponse(questionId, response);
+
+  if (handled) {
+    ctx.reply('✓ Got it! Resuming execution...');
+  } else {
+    ctx.reply(
+      `Question not found: ${questionId}\n\n` +
+      'It may have timed out or been cancelled.\n' +
+      'Use /pending to see active questions.'
+    );
+  }
+});
+
+/**
+ * Callback query handler: Handle inline keyboard button presses
+ */
+bot.on('callback_query', (ctx) => {
+  const data = ctx.callbackQuery.data;
+
+  // Format: "questionId:choice"
+  const [questionId, choice] = data.split(':');
+
+  const response = { type: 'button', content: choice };
+  const handled = conversation.handleResponse(questionId, response);
+
+  if (handled) {
+    ctx.answerCbQuery('Got it! Resuming execution...');
+    ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+    ctx.reply(`✓ Selected: ${choice}`);
+  } else {
+    ctx.answerCbQuery('Question not found or already answered');
+  }
+});
+
+/**
+ * Send a blocking question to the user and await response
+ * @param {string} question - Question text
+ * @param {object} options - Options (choices, timeout, context)
+ * @returns {Promise<object>} Resolves with response { type, content }
+ */
+async function sendBlockingQuestion(question, options = {}) {
+  if (!ownerChatId) {
+    throw new Error('Owner chat ID not set. User must send /start to bot first.');
+  }
+
+  // Create the question and get promise
+  const promise = conversation.askUser(question, options);
+  const questionId = promise.questionId;
+
+  // Format message
+  let message = `❓ ${question}\n\n`;
+  message += `ID: ${questionId}\n`;
+
+  if (options.context && Object.keys(options.context).length > 0) {
+    message += `Context: ${JSON.stringify(options.context, null, 2)}\n`;
+  }
+
+  // Build inline keyboard if choices provided
+  const extra = {};
+  if (options.choices && options.choices.length > 0) {
+    const keyboard = options.choices.map(choice => ([
+      { text: choice, callback_data: `${questionId}:${choice}` }
+    ]));
+    extra.reply_markup = { inline_keyboard: keyboard };
+    message += '\nTap a button or send your answer.';
+  } else {
+    message += '\nReply with: ' + questionId + ' <your answer>';
+  }
+
+  // Send message
+  await bot.telegram.sendMessage(ownerChatId, message, extra);
+
+  // Wait for response
+  return promise;
+}
+
+/**
+ * Start the bot in polling mode
+ */
+function startBot() {
+  bot.launch();
+  console.log('Telegram bot started in polling mode');
+}
+
+/**
+ * Stop the bot gracefully
+ */
+function stopBot() {
+  bot.stop('SIGTERM');
+  console.log('Telegram bot stopped');
+}
+
+// Graceful shutdown
+process.once('SIGINT', () => stopBot());
+process.once('SIGTERM', () => stopBot());
+
+module.exports = {
+  sendBlockingQuestion,
+  startBot,
+  stopBot,
+  bot
+};
