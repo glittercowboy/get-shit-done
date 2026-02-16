@@ -982,7 +982,7 @@ var require_help = __commonJS({
           },
           {
             name: "/declare:status",
-            description: "Show graph state, layer counts, health indicators, and last activity",
+            description: "Show graph state, coverage, staleness indicators, and last activity",
             usage: "/declare:status"
           },
           {
@@ -1004,6 +1004,16 @@ var require_help = __commonJS({
             name: "load-graph",
             description: "Load full graph state as JSON with stats and validation",
             usage: "load-graph"
+          },
+          {
+            name: "/declare:milestones",
+            description: "Derive milestones backward from declared futures with checkbox confirmation",
+            usage: "/declare:milestones [D-XX]"
+          },
+          {
+            name: "/declare:actions",
+            description: "Derive action plans per milestone and write PLAN.md to milestone folders",
+            usage: "/declare:actions [M-XX]"
           },
           {
             name: "/declare:help",
