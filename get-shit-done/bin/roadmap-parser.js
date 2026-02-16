@@ -412,14 +412,83 @@ function validatePhaseCompletion(phaseNumber, cwd = process.cwd()) {
   };
 }
 
+// ─── Phase Size Validation ────────────────────────────────────────────────────
+
+/**
+ * Validate phase sizes against limits
+ * @param {Array} phases - Array of phase objects
+ * @returns {Object} - Validation result with oversized phases
+ */
+function validatePhaseSizes(phases) {
+  // Lazy load to avoid circular dependencies
+  const { detectOversizedPhases } = require('./phase-sizer.js');
+  const oversized = detectOversizedPhases(phases);
+
+  return {
+    valid: oversized.length === 0,
+    oversizedPhases: oversized,
+    warnings: oversized.map(o =>
+      `WARNING: Phase ${o.phase} has ${o.estimate.requirements} requirements (max recommended: 8)`
+    )
+  };
+}
+
+/**
+ * Generate warning messages for oversized phases
+ * @param {Object} validationResult - Result from validatePhaseSizes
+ * @returns {Array<string>} - Array of warning strings
+ */
+function warnOnOversizedPhases(validationResult) {
+  if (!validationResult || validationResult.valid) {
+    return [];
+  }
+
+  const warnings = [];
+  for (const oversized of validationResult.oversizedPhases) {
+    const { formatReport } = require('./phase-sizer.js');
+    warnings.push(formatReport(oversized));
+  }
+
+  return warnings;
+}
+
+/**
+ * Parse roadmap and include size validation
+ * @param {string} roadmapPath - Path to ROADMAP.md
+ * @returns {Promise<Object>} - Parsed roadmap with size validation
+ */
+async function parseRoadmapWithDAG(roadmapPath) {
+  const result = await parseRoadmap(roadmapPath);
+
+  if (result.error) {
+    return result;
+  }
+
+  const dag = buildDAG(result.phases);
+  const executionOrderResult = getExecutionOrder(result.phases);
+  const parallelGroups = detectParallelOpportunities(dag.graph, executionOrderResult.execution_order);
+  const sizeValidation = validatePhaseSizes(result.phases);
+
+  return {
+    ...result,
+    dag,
+    executionOrder: executionOrderResult,
+    parallelGroups,
+    sizeValidation
+  };
+}
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
   parseRoadmap,
+  parseRoadmapWithDAG,
   buildDAG,
   getExecutionOrder,
   detectParallelOpportunities,
   verifyDependenciesMet,
   getNextExecutablePhases,
-  validatePhaseCompletion
+  validatePhaseCompletion,
+  validatePhaseSizes,
+  warnOnOversizedPhases
 };
