@@ -3429,7 +3429,14 @@ function cmdToken(cwd, args, raw) {
       let monitor;
       if (fs.existsSync(budgetPath)) {
         const data = JSON.parse(fs.readFileSync(budgetPath, 'utf-8'));
-        monitor = TokenBudgetMonitor.fromJSON(data);
+
+        // Detect if graduated state exists
+        if (data.thresholdsPassed !== undefined) {
+          const { GraduatedBudgetMonitor } = require('./graduated-alerts.js');
+          monitor = GraduatedBudgetMonitor.fromJSON(data);
+        } else {
+          monitor = TokenBudgetMonitor.fromJSON(data);
+        }
       } else {
         // Auto-initialize if not exists
         monitor = new TokenBudgetMonitor();
@@ -3452,8 +3459,17 @@ function cmdToken(cwd, args, raw) {
       }
 
       const data = JSON.parse(fs.readFileSync(budgetPath, 'utf-8'));
-      const monitor = TokenBudgetMonitor.fromJSON(data);
-      const report = monitor.getReport();
+
+      // Detect if graduated state exists
+      let monitor, report;
+      if (data.thresholdsPassed !== undefined) {
+        const { GraduatedBudgetMonitor } = require('./graduated-alerts.js');
+        monitor = GraduatedBudgetMonitor.fromJSON(data);
+        report = monitor.getGraduatedReport();
+      } else {
+        monitor = TokenBudgetMonitor.fromJSON(data);
+        report = monitor.getReport();
+      }
 
       output(report, raw);
       break;
