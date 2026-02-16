@@ -37,6 +37,7 @@ const { runVisualize } = require('./commands/visualize');
 const { runComputeWaves } = require('./commands/compute-waves');
 const { runGenerateExecPlan } = require('./commands/generate-exec-plan');
 const { runVerifyWave } = require('./commands/verify-wave');
+const { runExecute } = require('./commands/execute');
 
 /**
  * Parse --cwd flag from argv.
@@ -100,7 +101,7 @@ function main() {
   const command = args[0];
 
   if (!command) {
-    console.log(JSON.stringify({ error: 'No command specified. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, help' }));
+    console.log(JSON.stringify({ error: 'No command specified. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, execute, help' }));
     process.exit(1);
   }
 
@@ -238,8 +239,16 @@ function main() {
         break;
       }
 
+      case 'execute': {
+        const cwdExecute = parseCwdFlag(args) || process.cwd();
+        const result = runExecute(cwdExecute, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
+
       default:
-        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, help` }));
+        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, execute, help` }));
         process.exit(1);
     }
   } catch (err) {

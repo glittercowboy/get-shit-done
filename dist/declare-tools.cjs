@@ -2090,6 +2090,76 @@ var require_verify_wave = __commonJS({
   }
 });
 
+// src/commands/execute.js
+var require_execute = __commonJS({
+  "src/commands/execute.js"(exports2, module2) {
+    "use strict";
+    var { join } = require("node:path");
+    var { parseFlag } = require_parse_args();
+    var { buildDagFromDisk } = require_build_dag();
+    var { findMilestoneFolder } = require_milestone_folders();
+    function runExecute2(cwd, args) {
+      const milestoneId = parseFlag(args, "milestone");
+      const graphResult = buildDagFromDisk(cwd);
+      if ("error" in graphResult) return graphResult;
+      const { dag, milestones } = graphResult;
+      if (!milestoneId) {
+        const milestonePicker = milestones.map((m) => {
+          const actions = dag.getDownstream(m.id).filter((n) => n.type === "action");
+          const doneCount2 = actions.filter((a) => a.status === "DONE").length;
+          return {
+            id: m.id,
+            title: m.title,
+            status: m.status,
+            actionCount: actions.length,
+            doneCount: doneCount2
+          };
+        });
+        return { milestones: milestonePicker };
+      }
+      const milestone = dag.getNode(milestoneId);
+      if (!milestone) {
+        return { error: `Milestone not found: ${milestoneId}` };
+      }
+      if (milestone.type !== "milestone") {
+        return { error: `${milestoneId} is not a milestone (type: ${milestone.type})` };
+      }
+      const allActionsRaw = dag.getDownstream(milestoneId).filter((n) => n.type === "action");
+      const allActions = allActionsRaw.map((a) => ({
+        id: a.id,
+        title: a.title,
+        status: a.status,
+        produces: a.metadata.produces || ""
+      })).sort((a, b) => a.id.localeCompare(b.id));
+      const pendingActions = allActions.filter((a) => a.status !== "DONE");
+      const doneCount = allActions.length - pendingActions.length;
+      const waves = [];
+      if (pendingActions.length > 0) {
+        waves.push({ wave: 1, actions: pendingActions });
+      }
+      const upstream = dag.getUpstream(milestoneId);
+      const declarations = upstream.filter((n) => n.type === "declaration").map((n) => ({ id: n.id, title: n.title }));
+      const planningDir = join(cwd, ".planning");
+      const milestoneFolderPath = findMilestoneFolder(planningDir, milestoneId);
+      return {
+        milestoneId,
+        milestoneTitle: milestone.title,
+        status: milestone.status,
+        declarations,
+        allActions,
+        pendingActions,
+        waves,
+        totalActions: allActions.length,
+        pendingCount: pendingActions.length,
+        doneCount,
+        allDone: pendingActions.length === 0,
+        milestoneFolderPath
+      };
+    }
+    module2.exports = { runExecute: runExecute2 };
+  }
+});
+
 // src/declare-tools.js
 var { commitPlanningDocs } = require_commit();
 var { runInit } = require_init();
@@ -2107,6 +2177,7 @@ var { runVisualize } = require_visualize();
 var { runComputeWaves } = require_compute_waves();
 var { runGenerateExecPlan } = require_generate_exec_plan();
 var { runVerifyWave } = require_verify_wave();
+var { runExecute } = require_execute();
 function parseCwdFlag(argv) {
   const idx = argv.indexOf("--cwd");
   if (idx === -1 || idx + 1 >= argv.length) return null;
@@ -2144,7 +2215,7 @@ function main() {
   const args = process.argv.slice(2);
   const command = args[0];
   if (!command) {
-    console.log(JSON.stringify({ error: "No command specified. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, help" }));
+    console.log(JSON.stringify({ error: "No command specified. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, execute, help" }));
     process.exit(1);
   }
   try {
@@ -2265,8 +2336,15 @@ function main() {
         if (result.error) process.exit(1);
         break;
       }
+      case "execute": {
+        const cwdExecute = parseCwdFlag(args) || process.cwd();
+        const result = runExecute(cwdExecute, args.slice(1));
+        console.log(JSON.stringify(result));
+        if (result.error) process.exit(1);
+        break;
+      }
       default:
-        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, help` }));
+        console.log(JSON.stringify({ error: `Unknown command: ${command}. Use: commit, init, status, add-declaration, add-milestone, add-milestones, create-plan, load-graph, trace, prioritize, visualize, compute-waves, generate-exec-plan, verify-wave, execute, help` }));
         process.exit(1);
     }
   } catch (err) {
