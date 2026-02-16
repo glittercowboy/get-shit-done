@@ -35,9 +35,8 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "dependencies": {},
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.2"
   },
   "scripts": {
     "test": "node --test src/graph/engine.test.js",
