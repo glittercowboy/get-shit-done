@@ -14,12 +14,9 @@
 const { existsSync, readFileSync } = require('node:fs');
 const { join, basename } = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { parseFutureFile } = require('../artifacts/future');
-const { parseMilestonesFile } = require('../artifacts/milestones');
 const { parsePlanFile } = require('../artifacts/plan');
 const { findMilestoneFolder } = require('../artifacts/milestone-folders');
-const { loadActionsFromFolders } = require('./load-graph');
-const { DeclareDag } = require('../graph/engine');
+const { buildDagFromDisk } = require('./build-dag');
 
 /**
  * Detect staleness indicators for milestones.
@@ -81,58 +78,11 @@ function detectStaleness(cwd, planningDir, milestones) {
 function runStatus(cwd) {
   const planningDir = join(cwd, '.planning');
 
-  // Check if project is initialized
-  if (!existsSync(planningDir)) {
-    return { error: 'No Declare project found. Run /declare:init first.' };
-  }
+  const graphResult = buildDagFromDisk(cwd);
+  if (graphResult.error) return graphResult;
 
+  const { dag, declarations, milestones, actions } = graphResult;
   const projectName = basename(cwd);
-
-  // Load and parse artifacts
-  const futurePath = join(planningDir, 'FUTURE.md');
-  const milestonesPath = join(planningDir, 'MILESTONES.md');
-
-  const futureContent = existsSync(futurePath)
-    ? readFileSync(futurePath, 'utf-8')
-    : '';
-  const milestonesContent = existsSync(milestonesPath)
-    ? readFileSync(milestonesPath, 'utf-8')
-    : '';
-
-  const declarations = parseFutureFile(futureContent);
-  const { milestones } = parseMilestonesFile(milestonesContent);
-  const actions = loadActionsFromFolders(planningDir);
-
-  // Reconstruct the DAG
-  const dag = new DeclareDag();
-
-  for (const d of declarations) {
-    dag.addNode(d.id, 'declaration', d.title, d.status || 'PENDING');
-  }
-  for (const m of milestones) {
-    dag.addNode(m.id, 'milestone', m.title, m.status || 'PENDING');
-  }
-  for (const a of actions) {
-    dag.addNode(a.id, 'action', a.title, a.status || 'PENDING');
-  }
-
-  // Add edges: milestone->declaration (realizes)
-  for (const m of milestones) {
-    for (const declId of m.realizes) {
-      if (dag.getNode(declId)) {
-        dag.addEdge(m.id, declId);
-      }
-    }
-  }
-
-  // Add edges: action->milestone (causes)
-  for (const a of actions) {
-    for (const milestoneId of a.causes) {
-      if (dag.getNode(milestoneId)) {
-        dag.addEdge(a.id, milestoneId);
-      }
-    }
-  }
 
   // Run validation and get stats
   const validation = dag.validate();
