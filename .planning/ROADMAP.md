@@ -56,19 +56,21 @@ Plans:
 
 ### Phase 02.1: Artifact Separation and Command Split (INSERTED)
 
-**Goal:** Actions live in ACTIONS.md (not MILESTONES.md), /declare:milestones only derives milestones with checkbox UI, new /declare:actions derives action plans per milestone in batch
+**Goal:** Actions live in per-milestone PLAN.md files inside `.planning/milestones/`, /declare:milestones only derives milestones with checkbox UI, new /declare:actions derives action plans per milestone
 **Depends on:** Phase 2
 **Success Criteria** (what must be TRUE):
-  1. ACTIONS.md exists as a separate artifact with its own parser/writer
-  2. MILESTONES.md contains only milestones (no actions)
+  1. Each milestone has a folder in `.planning/milestones/{M-XX-slug}/` containing PLAN.md with actions
+  2. MILESTONES.md contains only milestones (no actions section)
   3. /declare:milestones presents milestones as checkboxes for batch confirmation per declaration
-  4. /declare:actions derives action plans per milestone and presents complete plans for review
-  5. load-graph reads from FUTURE.md + MILESTONES.md + ACTIONS.md
-  6. All cross-references remain intact across the three files
-**Plans:** 0 plans
+  4. /declare:actions derives action plans per milestone and writes PLAN.md to milestone folders
+  5. load-graph reads from FUTURE.md + MILESTONES.md + milestone folder PLAN.md files
+  6. /declare:status shows milestone coverage and staleness indicators
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 02.1 to break down)
+- [ ] 02.1-01-PLAN.md -- Artifact layer: milestones.js rewrite, plan.js parser/writer, milestone-folders.js, load-graph update, tests
+- [ ] 02.1-02-PLAN.md -- CLI subcommands: create-plan, add-milestone update, status staleness, init update, bundle rebuild
+- [ ] 02.1-03-PLAN.md -- Slash commands: /declare:milestones checkbox UI, /declare:actions, /declare:status coverage
 
 ### Phase 3: Traceability + Navigation
 **Goal**: Users can understand, trace, and prioritize the structure the system has built
