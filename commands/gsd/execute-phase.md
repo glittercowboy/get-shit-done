@@ -32,6 +32,8 @@ Phase: $ARGUMENTS
 **Flags:**
 - `--gaps-only` — Execute only gap closure plans (plans with `gap_closure: true` in frontmatter). Use after verify-work creates fix plans.
 
+When invoked from autopilot mode, checkpoints are auto-approved (see checkpoint_handling in execute-phase workflow).
+
 @.planning/ROADMAP.md
 @.planning/STATE.md
 </context>

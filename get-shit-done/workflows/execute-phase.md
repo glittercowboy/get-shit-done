@@ -172,14 +172,17 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
 </step>
 
 <step name="checkpoint_handling">
-Plans with `autonomous: false` require user interaction.
+Plans with `autonomous: false` require user interaction (or auto-approval in autopilot mode).
 
-**Flow:**
+**Auto-approve mode:** If the orchestrator prompt contains "auto-approve" or "autopilot", treat all checkpoints as auto-approved. When an agent returns with a checkpoint, respond with "approved" and spawn continuation immediately. Log the checkpoint details but do not pause for human input.
+
+**Normal flow:**
 
 1. Spawn agent for checkpoint plan
 2. Agent runs until checkpoint task or auth gate → returns structured state
 3. Agent return includes: completed tasks table, current task + blocker, checkpoint type/details, what's awaited
-4. **Present to user:**
+4. **If auto-approve mode:** Log checkpoint details, set user_response to "approved", skip to step 6.
+5. **Present to user:**
    ```
    ## Checkpoint: [Type]
 
