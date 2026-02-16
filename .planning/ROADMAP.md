@@ -12,8 +12,8 @@ This roadmap transforms GSD from a phase-based development framework into an int
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Auto Mode Foundation** - Intelligent model selection with complexity detection and cost tracking
-- [ ] **Phase 2: Auto Mode Refinement** - Circuit breakers, learning feedback loops, and error handling
+- [] **Phase 1: Auto Mode Foundation** - Intelligent model selection with complexity detection and cost tracking
+- [x] **Phase 2: Auto Mode Refinement** - Circuit breakers, learning feedback loops, and error handling
 - [ ] **Phase 3: Knowledge System Foundation** - SQLite + sqlite-vec with multi-phase search, TTL lifecycle, and access tracking
 - [ ] **Phase 4: Knowledge Extraction & Hooks** - Passive capture via hooks, deduplication, memory evolution, and principle learning
 - [ ] **Phase 5: Knowledge Permissions & Safety** - Explicit boundaries for irreversible/external/costly actions
@@ -77,12 +77,14 @@ Plans:
   7. Global scope at ~/.claude/knowledge/, project scope at .planning/knowledge/
   8. System works without knowledge DB (fallback to current GSD behavior)
   9. Multi-user support via separate files per developer prevents merge conflicts
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 03-01: TBD (SQLite + sqlite-vec setup, schema design)
-- [ ] 03-02: TBD (Multi-phase search pipeline)
-- [ ] 03-03: TBD (TTL lifecycle + access tracking)
+- [ ] 03-01-PLAN.md - Database infrastructure (SQLite + sqlite-vec setup, schema, migrations)
+- [ ] 03-02-PLAN.md - Knowledge CRUD operations (insert, update, delete with TTL)
+- [ ] 03-03-PLAN.md - Multi-phase search pipeline (FTS5 + vector + RRF + type weights)
+- [ ] 03-04-PLAN.md - TTL lifecycle and access tracking (cleanup, staleness scoring)
+- [ ] 03-05-PLAN.md - Integration and fallback (unified API, gsd-tools CLI commands)
 
 ### Phase 4: Knowledge Extraction & Hooks
 **Goal**: Claude passively captures decisions and lessons via hooks during normal work, deduplicates and evolves memories, and makes autonomous decisions based on learned principles
@@ -100,13 +102,15 @@ Plans:
   9. Session scanning batch-reviews past conversations to extract patterns
   10. Synthesis passes consolidate knowledge into higher-level principles
   11. Claude makes autonomous decisions based on learned principles without approval for reversible actions
-**Plans**: TBD
+**Plans:** 6 plans
 
 Plans:
-- [ ] 04-01: TBD (Hook integration with regex patterns)
-- [ ] 04-02: TBD (Deduplication + memory evolution)
-- [ ] 04-03: TBD (Extraction flows: Q&A, session scanning)
-- [ ] 04-04: TBD (Principle synthesis + autonomous decisions)
+- [ ] 04-01-PLAN.md - Local embeddings via transformers.js (Nomic Embed, lazy loading)
+- [ ] 04-02-PLAN.md - Extraction patterns with quality gates (regex, dedup within batch)
+- [ ] 04-03-PLAN.md - Three-stage deduplication and memory evolution
+- [ ] 04-04-PLAN.md - Hook integration (session-end, per-turn, config)
+- [ ] 04-05-PLAN.md - Q&A sessions and session scanning flows
+- [ ] 04-06-PLAN.md - Synthesis passes and autonomous decision-making
 
 ### Phase 5: Knowledge Permissions & Safety
 **Goal**: Users can grant explicit permissions with boundaries, and Claude stops to ask only for irreversible/external/costly actions
@@ -219,9 +223,9 @@ Phase 7 (Autonomous Optimization) --> Phase 8 (Notifications & Observability)
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
 | 1. Auto Mode Foundation | 6 | Planning complete | - |
-| 2. Auto Mode Refinement | 6 | Planning complete | - |
-| 3. Knowledge System Foundation | TBD | Not started | - |
-| 4. Knowledge Extraction & Hooks | TBD | Not started | - |
+| 2. Auto Mode Refinement | 6 | Complete | 2026-02-16 |
+| 3. Knowledge System Foundation | 5 | Planning complete | - |
+| 4. Knowledge Extraction & Hooks | 6 | Planning complete | - |
 | 5. Knowledge Permissions & Safety | TBD | Not started | - |
 | 6. Autonomous Execution Core | TBD | Not started | - |
 | 7. Autonomous Execution Optimization | TBD | Not started | - |
@@ -229,4 +233,4 @@ Phase 7 (Autonomous Optimization) --> Phase 8 (Notifications & Observability)
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-16 after Phase 2 planning*
+*Last updated: 2026-02-16 after Phase 4 planning*
