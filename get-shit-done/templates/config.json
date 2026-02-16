@@ -29,6 +29,10 @@
       "verification": true
     }
   },
+  "co_planners": {
+    "enabled": false,
+    "timeout_ms": 120000
+  },
   "gates": {
     "confirm_project": true,
     "confirm_phases": true,
