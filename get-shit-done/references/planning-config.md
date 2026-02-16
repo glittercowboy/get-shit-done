@@ -193,4 +193,110 @@ Squash merge is recommended — keeps main branch history clean while preserving
 
 </branching_strategy_behavior>
 
+<adversary_config>
+
+Configuration for the adversary agent challenge system. The adversary reviews planning artifacts and raises challenges before execution begins.
+
+<config_schema>
+
+**Full adversary config shape:**
+
+```json
+"adversary": {
+  "enabled": true,
+  "max_rounds": 3,
+  "checkpoints": {
+    "requirements": true,
+    "roadmap": true,
+    "plan": true,
+    "verification": true
+  }
+}
+```
+
+**Checkpoint values support two forms:**
+
+Boolean shorthand (common):
+```json
+"plan": true
+```
+
+Object form (per-checkpoint override):
+```json
+"plan": {
+  "enabled": true,
+  "max_rounds": 4
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `adversary.enabled` | `true` | Global kill switch. When `false`, adversary never runs at any checkpoint. |
+| `adversary.max_rounds` | `3` | Default max challenge rounds for all checkpoints. |
+| `adversary.checkpoints.{name}` | `true` | Enable/disable adversary at a specific checkpoint. Boolean shorthand. |
+| `adversary.checkpoints.{name}.enabled` | `true` | Enable/disable adversary at a specific checkpoint. Object form. |
+| `adversary.checkpoints.{name}.max_rounds` | (inherit) | Override max rounds for a specific checkpoint. Object form only. |
+
+**Checkpoint names:** `requirements`, `roadmap`, `plan`, `verification`
+
+**Precedence chain for max_rounds:**
+
+1. `adversary.checkpoints.{name}.max_rounds` (checkpoint-level override) -- highest priority
+2. `adversary.max_rounds` (adversary-level default)
+3. System default: `3` -- lowest priority
+
+**Missing config behavior:** If `adversary` key is missing entirely, or `config.json` does not exist, the system defaults apply: adversary enabled, all checkpoints enabled, max_rounds=3. The adversary is opt-out, not opt-in.
+
+</config_schema>
+
+<reading_config>
+
+**Standard reading block for orchestrators.**
+
+Orchestrators in Phases 3-5 copy this block before spawning `gsd-adversary`. It reads the adversary config for a specific checkpoint and outputs `enabled|rounds` for the orchestrator to consume.
+
+```bash
+# Read adversary config for a specific checkpoint
+CHECKPOINT_NAME="plan"
+CHECKPOINT_CONFIG=$(node -e "
+  try {
+    const c = JSON.parse(require('fs').readFileSync('.planning/config.json', 'utf8'));
+    const adv = c.adversary || {};
+    if (adv.enabled === false) { console.log('false|3'); process.exit(0); }
+    const cp = adv.checkpoints?.[process.argv[1]];
+    let enabled, rounds;
+    if (typeof cp === 'boolean') { enabled = cp; rounds = adv.max_rounds ?? 3; }
+    else if (typeof cp === 'object' && cp !== null) { enabled = cp.enabled ?? true; rounds = cp.max_rounds ?? adv.max_rounds ?? 3; }
+    else { enabled = true; rounds = adv.max_rounds ?? 3; }
+    console.log(enabled + '|' + rounds);
+  } catch(e) { console.log('true|3'); }
+" "$CHECKPOINT_NAME" 2>/dev/null || echo "true|3")
+
+CHECKPOINT_ENABLED=$(echo "$CHECKPOINT_CONFIG" | cut -d'|' -f1)
+MAX_ROUNDS=$(echo "$CHECKPOINT_CONFIG" | cut -d'|' -f2)
+```
+
+**How it works:**
+
+1. **Global kill switch:** Checks `adv.enabled === false` first. If the global flag is off, immediately returns `false|3` regardless of checkpoint settings.
+2. **Boolean shorthand:** `typeof cp === 'boolean'` -- uses the boolean as enabled, inherits `max_rounds` from adversary level or system default.
+3. **Object form:** `typeof cp === 'object'` -- reads `cp.enabled` and `cp.max_rounds`, falling back through the precedence chain.
+4. **Missing checkpoint:** If the checkpoint key does not exist in config, defaults to enabled with inherited max_rounds.
+5. **Error handling:** JavaScript `try/catch` returns `true|3` on any parse error. Bash `|| echo "true|3"` catches node failures.
+
+**Why `node -e` instead of `grep`:** The adversary config uses nested objects with polymorphic values (boolean or object). Grep-based parsing cannot reliably handle this. Existing simple config values (like `commit_docs`) continue using grep patterns.
+
+**Usage in orchestrators:**
+
+```bash
+if [ "$CHECKPOINT_ENABLED" = "true" ]; then
+  # Spawn gsd-adversary with MAX_ROUNDS
+  # ... adversary challenge loop ...
+fi
+```
+
+</reading_config>
+
+</adversary_config>
+
 </planning_config>

@@ -1,7 +1,7 @@
 ---
 name: gsd:discuss-phase
 description: Gather phase context through adaptive questioning before planning
-argument-hint: "<phase> [--auto]"
+argument-hint: "<phase> [--research]"
 allowed-tools:
   - Read
   - Write
@@ -16,17 +16,24 @@ allowed-tools:
 Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
 
 **How it works:**
-1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
-2. Present gray areas — user selects which to discuss
-3. Deep-dive each selected area until satisfied
-4. Create CONTEXT.md with decisions that guide research and planning
+1. (Optional) Research domain to identify key decision areas (`--research` flag)
+2. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+3. Present gray areas — user selects which to discuss
+4. Deep-dive each selected area with adaptive questioning (2-6 questions based on confidence)
+5. Show recap after each area, recommend whether more questions needed
+6. Create CONTEXT.md with decisions that guide research and planning
 
-**Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
+**Output:**
+- `{phase}-CONTEXT.md` — decisions for downstream agents
+
+**Flags:**
+- `--research` — Spawn gsd-discuss-researcher to guide questions with domain research
 </objective>
 
 <execution_context>
 @~/.claude/get-shit-done/workflows/discuss-phase.md
 @~/.claude/get-shit-done/templates/context.md
+@~/.claude/get-shit-done/templates/domain-decisions.md
 </execution_context>
 
 <context>
@@ -65,9 +72,9 @@ Gray areas depend on what's being built. Analyze the phase goal:
 Generate 3-4 **phase-specific** gray areas, not generic categories.
 
 **Probing depth:**
-- Ask 4 questions per area before checking
-- "More questions about [area], or move to next?"
-- If more → ask 4 more, check again
+- Minimum 3 questions per area, maximum 6
+- Adaptive exit when coverage ≥70% AND clarity ≥60%
+- "More questions, or move on?" checkpoint
 - After all areas → "Ready to create context?"
 
 **Do NOT ask about (Claude handles these):**

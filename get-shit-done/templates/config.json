@@ -19,6 +19,16 @@
     "max_concurrent_agents": 3,
     "min_plans_for_parallel": 2
   },
+  "adversary": {
+    "enabled": true,
+    "max_rounds": 3,
+    "checkpoints": {
+      "requirements": true,
+      "roadmap": true,
+      "plan": true,
+      "verification": true
+    }
+  },
   "gates": {
     "confirm_project": true,
     "confirm_phases": true,
