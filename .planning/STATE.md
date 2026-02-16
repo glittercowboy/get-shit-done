@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 1 of 6 (Foundation)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-16 — Roadmap revised
+Plan: 1 of 3 in current phase
+Status: Executing
+Last activity: 2026-02-16 — Completed 01-01 (graph engine core)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 6%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3min
+- Total execution time: 0.05 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-foundation | 1/3 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 01-01 (3min)
+- Trend: Starting
 
 *Updated after each plan completion*
 
@@ -46,6 +46,9 @@ Recent decisions affecting current work:
 - [Roadmap]: Graph engine + infrastructure in Phase 1; backward derivation as Phase 2 (core innovation)
 - [Roadmap]: Integrity and alignment deferred to Phases 5-6 (need working execution first)
 - [Revision]: Renamed DAG.md to MILESTONES.md for user clarity; replaced "constellation" with "set of declarations"
+- [01-01]: Graph engine uses dual adjacency lists (upEdges + downEdges) for bidirectional O(1) lookups
+- [01-01]: Kahn's algorithm serves double duty: topological sort and cycle detection
+- [01-01]: Validation is explicit (validate() method), not called by addNode/addEdge
 
 ### Pending Todos
 
@@ -59,5 +62,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-foundation/01-CONTEXT.md
+Stopped at: Completed 01-01-PLAN.md
+Resume file: .planning/phases/01-foundation/01-01-SUMMARY.md
