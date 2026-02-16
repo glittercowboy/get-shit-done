@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 4 of 8 (Knowledge Extraction & Hooks)
-Plan: 02 of 06
+Plan: 04 of 06
 Status: In Progress
-Last activity: 2026-02-16 — Completed plan 04-02 (Pattern-based knowledge extraction)
+Last activity: 2026-02-16 — Completed plan 04-04 (Hook integration with timing modes)
 
 Progress: [██████████] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
-- Average duration: 3.5 min
-- Total execution time: 1.1 hours
+- Total plans completed: 20
+- Average duration: 3.3 min
+- Total execution time: 1.2 hours
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: [██████████] 25%
 | 01    | 6     | 20 min | 3.3 min  |
 | 02    | 6     | 28 min | 4.7 min  |
 | 03    | 5     | 16 min | 3.2 min  |
-| 04    | 2     | 5 min  | 2.5 min  |
+| 04    | 3     | 6 min  | 2.0 min  |
 
 **Recent Completions:**
 
@@ -51,6 +51,7 @@ Progress: [██████████] 25%
 | 03    | 05   | 3 min    | 3     | 2     |
 | 04    | 01   | 2 min    | 2     | 3     |
 | 04    | 02   | 3 min    | 3     | 1     |
+| 04    | 04   | 1 min    | 3     | 3     |
 
 ## Accumulated Context
 
@@ -141,6 +142,10 @@ Recent decisions affecting current work:
 - [Phase 04-02]: Technical signals include code backticks, paths, keywords, identifiers
 - [Phase 04-02]: All-caps pattern added for technical terms (AUTOINCREMENT, WAL, etc.)
 - [Phase 04-02]: Canonical hash normalizes case/punctuation for near-duplicate detection
+- [Phase 04-04]: Session-end as default timing mode (less noisy than per-turn)
+- [Phase 04-04]: Summaries disabled by default in extraction config (too noisy)
+- [Phase 04-04]: Non-blocking error handling in per-turn mode (logs but continues)
+- [Phase 04-04]: MD5 hashing for response deduplication tracking
 
 ### Pending Todos
 
@@ -152,6 +157,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16T05:17:03Z (plan execution)
-Stopped at: Completed 04-02-PLAN.md (Pattern-based knowledge extraction)
+Last session: 2026-02-16T05:20:04Z (plan execution)
+Stopped at: Completed 04-04-PLAN.md (Hook integration with timing modes)
 Resume file: None
