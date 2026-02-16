@@ -6,6 +6,71 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-02-15
+
+### Added
+- `/gsd:health` command — validates `.planning/` directory integrity with `--repair` flag for auto-fixing config.json and STATE.md
+- `--full` flag for `/gsd:quick` — enables plan-checking (max 2 iterations) and post-execution verification on quick tasks
+- `--auto` flag wired from `/gsd:new-project` through the full phase chain (discuss → plan → execute)
+- Auto-advance chains phase execution across full milestones when `workflow.auto_advance` is enabled
+
+### Fixed
+- Plans created without user context — `/gsd:plan-phase` warns when no CONTEXT.md exists, `/gsd:discuss-phase` warns when plans already exist (#253)
+- OpenCode installer converts `general-purpose` subagent type to OpenCode's `general`
+- `/gsd:complete-milestone` respects `commit_docs` setting when merging branches
+- Phase directories tracked in git via `.gitkeep` files
+
+## [1.19.2] - 2026-02-15
+
+### Added
+- User-level default settings via `~/.gsd/defaults.json` — set GSD defaults across all projects
+- Per-agent model overrides — customize which Claude model each agent uses
+
+### Changed
+- Completed milestone phase directories are now archived for cleaner project structure
+- Wave execution diagram added to README for clearer parallelization visualization
+
+### Fixed
+- OpenCode local installs now write config to `./.opencode/` instead of overwriting global `~/.config/opencode/`
+- Large JSON payloads write to temp files to prevent truncation in tool calls
+- Phase heading matching now supports `####` depth
+- Phase padding normalized in insert command
+- ESM conflicts prevented by renaming gsd-tools.js to .cjs
+- Config directory paths quoted in hook templates for local installs
+- Settings file corruption prevented by using Write tool for file creation
+- Plan-phase autocomplete fixed by removing "execution" from description
+- Executor now has scope boundary and attempt limit to prevent runaway loops
+
+## [1.19.1] - 2026-02-15
+
+### Added
+- Auto-advance pipeline: `--auto` flag on `discuss-phase` and `plan-phase` chains discuss → plan → execute without stopping. Also available as `workflow.auto_advance` config setting
+
+### Fixed
+- Phase transition routing now routes to `discuss-phase` (not `plan-phase`) when no CONTEXT.md exists — consistent across all workflows (#530)
+- ROADMAP progress table plan counts are now computed from disk instead of LLM-edited — deterministic "X/Y Complete" values (#537)
+- Verifier uses ROADMAP Success Criteria directly instead of deriving verification truths from the Goal field (#538)
+- REQUIREMENTS.md traceability updates when a phase completes
+- STATE.md updates after discuss-phase completes (#556)
+- AskUserQuestion headers enforced to 12-char max to prevent UI truncation (#559)
+- Agent model resolution returns `inherit` instead of hardcoded `opus` (#558)
+
+## [1.19.0] - 2026-02-15
+
+### Added
+- Brave Search integration for researchers (requires BRAVE_API_KEY environment variable)
+- GitHub issue templates for bug reports and feature requests
+- Security policy for responsible disclosure
+- Auto-labeling workflow for new issues
+
+### Fixed
+- UAT gaps and debug sessions now auto-resolve after gap-closure phase execution (#580)
+- Fall back to ROADMAP.md when phase directory missing (#521)
+- Template hook paths for OpenCode/Gemini runtimes (#585)
+- Accept both `##` and `###` phase headers, detect malformed ROADMAPs (#598, #599)
+- Use `{phase_num}` instead of ambiguous `{phase}` for filenames (#601)
+- Add package.json to prevent ESM inheritance issues (#602)
+
 ## [1.18.0] - 2026-02-08
 
 ### Added
@@ -102,12 +167,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - **Architecture: Thin orchestrator pattern** — Commands now delegate to workflows, reducing command file size by ~75% and improving maintainability
-- **Centralized utilities** — New `gsd-tools.js` (11 functions) replaces repetitive bash patterns across 50+ files
+- **Centralized utilities** — New `gsd-tools.cjs` (11 functions) replaces repetitive bash patterns across 50+ files
 - **Token reduction** — ~22k characters removed from affected command/workflow/agent files
 - **Condensed agent prompts** — Same behavior with fewer words (executor, planner, verifier, researcher agents)
 
 ### Added
-- `gsd-tools.js` CLI utility with functions: state load/update, resolve-model, find-phase, commit, verify-summary, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section
+- `gsd-tools.cjs` CLI utility with functions: state load/update, resolve-model, find-phase, commit, verify-summary, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section
 
 ## [1.11.2] - 2026-02-05
 
@@ -1206,7 +1271,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - YOLO mode for autonomous execution
 - Interactive mode with checkpoints
 
-[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/glittercowboy/get-shit-done/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.20.0
+[1.19.2]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.19.2
+[1.19.1]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.19.1
+[1.19.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.19.0
 [1.18.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.18.0
 [1.17.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.17.0
 [1.16.0]: https://github.com/glittercowboy/get-shit-done/releases/tag/v1.16.0

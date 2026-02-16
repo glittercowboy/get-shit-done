@@ -1022,7 +1022,7 @@ mv .planning/debug/{slug}.md .planning/debug/resolved/
 **Check planning config using state load (commit_docs is available from the output):**
 
 ```bash
-INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs state load)
 # commit_docs is in the JSON output
 ```
 
@@ -1055,7 +1055,7 @@ Test: {test_file}"
 
 Then commit planning docs via CLI (respects `commit_docs` config automatically):
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs: resolve debug {slug}" --files .planning/debug/resolved/{slug}.md
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs: resolve debug {slug}" --files .planning/debug/resolved/{slug}.md
 ```
 
 Report completion and offer next steps.

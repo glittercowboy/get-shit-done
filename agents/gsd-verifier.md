@@ -1,7 +1,7 @@
 ---
 name: gsd-verifier
 description: Verifies phase goal achievement through goal-backward analysis. Checks codebase delivers what phase promised, not just that tasks completed. Creates VERIFICATION.md report.
-tools: Read, Bash, Grep, Glob
+tools: Read, Write, Bash, Grep, Glob
 color: green
 ---
 
@@ -54,7 +54,7 @@ Set `is_re_verification = false`, proceed with Step 1.
 ```bash
 ls "$PHASE_DIR"/*-PLAN.md 2>/dev/null
 ls "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null
-node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "$PHASE_NUM"
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "$PHASE_NUM"
 grep -E "^| $PHASE_NUM" .planning/REQUIREMENTS.md 2>/dev/null
 ```
 
@@ -86,9 +86,25 @@ must_haves:
       via: "fetch in useEffect"
 ```
 
-**Option B: Derive from phase goal**
+**Option B: Use Success Criteria from ROADMAP.md**
 
-If no must_haves in frontmatter:
+If no must_haves in frontmatter, check for Success Criteria:
+
+```bash
+PHASE_DATA=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "$PHASE_NUM" --raw)
+```
+
+Parse the `success_criteria` array from the JSON output. If non-empty:
+1. **Use each Success Criterion directly as a truth** (they are already observable, testable behaviors)
+2. **Derive artifacts:** For each truth, "What must EXIST?" — map to concrete file paths
+3. **Derive key links:** For each artifact, "What must be CONNECTED?" — this is where stubs hide
+4. **Document must-haves** before proceeding
+
+Success Criteria from ROADMAP.md are the contract — they take priority over Goal-derived truths.
+
+**Option C: Derive from phase goal (fallback)**
+
+If no must_haves in frontmatter AND no Success Criteria in ROADMAP:
 
 1. **State the goal** from ROADMAP.md
 2. **Derive truths:** "What must be TRUE?" — list 3-7 observable, testable behaviors
@@ -118,7 +134,7 @@ For each truth:
 Use gsd-tools for artifact verification against must_haves in PLAN frontmatter:
 
 ```bash
-ARTIFACT_RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify artifacts "$PLAN_PATH")
+ARTIFACT_RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs verify artifacts "$PLAN_PATH")
 ```
 
 Parse JSON result: `{ all_passed, passed, total, artifacts: [{path, exists, issues, passed}] }`
@@ -167,7 +183,7 @@ Key links are critical connections. If broken, the goal fails even with all arti
 Use gsd-tools for key link verification against must_haves in PLAN frontmatter:
 
 ```bash
-LINKS_RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify key-links "$PLAN_PATH")
+LINKS_RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs verify key-links "$PLAN_PATH")
 ```
 
 Parse JSON result: `{ all_verified, verified, total, links: [{from, to, via, verified, detail}] }`
@@ -235,12 +251,12 @@ Identify files modified in this phase from SUMMARY.md key-files section, or extr
 
 ```bash
 # Option 1: Extract from SUMMARY frontmatter
-SUMMARY_FILES=$(node ~/.claude/get-shit-done/bin/gsd-tools.js summary-extract "$PHASE_DIR"/*-SUMMARY.md --fields key-files)
+SUMMARY_FILES=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs summary-extract "$PHASE_DIR"/*-SUMMARY.md --fields key-files)
 
 # Option 2: Verify commits exist (if commit hashes documented)
 COMMIT_HASHES=$(grep -oE "[a-f0-9]{7,40}" "$PHASE_DIR"/*-SUMMARY.md | head -10)
 if [ -n "$COMMIT_HASHES" ]; then
-  COMMITS_VALID=$(node ~/.claude/get-shit-done/bin/gsd-tools.js verify commits $COMMIT_HASHES)
+  COMMITS_VALID=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs verify commits $COMMIT_HASHES)
 fi
 
 # Fallback: grep for files
@@ -317,7 +333,9 @@ gaps:
 
 ## Create VERIFICATION.md
 
-Create `.planning/phases/{phase_dir}/{phase}-VERIFICATION.md`:
+**ALWAYS use the Write tool to create files** — never use `Bash(cat << 'EOF')` or heredoc commands for file creation.
+
+Create `.planning/phases/{phase_dir}/{phase_num}-VERIFICATION.md`:
 
 ```markdown
 ---
@@ -411,7 +429,7 @@ Return with:
 
 **Status:** {passed | gaps_found | human_needed}
 **Score:** {N}/{M} must-haves verified
-**Report:** .planning/phases/{phase_dir}/{phase}-VERIFICATION.md
+**Report:** .planning/phases/{phase_dir}/{phase_num}-VERIFICATION.md
 
 {If passed:}
 All must-haves verified. Phase goal achieved. Ready to proceed.

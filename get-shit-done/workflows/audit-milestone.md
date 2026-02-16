@@ -11,21 +11,21 @@ Read all files referenced by the invoking prompt's execution_context before star
 ## 0. Initialize Milestone Context
 
 ```bash
-INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js init milestone-op)
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs init milestone-op)
 ```
 
 Extract from init JSON: `milestone_version`, `milestone_name`, `phase_count`, `completed_phases`, `commit_docs`.
 
 Resolve integration checker model:
 ```bash
-CHECKER_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.js resolve-model gsd-integration-checker --raw)
+CHECKER_MODEL=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs resolve-model gsd-integration-checker --raw)
 ```
 
 ## 1. Determine Milestone Scope
 
 ```bash
 # Get phases in milestone (sorted numerically, handles decimals)
-node ~/.claude/get-shit-done/bin/gsd-tools.js phases list
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs phases list
 ```
 
 - Parse version from arguments or detect current from ROADMAP.md
@@ -38,9 +38,10 @@ node ~/.claude/get-shit-done/bin/gsd-tools.js phases list
 For each phase directory, read the VERIFICATION.md:
 
 ```bash
-cat .planning/phases/01-*/*-VERIFICATION.md
-cat .planning/phases/02-*/*-VERIFICATION.md
-# etc.
+# For each phase, use find-phase to resolve the directory (handles archived phases)
+PHASE_INFO=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs find-phase 01 --raw)
+# Extract directory from JSON, then read VERIFICATION.md from that directory
+# Repeat for each phase number from ROADMAP.md
 ```
 
 From each VERIFICATION.md, extract:

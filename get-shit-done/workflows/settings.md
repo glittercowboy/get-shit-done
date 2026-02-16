@@ -1,5 +1,5 @@
 <purpose>
-Interactive configuration of GSD workflow agents (research, plan_check, verifier), TDD, security compliance, and model profile selection via multi-question prompt. Updates .planning/config.json with user preferences.
+Interactive configuration of GSD workflow agents (research, plan_check, verifier), TDD, security compliance, auto-advance, and model profile selection via multi-question prompt. Updates .planning/config.json with user preferences. Optionally saves settings as global defaults (~/.gsd/defaults.json) for future projects.
 </purpose>
 
 <required_reading>
@@ -12,8 +12,8 @@ Read all files referenced by the invoking prompt's execution_context before star
 Ensure config exists and load current state:
 
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js config-ensure-section
-INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.js state load)
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-ensure-section
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs state load)
 ```
 
 Creates `.planning/config.json` with defaults if missing and loads current config values.
@@ -109,6 +109,15 @@ AskUserQuestion([
     ]
   },
   {
+    question: "Auto-advance pipeline? (discuss → plan → execute automatically)",
+    header: "Auto",
+    multiSelect: false,
+    options: [
+      { label: "No (Recommended)", description: "Manual /clear + paste between stages" },
+      { label: "Yes", description: "Chain stages via Task() subagents (same isolation)" }
+    ]
+  },
+  {
     question: "Git branching strategy?",
     header: "Branching",
     multiSelect: false,
@@ -136,7 +145,8 @@ Merge new settings into existing config.json:
     "research": true/false,
     "plan_check": true/false,
     "verifier": true/false,
-    "tdd": true/false
+    "tdd": true/false,
+    "auto_advance": true/false
   },
   "git": {
     "branching_strategy": "none" | "phase" | "milestone"
@@ -145,6 +155,48 @@ Merge new settings into existing config.json:
 ```
 
 Write updated config to `.planning/config.json`.
+</step>
+
+<step name="save_as_defaults">
+Ask whether to save these settings as global defaults for future projects:
+
+```
+AskUserQuestion([
+  {
+    question: "Save these as default settings for all new projects?",
+    header: "Defaults",
+    multiSelect: false,
+    options: [
+      { label: "Yes", description: "New projects start with these settings (saved to ~/.gsd/defaults.json)" },
+      { label: "No", description: "Only apply to this project" }
+    ]
+  }
+])
+```
+
+If "Yes": write the same config object (minus project-specific fields like `brave_search`) to `~/.gsd/defaults.json`:
+
+```bash
+mkdir -p ~/.gsd
+```
+
+Write `~/.gsd/defaults.json` with:
+```json
+{
+  "mode": <current>,
+  "depth": <current>,
+  "model_profile": <current>,
+  "commit_docs": <current>,
+  "parallelization": <current>,
+  "branching_strategy": <current>,
+  "workflow": {
+    "research": <current>,
+    "plan_check": <current>,
+    "verifier": <current>,
+    "auto_advance": <current>
+  }
+}
+```
 </step>
 
 <step name="confirm">
@@ -163,7 +215,9 @@ Display:
 | Execution Verifier   | {On/Off} |
 | TDD Workflow         | {On/Off} |
 | Security Compliance  | {none/soc2/hipaa/pci-dss/iso27001} |
+| Auto-Advance         | {On/Off} |
 | Git Branching        | {None/Per Phase/Per Milestone} |
+| Saved as Defaults    | {Yes/No} |
 
 These settings apply to future /gsd:plan-phase and /gsd:execute-phase runs.
 
@@ -182,7 +236,8 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 7 settings across 2 rounds (4 + 3, respecting AskUserQuestion limit)
+- [ ] User presented with 8 settings across 2 rounds (4 + 4, respecting AskUserQuestion limit)
 - [ ] Config updated with model_profile, security_compliance, workflow, and git sections
+- [ ] User offered to save as global defaults (~/.gsd/defaults.json)
 - [ ] Changes confirmed to user
 </success_criteria>
