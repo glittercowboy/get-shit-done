@@ -9,28 +9,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 
 ## Current Position
 
-Phase: 1 of 6 (Foundation)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-16 — Completed 01-02 (artifact persistence layer)
+Phase: 1 of 6 (Foundation) -- COMPLETE
+Plan: 3 of 3 in current phase (all done)
+Status: Phase Complete
+Last activity: 2026-02-16 — Completed 01-03 (slash commands and CLI bundle)
 
-Progress: [████░░░░░░] 12%
+Progress: [██████░░░░] 18%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 3min
-- Total execution time: 0.1 hours
+- Total plans completed: 3
+- Average duration: 5min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 2/3 | 6min | 3min |
+| 01-foundation | 3/3 | 14min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3min), 01-02 (3min)
+- Last 5 plans: 01-01 (3min), 01-02 (3min), 01-03 (8min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -52,6 +52,9 @@ Recent decisions affecting current work:
 - [01-02]: execFileSync over execSync for git operations (proper argument handling with spaces)
 - [01-02]: parseMarkdownTable exported as reusable helper from milestones.js
 - [01-02]: Permissive parse, strict write pattern for all artifact files
+- [01-03]: Commands installed to user-level ~/.claude/commands/declare/ with absolute paths for cross-project usage
+- [01-03]: Slash commands use meta-prompt pattern: .md instructs Claude, declare-tools.cjs provides data via JSON stdout
+- [01-03]: esbuild for CJS bundling; single-file dist/declare-tools.cjs with no external dependencies
 
 ### Pending Todos
 
@@ -65,5 +68,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 01-02-PLAN.md
-Resume file: .planning/phases/01-foundation/01-02-SUMMARY.md
+Stopped at: Completed 01-03-PLAN.md (Phase 1 Foundation complete)
+Resume file: .planning/phases/01-foundation/01-03-SUMMARY.md
