@@ -1,4 +1,4 @@
-import { appendQuestion, PendingQuestion } from '../storage/question-queue.js';
+import { appendQuestionLegacy as appendQuestion, PendingQuestion } from '../storage/question-queue.js';
 import { sendMessage } from '../bot/telegram-bot.js';
 
 /**

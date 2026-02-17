@@ -1,4 +1,4 @@
-import { loadPendingQuestions, PendingQuestion } from '../storage/question-queue.js';
+import { loadPendingQuestionsLegacy as loadPendingQuestions, PendingQuestion } from '../storage/question-queue.js';
 
 /**
  * Input schema for check_question_answers tool
@@ -65,14 +65,14 @@ async function pollForAnswers(
 ): Promise<PendingQuestion[]> {
   const startTime = Date.now();
   const pollInterval = 5000; // 5 seconds
-  const mySessionId = process.pid;
+  const mySessionId = `pid-${process.pid}`;
 
   while (Date.now() - startTime < timeoutMs) {
     const questions = await loadPendingQuestions();
 
     // Find answered questions FROM THIS SESSION ONLY
     const answered = questions.filter(q => {
-      const matchesSession = q.session_id === mySessionId;
+      const matchesSession = q.session_id === mySessionId || q.session_id.endsWith(`-${process.pid}`);
       const matchesFilter = questionIds.length === 0 || questionIds.includes(q.id);
       return q.status === 'answered' && matchesSession && matchesFilter;
     });
@@ -92,7 +92,7 @@ async function pollForAnswers(
       // Final check (only this session's questions)
       const finalQuestions = await loadPendingQuestions();
       return finalQuestions.filter(q => {
-        const matchesSession = q.session_id === mySessionId;
+        const matchesSession = q.session_id === mySessionId || q.session_id.endsWith(`-${process.pid}`);
         const matchesFilter = questionIds.length === 0 || questionIds.includes(q.id);
         return q.status === 'answered' && matchesSession && matchesFilter;
       });
@@ -141,7 +141,7 @@ export async function checkQuestionAnswersHandler(
 
   // Load pending questions
   let answeredQuestions: PendingQuestion[];
-  const mySessionId = process.pid;
+  const mySessionId = `pid-${process.pid}`;
 
   if (waitSeconds > 0) {
     // Long polling mode
@@ -150,7 +150,7 @@ export async function checkQuestionAnswersHandler(
     // Immediate check (no polling, only this session's questions)
     const questions = await loadPendingQuestions();
     answeredQuestions = questions.filter(q => {
-      const matchesSession = q.session_id === mySessionId;
+      const matchesSession = q.session_id === mySessionId || q.session_id.endsWith(`-${process.pid}`);
       const matchesFilter = questionIds.length === 0 || questionIds.includes(q.id);
       return q.status === 'answered' && matchesSession && matchesFilter;
     });

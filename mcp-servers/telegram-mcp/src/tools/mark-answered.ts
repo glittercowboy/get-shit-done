@@ -1,4 +1,4 @@
-import { archiveQuestion, getPendingById } from '../storage/question-queue.js';
+import { archiveQuestion, getPendingById, PendingQuestion } from '../storage/question-queue.js';
 import path from 'path';
 
 /**

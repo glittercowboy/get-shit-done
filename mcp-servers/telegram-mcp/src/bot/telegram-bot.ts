@@ -20,7 +20,7 @@ import {
   logBlockingResponse
 } from './session-logger.js';
 import { transcribeAudio, checkWhisperModel } from './transcription.js';
-import { loadPendingQuestions, getPendingById, markAnswered } from '../storage/question-queue.js';
+import { loadPendingQuestionsLegacy as loadPendingQuestions, getPendingById, markAnsweredLegacy as markAnswered } from '../storage/question-queue.js';
 
 // Load environment variables
 dotenv.config();
@@ -383,7 +383,7 @@ export async function sendBlockingQuestion(
 
   // Append question to queue (handled by MCP tools)
   // This function is called by MCP server when blocking question is asked
-  const { appendQuestion } = await import('../storage/question-queue.js');
+  const { appendQuestionLegacy: appendQuestion } = await import('../storage/question-queue.js');
 
   const questionObj = await appendQuestion({
     question,
