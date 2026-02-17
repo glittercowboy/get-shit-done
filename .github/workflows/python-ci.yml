@@ -1,0 +1,31 @@
+name: python-ci
+
+on:
+  push:
+    paths:
+      - 'TG Bot VED/**'
+      - 'tests/**'
+      - '.github/workflows/python-ci.yml'
+  pull_request:
+    paths:
+      - 'TG Bot VED/**'
+      - 'tests/**'
+      - '.github/workflows/python-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r 'TG Bot VED/requirements.txt'
+          pip install pytest
+      - name: Compile check
+        run: python -m py_compile 'TG Bot VED/bot_with_check_updated.py' 'TG Bot VED/import_codes.py'
+      - name: Run tests
+        run: pytest -q

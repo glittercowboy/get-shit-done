@@ -174,10 +174,16 @@ def init_db(db_path: str) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER UNIQUE,
             username TEXT,
-            registered_at TEXT
+            registered_at TEXT,
+            mode TEXT
         )
         """
     )
+    # Миграция для старых БД: добавляем колонку mode, если её нет
+    cur.execute("PRAGMA table_info(users)")
+    user_cols = {row[1] for row in cur.fetchall()}
+    if "mode" not in user_cols:
+        cur.execute("ALTER TABLE users ADD COLUMN mode TEXT")
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS queries (
@@ -199,6 +205,12 @@ def init_db(db_path: str) -> None:
         )
         """
     )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_queries_chat_id_id
+        ON queries(chat_id, id DESC)
+        """
+    )
 
     conn.commit()
     conn.close()
@@ -210,19 +222,52 @@ def ensure_user(db_path: str, chat_id: int, username: str | None) -> None:
     cur.execute("SELECT id FROM users WHERE chat_id = ?", (chat_id,))
     if cur.fetchone() is None:
         cur.execute(
-            "INSERT INTO users (chat_id, username, registered_at) VALUES (?, ?, ?)",
-            (chat_id, username, datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO users (chat_id, username, registered_at, mode) VALUES (?, ?, ?, ?)",
+            (chat_id, username, datetime.now(timezone.utc).isoformat(), "expert"),
         )
+    elif username:
+        cur.execute("UPDATE users SET username = ? WHERE chat_id = ?", (username, chat_id))
+    conn.commit()
+    conn.close()
+
+
+def get_user_mode(db_path: str, chat_id: int) -> Optional[str]:
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT mode FROM users WHERE chat_id = ?", (chat_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return row[0] or None
+
+
+def set_user_mode(db_path: str, chat_id: int, mode: str) -> None:
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE chat_id = ?", (chat_id,))
+    if cur.fetchone() is None:
+        cur.execute(
+            "INSERT INTO users (chat_id, username, registered_at, mode) VALUES (?, ?, ?, ?)",
+            (chat_id, None, datetime.now(timezone.utc).isoformat(), mode),
+        )
+    else:
+        cur.execute("UPDATE users SET mode = ? WHERE chat_id = ?", (mode, chat_id))
     conn.commit()
     conn.close()
 
 
 def save_query(db_path: str, chat_id: int, mode: str, description: str, result: str) -> None:
+    max_desc = 1000
+    max_result = 4000
+    safe_description = (description or "")[:max_desc]
+    safe_result = (result or "")[:max_result]
+
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO queries (chat_id, mode, description, result, created_at) VALUES (?, ?, ?, ?, ?)",
-        (chat_id, mode, description, result, datetime.now(timezone.utc).isoformat()),
+        (chat_id, mode, safe_description, safe_result, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
     conn.close()
@@ -373,11 +418,41 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
         "candidates": cand_payload
     }
 
+    response_schema = {
+        "type": "object",
+        "properties": {
+            "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": top_k,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "code": {"type": "string"},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["code", "reason"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["items"],
+        "additionalProperties": False,
+    }
+
     try:
         resp = client.responses.create(
             model=OPENAI_MODEL,
             input=json.dumps(user_input, ensure_ascii=False),
             instructions=instructions,
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "tnved_rank_candidates",
+                    "schema": response_schema,
+                    "strict": True,
+                }
+            },
         )
     except Exception as e:
         logger.error("Ошибка OpenAI API: %s", e)
@@ -408,13 +483,19 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
             logger.warning("LLM вернул неожиданный формат: %s", text[:200])
             return [(c, t, "LLM ответ не распознан, показаны кандидаты по БД.") for c, t in candidates[:top_k]]
 
-    items = data.get("items", [])
+    items = data.get("items", []) if isinstance(data, dict) else []
+    if not isinstance(items, list):
+        logger.warning("LLM вернул items не-массив: %r", type(items))
+        return [(c, t, "LLM ответ не распознан, показаны кандидаты по БД.") for c, t in candidates[:top_k]]
+
     chosen = []
     cand_map = {c: t for c, t in candidates}
     for it in items:
+        if not isinstance(it, dict):
+            continue
         code = str(it.get("code", "")).strip()
         reason = str(it.get("reason", "")).strip() or "—"
-        if code in cand_map:
+        if re.fullmatch(r"\d{10}", code) and code in cand_map:
             chosen.append((code, cand_map[code], reason))
         if len(chosen) >= top_k:
             break
@@ -587,7 +668,6 @@ def switch_to_light_keyboard() -> InlineKeyboardMarkup:
 # =========================
 
 router = Router()
-user_modes: dict[int, str] = {}
 
 
 # =========================
@@ -620,7 +700,7 @@ async def mode_command(message: Message) -> None:
 @router.message(F.text.lower().in_({"light", "expert"}))
 async def set_mode(message: Message, state: FSMContext) -> None:
     selected_mode = (message.text or "").lower()
-    user_modes[message.chat.id] = selected_mode
+    await asyncio.to_thread(set_user_mode, DB_PATH, message.chat.id, selected_mode)
     await message.answer(f"Режим установлен: {message.text}.")
     if selected_mode == "light":
         await light_start(message, state)
@@ -683,7 +763,7 @@ async def suggest_command(message: Message, command: CommandObject) -> None:
 
 @router.message(Command("classify"))
 async def classify_command(message: Message, state: FSMContext, command: CommandObject) -> None:
-    mode = user_modes.get(message.chat.id)
+    mode = await asyncio.to_thread(get_user_mode, DB_PATH, message.chat.id)
 
     if command.args:
         text = command.args.strip()
@@ -714,7 +794,7 @@ async def classify_command(message: Message, state: FSMContext, command: Command
         return
 
     if mode is None:
-        user_modes[message.chat.id] = "expert"
+        await asyncio.to_thread(set_user_mode, DB_PATH, message.chat.id, "expert")
     await message.answer(
         "Expert режим: пришлите описание товара (можно с тех.характеристиками). "
         "Если знаете 10-значный код ТН ВЭД — вставьте его в текст."
@@ -821,7 +901,7 @@ async def switch_mode_cb(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
     if action == "light":
-        user_modes[callback.message.chat.id] = "light"  # type: ignore[union-attr]
+        await asyncio.to_thread(set_user_mode, DB_PATH, callback.message.chat.id, "light")  # type: ignore[union-attr]
         await light_start(callback.message, state)  # type: ignore[arg-type]
     else:
         await callback.message.answer(  # type: ignore[union-attr]
@@ -837,7 +917,7 @@ async def switch_mode_cb(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.message(F.text)
 async def fallback(message: Message) -> None:
-    mode = user_modes.get(message.chat.id)
+    mode = await asyncio.to_thread(get_user_mode, DB_PATH, message.chat.id)
 
     if mode == "expert":
         text = message.text or ""
