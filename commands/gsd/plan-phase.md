@@ -539,7 +539,12 @@ Set `CO_PLANNER_RAN_PLANS=true`.
    ```
    Skip to next agent.
 
-4. **Display attributed feedback block:**
+4. **If ALL agents failed:** Display warning and skip to step 12.5.
+   ```
+   ⚠ All co-planners failed. Proceeding with adversary review only.
+   ```
+
+5. **Display attributed feedback block:**
    ```
    ─── {Agent Name} Feedback ───
 
@@ -557,9 +562,15 @@ Set `CO_PLANNER_RAN_PLANS=true`.
 
 **After all agents reviewed:**
 
-Synthesize: Review all suggestions and challenges. For each:
-- Accept: apply change to the relevant PLAN.md file(s) via Write tool
-- Reject: note with brief reasoning
+**Co-Planner Synthesis:**
+
+Review all suggestions and challenges. For each feedback item, apply acceptance criteria:
+
+- **Accept** if feedback identifies: a logical gap in the plan, a dependency conflict between tasks, an incorrect task ordering, a missing verification step, a feasibility concern with specific technical evidence, or a wiring gap between components.
+- **Reject** if feedback is: stylistic/formatting preference, a scope expansion beyond the phase goal, speculative ("might need") without evidence, or duplicates an existing task.
+- **Note** if feedback is: valid but deferred to a later phase, or raises a concern already captured in existing plan constraints.
+
+Apply accepted changes to the relevant PLAN.md file(s) via Write tool (read current content, apply changes, write back). Set `CO_PLANNER_REVISED_PLANS=true` if any changes were made.
 
 Display accept/reject log:
 ```
@@ -569,8 +580,9 @@ Display accept/reject log:
 |---|--------|----------|----------|-----------|
 | 1 | {agent} | {feedback summary} | Accepted | {why} |
 | 2 | {agent} | {feedback summary} | Rejected | {why} |
+| 3 | {agent} | {feedback summary} | Noted | {why} |
 
-{N} suggestions accepted, {M} rejected
+{N} suggestions accepted, {M} rejected, {P} noted
 ```
 
 **Conditional commit:**
@@ -578,7 +590,7 @@ If artifact was revised (`CO_PLANNER_REVISED_PLANS = true`):
 ```bash
 git add "${PHASE_DIR}"/*-PLAN.md
 git commit -m "$(cat <<'EOF'
-docs(08): incorporate co-planner feedback (plans)
+docs(${PHASE}): incorporate co-planner feedback (plans)
 EOF
 )"
 ```
