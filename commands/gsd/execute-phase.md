@@ -179,7 +179,12 @@ Phase: $ARGUMENTS
       ```
       Skip to next agent.
 
-   4. **Display attributed feedback block:**
+   4. **If ALL agents failed:** Display warning and skip to step 7.5.
+      ```
+      ⚠ All co-planners failed. Proceeding with adversary review only.
+      ```
+
+   5. **Display attributed feedback block:**
       ```
       ─── {Agent Name} Feedback ───
 
@@ -197,9 +202,15 @@ Phase: $ARGUMENTS
 
    **After all agents reviewed:**
 
-   Synthesize: Review all suggestions and challenges. For each:
-   - Accept: apply change to VERIFICATION.md via Edit tool
-   - Reject: note with brief reasoning
+   **Co-Planner Synthesis:**
+
+   Review all suggestions and challenges. For each feedback item, apply acceptance criteria:
+
+   - **Accept** if feedback identifies: a missed verification case, a factually incorrect status in the report, a gap between must-haves and evidence, a false-positive verification where the check passed but the behavior is broken, or a conclusion not supported by the evidence cited.
+   - **Reject** if feedback is: stylistic/formatting preference, a scope expansion beyond the phase goal, speculative ("might need") without evidence, or duplicates an existing verification entry.
+   - **Note** if feedback is: valid but deferred to a later phase, or raises a concern already captured in the verification constraints.
+
+   Apply accepted changes to VERIFICATION.md via Edit tool. Set `CO_PLANNER_REVISED_VERIFICATION=true` if any changes were made.
 
    Display accept/reject log:
    ```
@@ -209,8 +220,9 @@ Phase: $ARGUMENTS
    |---|--------|----------|----------|-----------|
    | 1 | {agent} | {feedback summary} | Accepted | {why} |
    | 2 | {agent} | {feedback summary} | Rejected | {why} |
+   | 3 | {agent} | {feedback summary} | Noted | {why} |
 
-   {N} suggestions accepted, {M} rejected
+   {N} suggestions accepted, {M} rejected, {P} noted
    ```
 
    **Conditional commit:**
@@ -218,7 +230,7 @@ Phase: $ARGUMENTS
    ```bash
    git add "${PHASE_DIR}"/*-VERIFICATION.md
    git commit -m "$(cat <<'EOF'
-   docs(08): incorporate co-planner feedback (verification)
+   docs({phase}): incorporate co-planner feedback (verification)
    EOF
    )"
    ```
