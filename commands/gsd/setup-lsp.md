@@ -39,6 +39,9 @@ ls CMakeLists.txt Makefile *.c *.cpp *.h 2>/dev/null | head -1
 
 # Java
 ls pom.xml build.gradle *.java 2>/dev/null | head -1
+
+# PHP
+ls composer.json 2>/dev/null
 ```
 
 Build detected languages list.
@@ -60,7 +63,8 @@ AskUserQuestion([
       { label: "Rust", description: "rust-analyzer-lsp for .rs files" },
       { label: "Go", description: "gopls-lsp for .go files" },
       { label: "C/C++", description: "clangd-lsp for .c/.cpp/.h files" },
-      { label: "Java", description: "jdtls-lsp for .java files" }
+      { label: "Java", description: "jdtls-lsp for .java files" },
+      { label: "PHP", description: "intelephense-lsp for .php files" }
     ]
   }
 ])
@@ -111,6 +115,7 @@ Plugin mapping:
 | Go | `gopls-lsp@claude-plugins-official` |
 | C/C++ | `clangd-lsp@claude-plugins-official` |
 | Java | `jdtls-lsp@claude-plugins-official` |
+| PHP | `intelephense-lsp@claude-plugins-official` |
 
 ## 5. Install Missing Plugins
 
@@ -260,6 +265,11 @@ All platforms: Download from https://download.eclipse.org/jdtls/
 Or via VS Code Java extension (includes JDTLS)
 ```
 
+### PHP
+```
+npm install -g intelephense
+```
+
 First, check which binaries are already installed:
 
 ```bash
@@ -268,6 +278,7 @@ which pyright 2>/dev/null && echo "✅ Pyright installed" || echo "⬜ Pyright n
 which rust-analyzer 2>/dev/null && echo "✅ rust-analyzer installed" || echo "⬜ rust-analyzer not found"
 which gopls 2>/dev/null && echo "✅ gopls installed" || echo "⬜ gopls not found"
 which clangd 2>/dev/null && echo "✅ clangd installed" || echo "⬜ clangd not found"
+which intelephense 2>/dev/null && echo "✅ intelephense installed" || echo "⬜ intelephense not found"
 ```
 
 Show status and ask:
@@ -372,6 +383,16 @@ For Java: Show manual instructions (no simple one-liner):
 Java JDTLS requires manual installation:
   Download from: https://download.eclipse.org/jdtls/
   Or install VS Code Java extension (includes JDTLS)
+```
+
+```
+Installing intelephense...
+```
+```bash
+npm install -g intelephense
+```
+```
+✅ intelephense installed
 ```
 
 **Handle failures gracefully:** If a command fails, show the error and manual command, then continue with other languages:
@@ -577,4 +598,5 @@ Only recommend official plugins from `@claude-plugins-official` marketplace:
 | Go | `gopls-lsp@claude-plugins-official` |
 | C/C++ | `clangd-lsp@claude-plugins-official` |
 | Java | `jdtls-lsp@claude-plugins-official` |
+| PHP | `intelephense-lsp@claude-plugins-official` |
 </official_plugins>

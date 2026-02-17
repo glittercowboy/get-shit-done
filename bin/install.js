@@ -1518,6 +1518,11 @@ function detectProjectLanguages() {
     langs.push('Go');
   }
 
+  // PHP
+  if (fs.existsSync(path.join(cwd, 'composer.json'))) {
+    langs.push('PHP');
+  }
+
   return langs;
 }
 

@@ -228,6 +228,7 @@ When setting up LSP, use only official plugins from `@claude-plugins-official`:
 | Go | `gopls-lsp@claude-plugins-official` |
 | C/C++ | `clangd-lsp@claude-plugins-official` |
 | Java | `jdtls-lsp@claude-plugins-official` |
+| PHP | `intelephense-lsp@claude-plugins-official` |
 
 ## Environment Requirements
 
