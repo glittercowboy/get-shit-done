@@ -330,9 +330,9 @@ Parse planner output:
 
 **`## PLANNING COMPLETE`:**
 - Display: `Planner created {N} plan(s). Files on disk.`
-- If `--skip-verify`: Skip to step 12.5 (adversary review, which has its own skip logic)
+- If `--skip-verify`: Skip to step 12.3 (co-planner review, which routes to adversary at 12.5)
 - Check config: `WORKFLOW_PLAN_CHECK=$(cat .planning/config.json 2>/dev/null | grep -o '"plan_check"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")`
-- If `workflow.plan_check` is `false`: Skip to step 12.5
+- If `workflow.plan_check` is `false`: Skip to step 12.3
 - Otherwise: Proceed to step 10
 
 **`## CHECKPOINT REACHED`:**
@@ -400,7 +400,7 @@ Task(
 
 **If `## VERIFICATION PASSED`:**
 - Display: `Plans verified. Ready for execution.`
-- Proceed to step 12.5 (adversary review)
+- Proceed to step 12.3 (co-planner review)
 
 **If `## ISSUES FOUND`:**
 - Display: `Checker found issues:`
@@ -468,6 +468,120 @@ Offer options:
 3. Abandon (exit planning)
 
 Wait for user response.
+
+## 12.3. Co-Planner Review — Plans
+
+**Resolve co-planner agents:**
+
+```bash
+CO_AGENTS_JSON=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner agents "plan")
+```
+
+Parse JSON: extract `agents` array and `warnings` array.
+
+**If agents array is empty:** Skip to step 12.5 (adversary review).
+
+**If agents array is non-empty:**
+
+Display banner:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► CO-PLANNER REVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+◆ Reviewing plans with {N} co-planner(s)...
+```
+
+Set `CO_PLANNER_RAN_PLANS=true`.
+
+**For each agent in agents array:**
+
+1. **Read artifacts from disk:**
+   ```bash
+   ARTIFACT_CONTENT=$(cat "${PHASE_DIR}"/*-PLAN.md)
+   REQUIREMENTS_CONTEXT=$(cat .planning/REQUIREMENTS.md 2>/dev/null)
+   ROADMAP_CONTEXT=$(cat .planning/ROADMAP.md 2>/dev/null)
+   ```
+
+2. **Construct review prompt and invoke:**
+   ```bash
+   REVIEW_PROMPT=$(cat <<'PROMPT_EOF'
+   Review this implementation plan for a software project. Focus on:
+   1. COMPLETENESS: Are tasks atomic enough? Can each be verified independently?
+   2. WIRING: Are integration points explicitly planned? Does component A connect to component B?
+   3. EDGE CASES: What could go wrong? Are error states handled?
+   4. COMPLEXITY: Are there tasks hiding significant complexity?
+
+   Organize your response into three sections:
+   - **Suggestions:** Specific improvements or additions you recommend
+   - **Challenges:** Concerns or potential problems you see
+   - **Endorsements:** What looks good and is well-thought-out
+
+   Requirements context:
+   {REQUIREMENTS_CONTEXT}
+
+   Roadmap context:
+   {ROADMAP_CONTEXT}
+
+   Plan to review:
+   {ARTIFACT_CONTENT}
+   PROMPT_EOF
+   )
+
+   RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner invoke {agent} --prompt "$REVIEW_PROMPT")
+   ```
+
+3. **Check for errors:**
+   Parse `RESULT` JSON. If `errorType` is non-null:
+   ```
+   ⚠ {agent} failed ({errorType}): {error}
+   Continuing with remaining agents...
+   ```
+   Skip to next agent.
+
+4. **Display attributed feedback block:**
+   ```
+   ─── {Agent Name} Feedback ───
+
+   **Suggestions:**
+   - {extracted from response}
+
+   **Challenges:**
+   - {extracted from response}
+
+   **Endorsements:**
+   - {extracted from response}
+
+   ──────────────────────────────
+   ```
+
+**After all agents reviewed:**
+
+Synthesize: Review all suggestions and challenges. For each:
+- Accept: apply change to the relevant PLAN.md file(s) via Write tool
+- Reject: note with brief reasoning
+
+Display accept/reject log:
+```
+### Co-Planner Synthesis
+
+| # | Source | Feedback | Decision | Reasoning |
+|---|--------|----------|----------|-----------|
+| 1 | {agent} | {feedback summary} | Accepted | {why} |
+| 2 | {agent} | {feedback summary} | Rejected | {why} |
+
+{N} suggestions accepted, {M} rejected
+```
+
+**Conditional commit:**
+If artifact was revised (`CO_PLANNER_REVISED_PLANS = true`):
+```bash
+git add "${PHASE_DIR}"/*-PLAN.md
+git commit -m "$(cat <<'EOF'
+docs(08): incorporate co-planner feedback (plans)
+EOF
+)"
+```
 
 ## 12.5. Adversary Review — Plans
 
