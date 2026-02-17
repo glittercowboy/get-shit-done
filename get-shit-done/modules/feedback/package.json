@@ -1,0 +1,13 @@
+{
+  "name": "@gsd/feedback",
+  "version": "0.1.0",
+  "description": "GSD Feedback - placeholder for Phase 2 implementation",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["gsd", "feedback", "learning"],
+  "author": "GSD Project",
+  "license": "MIT"
+}

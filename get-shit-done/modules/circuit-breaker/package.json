@@ -1,0 +1,13 @@
+{
+  "name": "@gsd/circuit-breaker",
+  "version": "0.1.0",
+  "description": "GSD Circuit Breaker - placeholder for Phase 2 implementation",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["gsd", "circuit-breaker", "resilience"],
+  "author": "GSD Project",
+  "license": "MIT"
+}

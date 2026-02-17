@@ -1,0 +1,13 @@
+{
+  "name": "@gsd/learning",
+  "version": "0.1.0",
+  "description": "GSD Learning - placeholder for Phase 2 implementation",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["gsd", "learning", "pattern-extraction"],
+  "author": "GSD Project",
+  "license": "MIT"
+}
