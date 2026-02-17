@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 
 ## Current Position
 
-Phase: 9 of 12 (Hook-based Documentation Compression)
-Plan: 05 of 05
-Status: Complete
-Last activity: 2026-02-16 — Completed plan 09-05 (Token Budget Monitoring with Compression Integration)
+Phase: 08.1 of 12 (Telegram MCP Server)
+Plan: 02 of 08
+Status: In Progress
+Last activity: 2026-02-17 — Completed plan 08.1-02 (JSONL-Based Persistence Layer)
 
 Progress: [████████████████████████████████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
-- Average duration: 3.2 min
-- Total execution time: 1.4 hours
+- Total plans completed: 25
+- Average duration: 3.3 min
+- Total execution time: 1.5 hours
 
 **By Phase:**
 
@@ -59,6 +59,8 @@ Progress: [███████████████████████
 | 09    | 03   | 5 min    | 4     | 3     |
 | 09    | 04   | 5 min    | 3     | 3     |
 | 09    | 05   | 3 min    | 4     | 2     |
+| 08.1  | 02   | 4 min    | 3     | 5     |
+| Phase 08.1 P01 | 4 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -185,6 +187,12 @@ Recent decisions affecting current work:
 - [Phase 08]: Use __dirname for dotenv path resolution (stable, script-relative)
 - [Phase 08]: Capture PROJECT_ROOT at module load time (before any cwd changes)
 - [Phase 08]: Replace process.cwd() with PROJECT_ROOT in session logger paths
+- [Phase 08.1-02]: Use PROJECT_ROOT resolution (env var or path traversal) for MCP server JSONL storage paths
+- [Phase 08.1-02]: UUID for question IDs, ISO timestamp for requirement IDs
+- [Phase 08.1-02]: Archive answered questions to daily session logs instead of deleting
+- [Phase 08.1-01]: Use @modelcontextprotocol/sdk official TypeScript SDK for MCP protocol implementation
+- [Phase 08.1-01]: Placeholder tool implementations return mock responses until Plan 02
+- [Phase 08.1-01]: All logging to stderr (stdout reserved for JSON-RPC)
 
 ### Roadmap Evolution
 
@@ -200,6 +208,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16T19:48:13Z (plan execution)
-Stopped at: Completed 09-05-PLAN.md (Token Budget Monitoring with Compression Integration) - Phase 9 complete
+Last session: 2026-02-17T10:27:05Z (plan execution)
+Stopped at: Completed 08.1-02-PLAN.md (JSONL-Based Persistence Layer) - Phase 08.1 Plan 02 complete
 Resume file: None
