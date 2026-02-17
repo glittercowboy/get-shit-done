@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 8 of 9 (Workflow Integration)
-Plan: 2 of 2
+Plan: 3 of 3
 Status: Phase complete
-Last activity: 2026-02-17 - Completed 08-02 (co-planner review in plan-phase and execute-phase)
+Last activity: 2026-02-17 - Completed 08-03 (gap closure for co-planner review sections)
 
 Progress: [██████░░░░] 60%
 
@@ -25,9 +25,9 @@ Progress: [██████░░░░] 60%
 - Timeline: 12 days (Feb 2 -> Feb 13, 2026)
 
 **v2.2:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 3 min/plan
-- Total execution time: 14 min
+- Total execution time: 16 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -36,6 +36,7 @@ Progress: [██████░░░░] 60%
 | 07    | 01   | 3min     | 3     | 3     |
 | 08    | 01   | 2min     | 2     | 1     |
 | 08    | 02   | 3min     | 2     | 2     |
+| 08    | 03   | 2min     | 2     | 2     |
 
 ## Accumulated Context
 
@@ -71,6 +72,11 @@ Key decisions from 08-01:
 - Display name mapping for agent attribution: codex->Codex, gemini->Gemini CLI, opencode->OpenCode
 - Same acceptance criteria framework for both checkpoints: accept/reject/note with clear thresholds
 
+Key decisions from 08-03:
+- plan-phase.md uses ${PHASE} for dynamic co-planner commit scope (matches step 2 variable)
+- execute-phase.md uses {phase} for dynamic co-planner commit scope (matches existing template pattern)
+- Domain-specific acceptance criteria: plan-phase checks logical gaps/dependency conflicts; execute-phase checks missed cases/false positives
+
 Key decisions from 08-02:
 - Plan checkpoint synthesis uses Write tool (Edit not in plan-phase.md allowed-tools)
 - Verification checkpoint synthesis uses Edit tool (Edit is in execute-phase.md allowed-tools)
@@ -97,5 +103,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08-02-PLAN.md. Phase 8 complete. Ready for Phase 9 or verification.
+Stopped at: Completed 08-03-PLAN.md (gap closure). Phase 8 complete. Ready for Phase 9 or verification.
 Resume file: None
