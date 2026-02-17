@@ -335,10 +335,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 11-01-PLAN.md - Core session analyzer with Haiku API and prompt templates
+- [ ] 11-01-PLAN.md - Core session analyzer with Task() subagent prompts and conversation_id grouping
 - [ ] 11-02-PLAN.md - Session quality gates, chunking, and re-analysis prevention
-- [ ] 11-03-PLAN.md - Knowledge storage integration and MCP session-end hook
-- [ ] 11-04-PLAN.md - CLI commands for manual analysis and status reporting
+- [ ] 11-03-PLAN.md - Knowledge storage integration with dedup and MCP session-end hook
+- [ ] 11-04-PLAN.md - CLI commands for manual analysis, historical extraction, and status reporting
 
 ### Phase 12: Historical conversation mining - Analyze Claude Code project conversations and planning documents to extract meta-knowledge, reasoning patterns, and decision context for enhanced context building
 
