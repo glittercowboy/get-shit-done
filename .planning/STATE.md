@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Performance is the product of alignment and integrity. Declare makes both structurally enforced and visibly measured.
-**Current focus:** Phase 05 complete -- Integrity System
+**Current focus:** Phase 06 in progress -- Alignment + Performance
 
 ## Current Position
 
-Phase: 05 of 6 (Integrity System) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 05 complete
-Last activity: 2026-02-16 — Completed 05-03 (milestone truth verification, auto-remediation, escalation in /declare:execute)
+Phase: 06 of 6 (Alignment + Performance) -- IN PROGRESS
+Plan: 1 of 2 in current phase
+Status: Executing plan 06-02
+Last activity: 2026-02-17 — Completed 06-01 (CJS data layer: check-drift, check-occurrence, compute-performance, renegotiate)
 
 Progress: [█████████░] 83%
 
@@ -97,6 +97,10 @@ Recent decisions affecting current work:
 - [05-03]: Programmatic check failures skip AI assessment (definitive, go straight to remediation)
 - [05-03]: Remediation actions appended to existing PLAN.md with derived marker
 - [05-03]: Escalation provides specific per-criterion suggestions, never judgment
+- [06-01]: findOrphans is standalone exported function wrapping validate() orphan filtering, matching isCompleted pattern
+- [06-01]: Performance uses qualitative labels only (HIGH/MEDIUM/LOW), never numeric scores
+- [06-01]: Renegotiation writes FUTURE-ARCHIVE.md and identifies milestones orphaned by single-declaration dependency
+- [06-01]: check-occurrence returns raw data for AI assessment, no scoring in CJS layer
 
 ### Pending Todos
 
@@ -113,6 +117,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed 05-03-PLAN.md (Phase 05 complete)
-Resume file: .planning/phases/05-integrity-system/05-03-SUMMARY.md
+Last session: 2026-02-17
+Stopped at: Completed 06-01-PLAN.md, executing 06-02
+Resume file: .planning/phases/06-alignment-performance/06-01-SUMMARY.md
