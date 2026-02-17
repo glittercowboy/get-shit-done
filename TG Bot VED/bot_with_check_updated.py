@@ -6,8 +6,8 @@ import random
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Iterable, Optional
+from datetime import datetime, timezone
+from typing import Iterable, Optional
 
 from dotenv import load_dotenv
 
@@ -211,7 +211,7 @@ def ensure_user(db_path: str, chat_id: int, username: str | None) -> None:
     if cur.fetchone() is None:
         cur.execute(
             "INSERT INTO users (chat_id, username, registered_at) VALUES (?, ?, ?)",
-            (chat_id, username, datetime.utcnow().isoformat()),
+            (chat_id, username, datetime.now(timezone.utc).isoformat()),
         )
     conn.commit()
     conn.close()
@@ -222,7 +222,7 @@ def save_query(db_path: str, chat_id: int, mode: str, description: str, result: 
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO queries (chat_id, mode, description, result, created_at) VALUES (?, ?, ?, ?, ?)",
-        (chat_id, mode, description, result, datetime.utcnow().isoformat()),
+        (chat_id, mode, description, result, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
     conn.close()
@@ -388,20 +388,20 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
     if not text:
         try:
             text = json.dumps(resp.model_dump(), ensure_ascii=False)
-        except Exception:
+        except (TypeError, ValueError):
             text = ""
 
     # Пытаемся извлечь JSON
     try:
         data = json.loads(text)
-    except Exception:
+    except json.JSONDecodeError:
         # если модель добавила лишнее — берём первый валидный JSON-блок
         j1 = text.find("{")
         j2 = text.rfind("}")
         if j1 != -1 and j2 != -1 and j2 > j1:
             try:
                 data = json.loads(text[j1 : j2 + 1])
-            except Exception:
+            except json.JSONDecodeError:
                 logger.warning("Не удалось распарсить ответ LLM: %s", text[:200])
                 return [(c, t, "LLM ответ не распознан, показаны кандидаты по БД.") for c, t in candidates[:top_k]]
         else:
@@ -444,13 +444,17 @@ def classify_text_with_db(db_path: str, text: str) -> list[ClassificationResult]
         return [ClassificationResult(raw, "Код не найден в вашей БД (tnved).", 0.35, "Нет записи в таблице tnved")]
 
     # 2) если код "спрятан" в тексте
+    # Дополнительная проверка: первые 2 цифры должны быть в диапазоне 01–97 (группы ТН ВЭД),
+    # чтобы не ловить номера телефонов и другие 10-значные числа.
     m = CODE10_RE.search(raw)
     if m:
         code10 = m.group(1)
-        title = tnved_get_by_code(db_path, code10)
-        if title:
-            return [ClassificationResult(code10, title, 0.90, "Код найден в тексте и подтверждён БД")]
-        return [ClassificationResult(code10, "Код найден в тексте, но отсутствует в БД (tnved).", 0.35, "Нет записи")]
+        group = int(code10[:2])
+        if 1 <= group <= 97:
+            title = tnved_get_by_code(db_path, code10)
+            if title:
+                return [ClassificationResult(code10, title, 0.90, "Код найден в тексте и подтверждён БД")]
+            return [ClassificationResult(code10, "Код найден в тексте, но отсутствует в БД (tnved).", 0.35, "Нет записи")]
 
     # 3) иначе — код не обнаружен, нужен подбор
     return [
@@ -786,6 +790,9 @@ async def light_usage_cb(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.message(LightStates.params)
 async def light_params(message: Message, state: FSMContext) -> None:
+    if not message.text:
+        await message.answer("Пожалуйста, введите текстовое описание параметров.")
+        return
     await state.update_data(params=message.text)
     data = await state.get_data()
 
