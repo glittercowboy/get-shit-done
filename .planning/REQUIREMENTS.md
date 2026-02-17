@@ -9,14 +9,14 @@ Requirements for Collaborative Design milestone. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: User can detect which external AI CLIs are installed (codex, gemini, opencode)
-- [ ] **INFRA-02**: User can enable/disable co-planning globally via config.json toggle
+- [x] **INFRA-01**: User can detect which external AI CLIs are installed (codex, gemini, opencode)
+- [x] **INFRA-02**: User can enable/disable co-planning globally via config.json toggle
 
 ### Core Integration
 
 - [ ] **CORE-01**: User can have Claude draft an artifact and send it to a configured external agent for review (draft-review-synthesize pattern)
 - [ ] **CORE-02**: User can receive structured feedback parsed from external agent responses (challenges, suggestions, endorsements)
-- [ ] **CORE-03**: User can rely on graceful degradation when external CLIs fail, timeout, or are unavailable (falls back to Claude-only)
+- [x] **CORE-03**: User can rely on graceful degradation when external CLIs fail, timeout, or are unavailable (falls back to Claude-only)
 - [ ] **CORE-04**: User can trust that external agent input is advisory — Claude synthesizes and makes final decisions
 
 ### Configuration
@@ -69,11 +69,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 6 | Pending |
-| INFRA-02 | Phase 6 | Pending |
+| INFRA-01 | Phase 6 | Complete |
+| INFRA-02 | Phase 6 | Complete |
 | CORE-01 | Phase 8 | Pending |
 | CORE-02 | Phase 8 | Pending |
-| CORE-03 | Phase 6 | Pending |
+| CORE-03 | Phase 6 | Complete |
 | CORE-04 | Phase 8 | Pending |
 | CFG-01 | Phase 7 | Pending |
 | UX-01 | Phase 8 | Pending |
@@ -88,4 +88,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-16*
-*Last updated: 2026-02-16 after roadmap creation*
+*Last updated: 2026-02-17 after Phase 6 completion*

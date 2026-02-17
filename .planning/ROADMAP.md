@@ -23,7 +23,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full details.
 
 ### v2.2 Collaborative Design (In Progress)
 
-- [ ] **Phase 6: Foundation** - CLI detection, invocation normalization, and graceful degradation layer
+- [x] **Phase 6: Foundation** - CLI detection, invocation normalization, and graceful degradation layer (completed 2026-02-17)
 - [ ] **Phase 7: Configuration** - Per-checkpoint agent assignment in config.json
 - [ ] **Phase 8: Workflow Integration** - Draft-review-synthesize pattern at all workflow checkpoints
 - [ ] **Phase 9: Multi-Agent Orchestration** - Parallel review and merged synthesis with attribution
@@ -42,8 +42,8 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- CLI adapter modules (codex, gemini, opencode) and config template
-- [ ] 06-02-PLAN.md -- coplanner command group in gsd-tools.cjs and install verification
+- [x] 06-01-PLAN.md -- CLI adapter modules (codex, gemini, opencode) and config template
+- [x] 06-02-PLAN.md -- coplanner command group in gsd-tools.cjs and install verification
 
 ### Phase 7: Configuration
 **Goal**: Users control exactly which external agents participate at which workflow checkpoints
@@ -95,7 +95,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 6. Foundation | v2.2 | 0/? | Not started | - |
+| 6. Foundation | v2.2 | 2/2 | Complete | 2026-02-17 |
 | 7. Configuration | v2.2 | 0/? | Not started | - |
 | 8. Workflow Integration | v2.2 | 0/? | Not started | - |
 | 9. Multi-Agent Orchestration | v2.2 | 0/? | Not started | - |
