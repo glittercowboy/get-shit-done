@@ -104,18 +104,39 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.research fals
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  GSD ► RESEARCHING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-◆ Spawning 4 researchers in parallel...
-  → Stack, Features, Architecture, Pitfalls
 ```
 
 ```bash
 mkdir -p .planning/research
 ```
 
-Spawn 4 parallel gsd-project-researcher agents. Each uses this template with dimension-specific fields:
+**Select research dimensions:**
 
-**Common structure for all 4 researchers:**
+Use AskUserQuestion:
+- header: "Dimensions"
+- question: "Which research dimensions to run? (all recommended for thorough coverage)"
+- multiSelect: true
+- options:
+  - "Stack" — Standard stack for this domain (libraries, frameworks, versions)
+  - "Features" — Table stakes vs differentiators for this domain
+  - "Architecture" — System structure, components, data flow
+  - "Pitfalls" — Common mistakes and how to avoid them
+  - "Best Practices" — Coding standards, testing strategy, safety patterns
+  - "Data Structures" — Language-specific types, feature-to-structure mappings
+
+Store selections as **selected_dimensions**.
+
+**If no dimensions selected:** Skip research entirely (equivalent to "Skip research"). Continue to Step 9.
+
+Display spawning indicator (only list selected dimensions):
+```
+◆ Spawning [count of selected_dimensions] researchers in parallel...
+  [For each selected dimension, show "→ [Dimension] research"]
+```
+
+Spawn parallel gsd-project-researcher agents for selected dimensions. Each uses this template with dimension-specific fields:
+
+**For each selected dimension**, use the common structure below (only spawn researchers for dimensions in **selected_dimensions**):
 ```
 Task(prompt="
 <research_type>Project Research — {DIMENSION} for [new features].</research_type>
@@ -143,21 +164,29 @@ Use template: ~/.claude/get-shit-done/templates/research-project/{FILE}
 
 **Dimension-specific fields:**
 
-| Field | Stack | Features | Architecture | Pitfalls |
-|-------|-------|----------|-------------|----------|
-| EXISTING_CONTEXT | Existing validated capabilities (DO NOT re-research): [from PROJECT.md] | Existing features (already built): [from PROJECT.md] | Existing architecture: [from PROJECT.md or codebase map] | Focus on common mistakes when ADDING these features to existing system |
-| QUESTION | What stack additions/changes are needed for [new features]? | How do [target features] typically work? Expected behavior? | How do [target features] integrate with existing architecture? | Common mistakes when adding [target features] to [domain]? |
-| CONSUMER | Specific libraries with versions for NEW capabilities, integration points, what NOT to add | Table stakes vs differentiators vs anti-features, complexity noted, dependencies on existing | Integration points, new components, data flow changes, suggested build order | Warning signs, prevention strategy, which phase should address it |
-| GATES | Versions current (verify with Context7), rationale explains WHY, integration considered | Categories clear, complexity noted, dependencies identified | Integration points identified, new vs modified explicit, build order considers deps | Pitfalls specific to adding these features, integration pitfalls covered, prevention actionable |
-| FILE | STACK.md | FEATURES.md | ARCHITECTURE.md | PITFALLS.md |
+| Field | Stack | Features | Architecture | Pitfalls | Best Practices | Data Structures |
+|-------|-------|----------|-------------|----------|----------------|-----------------|
+| EXISTING_CONTEXT | Existing validated capabilities (DO NOT re-research): [from PROJECT.md] | Existing features (already built): [from PROJECT.md] | Existing architecture: [from PROJECT.md or codebase map] | Focus on common mistakes when ADDING these features to existing system | Existing coding standards (if any): [from codebase map or PROJECT.md] | Existing data structures in codebase: [from codebase map or PROJECT.md] |
+| QUESTION | What stack additions/changes are needed for [new features]? | How do [target features] typically work? Expected behavior? | How do [target features] integrate with existing architecture? | Common mistakes when adding [target features] to [domain]? | What coding best practices and quality standards apply to [target features] with this stack? | What data structures best support [target features] in the project's language? Ranked list with feature mappings. |
+| CONSUMER | Specific libraries with versions for NEW capabilities, integration points, what NOT to add | Table stakes vs differentiators vs anti-features, complexity noted, dependencies on existing | Integration points, new components, data flow changes, suggested build order | Warning signs, prevention strategy, which phase should address it | Linting/formatting tools, testing strategy, code safety patterns, naming conventions, code review checklist | Language-specific types, feature-to-structure mappings, ranked by utility, persistence mapping, anti-patterns |
+| GATES | Versions current (verify with Context7), rationale explains WHY, integration considered | Categories clear, complexity noted, dependencies identified | Integration points identified, new vs modified explicit, build order considers deps | Pitfalls specific to adding these features, integration pitfalls covered, prevention actionable | Practices specific to this stack, official style guides cited, anti-patterns included, testing tools specified | Language-specific types used, features mapped to structures, ranked list justified, persistence mapping included |
+| FILE | STACK.md | FEATURES.md | ARCHITECTURE.md | PITFALLS.md | BEST-PRACTICES.md | DATA-STRUCTURES.md |
 
-After all 4 complete, spawn synthesizer:
+After all selected research agents complete, spawn synthesizer:
 
 ```
 Task(prompt="
 Synthesize research outputs into SUMMARY.md.
 
-Read: .planning/research/STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
+<research_files>
+Read only these files (produced by selected dimensions):
+[List only the .md files corresponding to selected_dimensions]
+</research_files>
+
+<dimensions_produced>
+[N] of 6 dimensions researched: [comma-separated list of selected dimensions]
+Dimensions NOT researched: [comma-separated list of excluded dimensions]
+</dimensions_produced>
 
 Write to: .planning/research/SUMMARY.md
 Use template: ~/.claude/get-shit-done/templates/research-project/SUMMARY.md
@@ -359,7 +388,7 @@ Also: `/gsd:plan-phase [N]` — skip discussion, plan directly
 - [ ] PROJECT.md updated with Current Milestone section
 - [ ] STATE.md reset for new milestone
 - [ ] MILESTONE-CONTEXT.md consumed and deleted (if existed)
-- [ ] Research completed (if selected) — 4 parallel agents, milestone-aware
+- [ ] Research completed (if selected) — parallel agents for selected dimensions, milestone-aware
 - [ ] Requirements gathered and scoped per category
 - [ ] REQUIREMENTS.md created with REQ-IDs
 - [ ] gsd-roadmapper spawned with phase numbering context
