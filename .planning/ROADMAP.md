@@ -126,11 +126,11 @@ Plans:
   2. System periodically performs occurrence checks, asking "does this still occur as what we declared?"
   3. System detects and surfaces drift when actions have no causation path to any declaration
   4. Performance is computed as alignment x integrity (qualitative: HIGH/MEDIUM/LOW) and visible at project level
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- CJS data layer: check-drift, check-occurrence, compute-performance, renegotiate commands, FUTURE-ARCHIVE.md support, bundle rebuild
+- [ ] 06-02-PLAN.md -- Slash command orchestration: execute.md drift pre-checks + occurrence checks, status.md performance display, renegotiation flow
 
 ## Progress
 
