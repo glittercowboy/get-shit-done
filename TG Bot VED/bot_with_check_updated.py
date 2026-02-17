@@ -196,6 +196,44 @@ def _tokenize(text: str) -> list[str]:
     return [t for t in toks if t not in stop]
 
 
+# Технические слова, присутствие которых говорит об осмысленном описании
+_TECH_KEYWORDS = {
+    "квт", "кВт", "л.с", "мощност", "объём", "объем", "дизел", "бензин",
+    "компрессор", "холодильн", "морозильн", "рефрижератор", "температур",
+    "цилиндр", "топлив", "промышленн", "бытов", "транспорт", "морск",
+    "сельхоз", "литр", "тип", "марка", "модел", "серийн", "артикул",
+}
+
+
+def assess_expert_input(text: str) -> bool:
+    """
+    Возвращает True, если описания достаточно для попытки классификации.
+
+    Критерии достаточности (все три должны выполняться):
+    1. Длина текста >= 20 символов.
+    2. Не менее 3 содержательных токенов (без стоп-слов).
+    3. Есть хотя бы один числовой фрагмент (мощность, объём, год…)
+       ИЛИ хотя бы одно техническое ключевое слово.
+    """
+    stripped = (text or "").strip()
+
+    # 1. Минимальная длина
+    if len(stripped) < 20:
+        return False
+
+    # 2. Минимальное количество значимых слов
+    tokens = _tokenize(stripped)
+    if len(tokens) < 3:
+        return False
+
+    # 3. Техническая конкретика: число или тех.термин
+    has_number = bool(re.search(r"\d+", stripped))
+    text_lower = stripped.lower()
+    has_tech = any(kw.lower() in text_lower for kw in _TECH_KEYWORDS)
+
+    return has_number or has_tech
+
+
 def tnved_search_candidates(db_path: str, query_text: str, limit: int = 12) -> list[tuple[str, str]]:
     """
     Достаём кандидатов из БД по словам пользователя.
@@ -460,6 +498,14 @@ def mode_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def switch_to_light_keyboard() -> InlineKeyboardMarkup:
+    """Кнопки при недостаточном описании в Expert-режиме."""
+    return _inline([
+        [("Перейти в Light-режим (опросник)", "switch:light")],
+        [("Дополнить описание и попробовать снова", "switch:retry")],
+    ])
+
+
 # =========================
 # Router / state
 # =========================
@@ -565,6 +611,17 @@ async def classify_command(message: Message, state: FSMContext, command: Command
 
     if command.args:
         text = command.args.strip()
+
+        if not assess_expert_input(text):
+            await message.answer(
+                "Описания недостаточно для классификации.\n\n"
+                "Для точного подбора кода ТН ВЭД нужны технические детали: "
+                "мощность, объём, тип применения, материал и т.п.\n\n"
+                "Что хотите сделать?",
+                reply_markup=switch_to_light_keyboard(),
+            )
+            return
+
         results = await asyncio.to_thread(classify_text_with_db, DB_PATH, text)
         response = format_results(results)
         risk = assess_risk(results[0].confidence)
@@ -676,6 +733,26 @@ async def light_params(message: Message, state: FSMContext) -> None:
 
 
 # =========================
+# Expert: переключение в Light
+# =========================
+
+@router.callback_query(F.data.startswith("switch:"))
+async def switch_mode_cb(callback: CallbackQuery, state: FSMContext) -> None:
+    action = callback.data.split(":", 1)[1]
+    await callback.answer()
+
+    if action == "light":
+        user_modes[callback.message.chat.id] = "light"  # type: ignore[union-attr]
+        await light_start(callback.message, state)  # type: ignore[arg-type]
+    else:
+        await callback.message.answer(  # type: ignore[union-attr]
+            "Хорошо! Добавьте к описанию технические параметры:\n"
+            "мощность (кВт/л.с.), объём (л), тип применения, страна происхождения.\n"
+            "Чем конкретнее — тем точнее результат."
+        )
+
+
+# =========================
 # Expert fallback
 # =========================
 
@@ -685,6 +762,17 @@ async def fallback(message: Message) -> None:
 
     if mode == "expert":
         text = message.text or ""
+
+        if not assess_expert_input(text):
+            await message.answer(
+                "Описания недостаточно для классификации.\n\n"
+                "Для точного подбора кода ТН ВЭД нужны технические детали: "
+                "мощность, объём, тип применения, материал и т.п.\n\n"
+                "Что хотите сделать?",
+                reply_markup=switch_to_light_keyboard(),
+            )
+            return
+
         results = await asyncio.to_thread(classify_text_with_db, DB_PATH, text)
         response = format_results(results)
         risk = assess_risk(results[0].confidence)
