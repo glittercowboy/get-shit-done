@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 05 of 6 (Integrity System) -- IN PROGRESS
-Plan: 1 of 3 in current phase
-Status: Plan 05-01 complete
-Last activity: 2026-02-16 — Completed 05-01 (integrity foundation: statuses, verification, verify-milestone)
+Plan: 2 of 3 in current phase
+Status: Plan 05-02 complete
+Last activity: 2026-02-16 — Completed 05-02 (CLI wiring, isCompleted() adoption, integrity aggregation)
 
-Progress: [█████████░] 72%
+Progress: [█████████░] 78%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 4min
-- Total execution time: 0.80 hours
+- Total execution time: 0.83 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [█████████░] 72%
 | 02.1-artifact-separation-and-command-split | 3/3 | 11min | 4min |
 | 03-traceability-navigation | 2/2 | 7min | 4min |
 | 04-execution-pipeline | 2/2 | 5min | 3min |
-| 05-integrity-system | 1/3 | 4min | 4min |
+| 05-integrity-system | 2/3 | 6min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (4min), 03-02 (3min), 04-01 (2min), 04-02 (3min), 05-01 (4min)
+- Last 5 plans: 03-02 (3min), 04-01 (2min), 04-02 (3min), 05-01 (4min), 05-02 (2min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -90,6 +90,9 @@ Recent decisions affecting current work:
 - [05-01]: BROKEN is not completed (verification failed, remediation in progress); KEPT/HONORED/RENEGOTIATED are completed
 - [05-01]: stats().byStatus dynamically initialized from VALID_STATUSES set for forward compatibility
 - [05-01]: Criterion typing: each SC-XX has type (artifact/test/ai) for typed processing by slash commands
+- [05-02]: isCompleted() replaces all hardcoded DONE checks for forward-compatible integrity status handling
+- [05-02]: Integrity aggregation uses factual counts (verified/kept/honored), not scores or percentages (INTG-03)
+- [05-02]: BROKEN milestones set health to 'warnings' (state in remediation, not error)
 
 ### Pending Todos
 
@@ -107,5 +110,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-integrity-system/05-01-SUMMARY.md
+Stopped at: Completed 05-02-PLAN.md
+Resume file: .planning/phases/05-integrity-system/05-02-SUMMARY.md
