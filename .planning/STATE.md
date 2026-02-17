@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Performance is the product of alignment and integrity. Declare makes both structurally enforced and visibly measured.
-**Current focus:** Phase 04 complete -- Execution Pipeline
+**Current focus:** Phase 05 in progress -- Integrity System
 
 ## Current Position
 
-Phase: 04 of 6 (Execution Pipeline) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase 04 complete
-Last activity: 2026-02-16 — Completed 04-02 (execution pipeline wiring and slash command)
+Phase: 05 of 6 (Integrity System) -- IN PROGRESS
+Plan: 1 of 3 in current phase
+Status: Plan 05-01 complete
+Last activity: 2026-02-16 — Completed 05-01 (integrity foundation: statuses, verification, verify-milestone)
 
-Progress: [████████░░] 67%
+Progress: [█████████░] 72%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 4min
-- Total execution time: 0.73 hours
+- Total execution time: 0.80 hours
 
 **By Phase:**
 
@@ -32,9 +32,10 @@ Progress: [████████░░] 67%
 | 02.1-artifact-separation-and-command-split | 3/3 | 11min | 4min |
 | 03-traceability-navigation | 2/2 | 7min | 4min |
 | 04-execution-pipeline | 2/2 | 5min | 3min |
+| 05-integrity-system | 1/3 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 02.1-03 (3min), 03-01 (4min), 03-02 (3min), 04-01 (2min), 04-02 (3min)
+- Last 5 plans: 03-01 (4min), 03-02 (3min), 04-01 (2min), 04-02 (3min), 05-01 (4min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -85,6 +86,10 @@ Recent decisions affecting current work:
 - [04-02]: execute.js returns milestone picker (not error) when no --milestone flag (interactive mode)
 - [04-02]: Exec plans generated on-demand per wave, not upfront (reduces wasted work on early failures)
 - [04-02]: /declare:execute uses Task tool for parallel agent spawning, two-layer verification (CJS + AI review)
+- [05-01]: State machine is convention only -- engine validates status membership, orchestration enforces transitions
+- [05-01]: BROKEN is not completed (verification failed, remediation in progress); KEPT/HONORED/RENEGOTIATED are completed
+- [05-01]: stats().byStatus dynamically initialized from VALID_STATUSES set for forward compatibility
+- [05-01]: Criterion typing: each SC-XX has type (artifact/test/ai) for typed processing by slash commands
 
 ### Pending Todos
 
@@ -102,5 +107,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 04-02-PLAN.md (Phase 04 complete)
-Resume file: .planning/phases/04-execution-pipeline/04-02-SUMMARY.md
+Stopped at: Completed 05-01-PLAN.md
+Resume file: .planning/phases/05-integrity-system/05-01-SUMMARY.md
