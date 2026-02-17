@@ -18,6 +18,7 @@ const { parsePlanFile } = require('../artifacts/plan');
 const { findMilestoneFolder } = require('../artifacts/milestone-folders');
 const { buildDagFromDisk } = require('./build-dag');
 const { isCompleted } = require('../graph/engine');
+const { runComputePerformance } = require('./compute-performance');
 
 /**
  * Detect staleness indicators for milestones.
@@ -150,6 +151,26 @@ function runStatus(cwd) {
     health = 'warnings';
   }
 
+  // Compute performance (graceful degradation if it fails)
+  let performance = null;
+  try {
+    const perfResult = runComputePerformance(cwd);
+    if (!perfResult.error) {
+      performance = {
+        perDeclaration: perfResult.perDeclaration.map(d => ({
+          declarationId: d.declarationId,
+          declarationTitle: d.declarationTitle,
+          alignment: d.alignment.level,
+          integrity: d.integrity.level,
+          performance: d.performance,
+        })),
+        rollup: perfResult.rollup,
+      };
+    }
+  } catch {
+    // Performance computation failed -- graceful degradation
+  }
+
   return {
     project: projectName,
     stats: {
@@ -168,6 +189,7 @@ function runStatus(cwd) {
     coverage,
     staleness,
     integrity,
+    performance,
   };
 }
 

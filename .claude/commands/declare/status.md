@@ -47,4 +47,19 @@ For each validation error, provide a brief suggestion:
 
 **Last Activity:** Show the timestamp and commit message from the last git activity.
 
+**Performance:** If the status output contains a `performance` field (non-null):
+
+Show the project rollup first:
+"Performance: [rollup.performance] (alignment: [rollup.alignment] x integrity: [rollup.integrity])"
+
+Then show per-declaration breakdown:
+
+| Declaration | Alignment | Integrity | Performance |
+|-------------|-----------|-----------|-------------|
+| D-XX: [title] | HIGH | MEDIUM | MEDIUM |
+
+If `performance` is null, skip this section entirely (graceful degradation for projects with no declarations).
+
+Keep the "Performance: HIGH (alignment: HIGH x integrity: HIGH)" plain text label format -- qualitative labels only, never numeric scores.
+
 The overall feel should be like a dashboard -- compact, scannable, with clear health indicators.

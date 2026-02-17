@@ -872,6 +872,114 @@ var require_build_dag = __commonJS({
   }
 });
 
+// src/commands/compute-performance.js
+var require_compute_performance = __commonJS({
+  "src/commands/compute-performance.js"(exports2, module2) {
+    "use strict";
+    var { buildDagFromDisk } = require_build_dag();
+    var { isCompleted } = require_engine();
+    function ratioToLabel(ratio, highThreshold, medThreshold) {
+      if (ratio >= highThreshold) return "HIGH";
+      if (ratio >= medThreshold) return "MEDIUM";
+      return "LOW";
+    }
+    function combineLabels(alignment, integrity) {
+      if (alignment === "LOW" || integrity === "LOW") return "LOW";
+      if (alignment === "HIGH" && integrity === "HIGH") return "HIGH";
+      return "MEDIUM";
+    }
+    function runComputePerformance2(cwd) {
+      const graphResult = buildDagFromDisk(cwd);
+      if ("error" in graphResult) return graphResult;
+      const { dag } = graphResult;
+      const declarations = dag.getDeclarations();
+      if (declarations.length === 0) {
+        return {
+          perDeclaration: [],
+          rollup: { alignment: "HIGH", integrity: "HIGH", performance: "HIGH" }
+        };
+      }
+      const perDeclaration = declarations.map((decl) => {
+        const downstream = dag.getDownstream(decl.id);
+        const milestones = downstream.filter((n) => n.type === "milestone");
+        let milestonesWithActions = 0;
+        for (const m of milestones) {
+          const mDownstream = dag.getDownstream(m.id);
+          if (mDownstream.some((n) => n.type === "action")) {
+            milestonesWithActions++;
+          }
+        }
+        const alignmentRatio = milestones.length > 0 ? milestonesWithActions / milestones.length : 0;
+        const alignmentLevel = milestones.length === 0 ? "LOW" : ratioToLabel(alignmentRatio, 0.8, 0.5);
+        let verified = 0;
+        let broken = 0;
+        let pending = 0;
+        for (const m of milestones) {
+          const status = m.status;
+          if (status === "KEPT" || status === "HONORED" || status === "RENEGOTIATED") {
+            verified++;
+          } else if (status === "BROKEN") {
+            broken++;
+          } else {
+            pending++;
+          }
+        }
+        let integrityLevel;
+        if (milestones.length === 0) {
+          integrityLevel = "HIGH";
+        } else {
+          const brokenRatio = broken / milestones.length;
+          const verifiedRatio = verified / milestones.length;
+          if (brokenRatio > 0.3) {
+            integrityLevel = "LOW";
+          } else if (verifiedRatio >= 0.7 && broken === 0) {
+            integrityLevel = "HIGH";
+          } else if (verifiedRatio >= 0.4) {
+            integrityLevel = "MEDIUM";
+          } else {
+            integrityLevel = "LOW";
+          }
+        }
+        const performance = combineLabels(alignmentLevel, integrityLevel);
+        return {
+          declarationId: decl.id,
+          declarationTitle: decl.title,
+          statement: decl.metadata?.statement || decl.title,
+          alignment: {
+            level: alignmentLevel,
+            milestonesTotal: milestones.length,
+            milestonesWithActions
+          },
+          integrity: {
+            level: integrityLevel,
+            verified,
+            broken,
+            pending,
+            total: milestones.length
+          },
+          performance
+        };
+      });
+      const hasAnyLowAlignment = perDeclaration.some((d) => d.alignment.level === "LOW");
+      const hasAnyLowIntegrity = perDeclaration.some((d) => d.integrity.level === "LOW");
+      const allHighAlignment = perDeclaration.every((d) => d.alignment.level === "HIGH");
+      const allHighIntegrity = perDeclaration.every((d) => d.integrity.level === "HIGH");
+      const rollupAlignment = hasAnyLowAlignment ? "LOW" : allHighAlignment ? "HIGH" : "MEDIUM";
+      const rollupIntegrity = hasAnyLowIntegrity ? "LOW" : allHighIntegrity ? "HIGH" : "MEDIUM";
+      const rollupPerformance = combineLabels(rollupAlignment, rollupIntegrity);
+      return {
+        perDeclaration,
+        rollup: {
+          alignment: rollupAlignment,
+          integrity: rollupIntegrity,
+          performance: rollupPerformance
+        }
+      };
+    }
+    module2.exports = { runComputePerformance: runComputePerformance2 };
+  }
+});
+
 // src/commands/status.js
 var require_status = __commonJS({
   "src/commands/status.js"(exports2, module2) {
@@ -883,6 +991,7 @@ var require_status = __commonJS({
     var { findMilestoneFolder } = require_milestone_folders();
     var { buildDagFromDisk } = require_build_dag();
     var { isCompleted } = require_engine();
+    var { runComputePerformance: runComputePerformance2 } = require_compute_performance();
     function detectStaleness(cwd, planningDir, milestones) {
       const indicators = [];
       for (const m of milestones) {
@@ -992,6 +1101,23 @@ var require_status = __commonJS({
       if (integrity.broken > 0 && health === "healthy") {
         health = "warnings";
       }
+      let performance = null;
+      try {
+        const perfResult = runComputePerformance2(cwd);
+        if (!perfResult.error) {
+          performance = {
+            perDeclaration: perfResult.perDeclaration.map((d) => ({
+              declarationId: d.declarationId,
+              declarationTitle: d.declarationTitle,
+              alignment: d.alignment.level,
+              integrity: d.integrity.level,
+              performance: d.performance
+            })),
+            rollup: perfResult.rollup
+          };
+        }
+      } catch {
+      }
       return {
         project: projectName,
         stats: {
@@ -1009,7 +1135,8 @@ var require_status = __commonJS({
         health,
         coverage,
         staleness,
-        integrity
+        integrity,
+        performance
       };
     }
     module2.exports = { runStatus: runStatus2 };
@@ -2518,114 +2645,6 @@ var require_check_occurrence = __commonJS({
       return { declarations: result };
     }
     module2.exports = { runCheckOccurrence: runCheckOccurrence2 };
-  }
-});
-
-// src/commands/compute-performance.js
-var require_compute_performance = __commonJS({
-  "src/commands/compute-performance.js"(exports2, module2) {
-    "use strict";
-    var { buildDagFromDisk } = require_build_dag();
-    var { isCompleted } = require_engine();
-    function ratioToLabel(ratio, highThreshold, medThreshold) {
-      if (ratio >= highThreshold) return "HIGH";
-      if (ratio >= medThreshold) return "MEDIUM";
-      return "LOW";
-    }
-    function combineLabels(alignment, integrity) {
-      if (alignment === "LOW" || integrity === "LOW") return "LOW";
-      if (alignment === "HIGH" && integrity === "HIGH") return "HIGH";
-      return "MEDIUM";
-    }
-    function runComputePerformance2(cwd) {
-      const graphResult = buildDagFromDisk(cwd);
-      if ("error" in graphResult) return graphResult;
-      const { dag } = graphResult;
-      const declarations = dag.getDeclarations();
-      if (declarations.length === 0) {
-        return {
-          perDeclaration: [],
-          rollup: { alignment: "HIGH", integrity: "HIGH", performance: "HIGH" }
-        };
-      }
-      const perDeclaration = declarations.map((decl) => {
-        const downstream = dag.getDownstream(decl.id);
-        const milestones = downstream.filter((n) => n.type === "milestone");
-        let milestonesWithActions = 0;
-        for (const m of milestones) {
-          const mDownstream = dag.getDownstream(m.id);
-          if (mDownstream.some((n) => n.type === "action")) {
-            milestonesWithActions++;
-          }
-        }
-        const alignmentRatio = milestones.length > 0 ? milestonesWithActions / milestones.length : 0;
-        const alignmentLevel = milestones.length === 0 ? "LOW" : ratioToLabel(alignmentRatio, 0.8, 0.5);
-        let verified = 0;
-        let broken = 0;
-        let pending = 0;
-        for (const m of milestones) {
-          const status = m.status;
-          if (status === "KEPT" || status === "HONORED" || status === "RENEGOTIATED") {
-            verified++;
-          } else if (status === "BROKEN") {
-            broken++;
-          } else {
-            pending++;
-          }
-        }
-        let integrityLevel;
-        if (milestones.length === 0) {
-          integrityLevel = "HIGH";
-        } else {
-          const brokenRatio = broken / milestones.length;
-          const verifiedRatio = verified / milestones.length;
-          if (brokenRatio > 0.3) {
-            integrityLevel = "LOW";
-          } else if (verifiedRatio >= 0.7 && broken === 0) {
-            integrityLevel = "HIGH";
-          } else if (verifiedRatio >= 0.4) {
-            integrityLevel = "MEDIUM";
-          } else {
-            integrityLevel = "LOW";
-          }
-        }
-        const performance = combineLabels(alignmentLevel, integrityLevel);
-        return {
-          declarationId: decl.id,
-          declarationTitle: decl.title,
-          statement: decl.metadata?.statement || decl.title,
-          alignment: {
-            level: alignmentLevel,
-            milestonesTotal: milestones.length,
-            milestonesWithActions
-          },
-          integrity: {
-            level: integrityLevel,
-            verified,
-            broken,
-            pending,
-            total: milestones.length
-          },
-          performance
-        };
-      });
-      const hasAnyLowAlignment = perDeclaration.some((d) => d.alignment.level === "LOW");
-      const hasAnyLowIntegrity = perDeclaration.some((d) => d.integrity.level === "LOW");
-      const allHighAlignment = perDeclaration.every((d) => d.alignment.level === "HIGH");
-      const allHighIntegrity = perDeclaration.every((d) => d.integrity.level === "HIGH");
-      const rollupAlignment = hasAnyLowAlignment ? "LOW" : allHighAlignment ? "HIGH" : "MEDIUM";
-      const rollupIntegrity = hasAnyLowIntegrity ? "LOW" : allHighIntegrity ? "HIGH" : "MEDIUM";
-      const rollupPerformance = combineLabels(rollupAlignment, rollupIntegrity);
-      return {
-        perDeclaration,
-        rollup: {
-          alignment: rollupAlignment,
-          integrity: rollupIntegrity,
-          performance: rollupPerformance
-        }
-      };
-    }
-    module2.exports = { runComputePerformance: runComputePerformance2 };
   }
 });
 
