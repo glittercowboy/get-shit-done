@@ -30,8 +30,8 @@ Requirements for Collaborative Design milestone. Each maps to roadmap phases.
 
 ### Multi-Agent
 
-- [ ] **MULTI-01**: User can send the same artifact to multiple external agents simultaneously for parallel review
-- [ ] **MULTI-02**: User can receive a synthesized summary that merges feedback from multiple agents with source attribution
+- [x] **MULTI-01**: User can send the same artifact to multiple external agents simultaneously for parallel review
+- [x] **MULTI-02**: User can receive a synthesized summary that merges feedback from multiple agents with source attribution
 
 ## Future Requirements
 
@@ -78,8 +78,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CFG-01 | Phase 7 | Complete |
 | UX-01 | Phase 8 | Complete |
 | UX-02 | Phase 8 | Complete |
-| MULTI-01 | Phase 9 | Pending |
-| MULTI-02 | Phase 9 | Pending |
+| MULTI-01 | Phase 9 | Complete |
+| MULTI-02 | Phase 9 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 11 total
@@ -88,4 +88,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-16*
-*Last updated: 2026-02-17 after Phase 8 completion*
+*Last updated: 2026-02-17 after Phase 9 completion*
