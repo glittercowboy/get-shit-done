@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- `/gsd:debug` flow now requires a `human-verify` checkpoint after self-verification before marking debug sessions `resolved` and moving files to `.planning/debug/resolved/`
+
 ## [1.20.3] - 2026-02-16
 
 ### Fixed
