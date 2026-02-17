@@ -15,6 +15,7 @@ const { resolve } = require('node:path');
 const { parseFlag } = require('./parse-args');
 const { buildDagFromDisk } = require('./build-dag');
 const { traceUpward } = require('./trace');
+const { isCompleted } = require('../graph/engine');
 
 /**
  * Check if a produces value looks like a file path (vs a description).
@@ -111,7 +112,7 @@ function runVerifyWave(cwd, args) {
     .filter(n => n.type === 'action');
 
   const milestoneCompletable = allMilestoneActions.every(a =>
-    a.status === 'DONE' || completedActionIds.includes(a.id)
+    isCompleted(a.status) || completedActionIds.includes(a.id)
   );
 
   // Build trace context for AI review

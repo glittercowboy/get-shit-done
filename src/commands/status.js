@@ -17,6 +17,7 @@ const { execFileSync } = require('node:child_process');
 const { parsePlanFile } = require('../artifacts/plan');
 const { findMilestoneFolder } = require('../artifacts/milestone-folders');
 const { buildDagFromDisk } = require('./build-dag');
+const { isCompleted } = require('../graph/engine');
 
 /**
  * Detect staleness indicators for milestones.
@@ -58,11 +59,11 @@ function detectStaleness(cwd, planningDir, milestones) {
 
     // Check consistency
     const plan = parsePlanFile(readFileSync(planPath, 'utf-8'));
-    if (m.status === 'ACTIVE' && plan.actions.length > 0 && plan.actions.every(a => a.status === 'DONE')) {
+    if (m.status === 'ACTIVE' && plan.actions.length > 0 && plan.actions.every(a => isCompleted(a.status))) {
       indicators.push({ milestone: m.id, issue: 'COMPLETABLE', detail: 'All actions done, milestone still ACTIVE' });
     }
-    if (m.status === 'DONE' && plan.actions.some(a => a.status !== 'DONE')) {
-      indicators.push({ milestone: m.id, issue: 'INCONSISTENT', detail: 'Milestone marked DONE but has incomplete actions' });
+    if (isCompleted(m.status) && plan.actions.some(a => !isCompleted(a.status))) {
+      indicators.push({ milestone: m.id, issue: 'INCONSISTENT', detail: 'Milestone marked completed but has incomplete actions' });
     }
   }
 

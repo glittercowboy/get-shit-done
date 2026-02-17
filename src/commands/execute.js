@@ -16,6 +16,7 @@ const { join } = require('node:path');
 const { parseFlag } = require('./parse-args');
 const { buildDagFromDisk } = require('./build-dag');
 const { findMilestoneFolder } = require('../artifacts/milestone-folders');
+const { isCompleted } = require('../graph/engine');
 
 /**
  * Run the execute command.
@@ -36,7 +37,7 @@ function runExecute(cwd, args) {
   if (!milestoneId) {
     const milestonePicker = milestones.map(m => {
       const actions = dag.getDownstream(m.id).filter(n => n.type === 'action');
-      const doneCount = actions.filter(a => a.status === 'DONE').length;
+      const doneCount = actions.filter(a => isCompleted(a.status)).length;
       return {
         id: m.id,
         title: m.title,
@@ -70,7 +71,7 @@ function runExecute(cwd, args) {
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  const pendingActions = allActions.filter(a => a.status !== 'DONE');
+  const pendingActions = allActions.filter(a => !isCompleted(a.status));
   const doneCount = allActions.length - pendingActions.length;
 
   // Compute waves (v1: all pending sibling actions form one wave)

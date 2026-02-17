@@ -13,6 +13,7 @@
 
 const { parseFlag } = require('./parse-args');
 const { buildDagFromDisk } = require('./build-dag');
+const { isCompleted } = require('../graph/engine');
 
 /**
  * Run the compute-waves command.
@@ -42,7 +43,7 @@ function runComputeWaves(cwd, args) {
 
   // Get non-DONE actions for this milestone
   const actions = dag.getDownstream(milestoneId)
-    .filter(n => n.type === 'action' && n.status !== 'DONE');
+    .filter(n => n.type === 'action' && !isCompleted(n.status));
 
   if (actions.length === 0) {
     return {
