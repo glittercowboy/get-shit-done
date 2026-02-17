@@ -18,3 +18,7 @@ animation/
 # Internal planning documents
 reports/
 RAILROAD_ARCHITECTURE.md
+
+# TG Bot VED — секреты и локальные данные
+TG Bot VED/.env
+TG Bot VED/bot.db

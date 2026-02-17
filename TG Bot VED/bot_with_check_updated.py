@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import random
 import re
@@ -7,6 +8,10 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable, Optional
+
+from dotenv import load_dotenv
+
+load_dotenv()  # загружает переменные из .env, если файл существует
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ChatAction
@@ -20,13 +25,24 @@ from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 # CONFIG / CONSTANTS
 # =========================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8338103787:AAEjqWfbQHgjOGLtl4SmFSvPEkmCciX9yyc")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 DB_PATH = os.getenv("DB_PATH", "bot.db")
 
 # OpenAI (опционально)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")  # актуальные модели см. docs :contentReference[oaicite:0]{index=0}
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 USE_OPENAI = bool(OPENAI_API_KEY)
+
+# =========================
+# LOGGING
+# =========================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 WELCOME_AND_COMMANDS = (
     "Здравствуйте! Выберите режим работы: Light (опрос/подбор кода) или Expert (свободный ввод).\n\n"
@@ -645,14 +661,20 @@ async def fallback(message: Message) -> None:
 
 async def main() -> None:
     if not BOT_TOKEN:
-        raise RuntimeError("Укажите BOT_TOKEN через переменную окружения BOT_TOKEN")
+        raise RuntimeError(
+            "BOT_TOKEN не задан. Создайте файл .env на основе .env.example "
+            "или установите переменную окружения BOT_TOKEN."
+        )
 
     init_db(DB_PATH)
+    logger.info("БД инициализирована: %s", DB_PATH)
+    logger.info("OpenAI: %s", "включён, модель=" + OPENAI_MODEL if USE_OPENAI else "отключён")
 
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(router)
 
+    logger.info("Бот запущен, ожидаю сообщения...")
     await dp.start_polling(bot)
 
 
