@@ -3799,6 +3799,29 @@ function cmdTask(cwd, args, raw) {
   }
 }
 
+// ─── Telegram MCP Utilities ───────────────────────────────────────────────────
+
+/**
+ * Check if Telegram MCP server is available
+ * @returns {Promise<{available: boolean, tools: string[]}>}
+ */
+async function checkTelegramMCP() {
+  // Check if .claude/.mcp.json exists and has telegram config
+  const mcpConfigPath = path.join(process.cwd(), '.claude', '.mcp.json');
+  try {
+    const config = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8'));
+    if (config.mcpServers?.telegram) {
+      return {
+        available: true,
+        tools: ['ask_blocking_question', 'check_question_answers', 'mark_question_answered']
+      };
+    }
+  } catch {
+    // Config doesn't exist or is invalid
+  }
+  return { available: false, tools: [] };
+}
+
 // ─── Telegram Bot Operations ──────────────────────────────────────────────────
 
 async function cmdTelegram(args, raw) {
@@ -7693,6 +7716,17 @@ async function main() {
 
     case 'telegram': {
       await cmdTelegram(args.slice(1), raw);
+      break;
+    }
+
+    case 'telegram-mcp': {
+      const subCmd = args[1];
+      if (subCmd === 'status') {
+        const status = await checkTelegramMCP();
+        output(status, raw);
+      } else {
+        error('Usage: gsd-tools telegram-mcp status');
+      }
       break;
     }
 
