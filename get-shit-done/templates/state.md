@@ -38,6 +38,8 @@ Progress: [░░░░░░░░░░] 0%
 |-------|-------|-------|----------|
 | - | - | - | - |
 
+*Token columns (new work, API calls) appended automatically when available.*
+
 **Recent Trend:**
 - Last 5 plans: [durations]
 - Trend: [Improving / Stable / Degrading]

@@ -43,6 +43,14 @@ requirements-completed: []  # REQUIRED — Copy ALL requirement IDs from this pl
 # Metrics
 duration: Xmin
 completed: YYYY-MM-DD
+
+# Token metrics (auto-populated by execute-plan from session logs)
+tokens:
+  api_calls: 0
+  new_work: 0
+  cache_read: 0
+  total: 0
+  model_mix: ""  # e.g., "opus(5) sonnet(12) haiku(3)"
 ---
 
 # Phase [X]: [Name] Summary

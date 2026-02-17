@@ -376,6 +376,23 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(phase-{X}): complete
 ```
 </step>
 
+<step name="capture_metrics">
+Snapshot token efficiency data for this phase from Claude Code session logs.
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs metrics snapshot "${PHASE_NUMBER}" 2>/dev/null || true
+```
+
+This writes a JSON snapshot to `.planning/metrics/phase-{NN}.json` with verified token counts, cache efficiency ratio, model mix, and git stats. Data is parsed from `~/.claude/projects/` JSONL session logs using git commit timestamps as phase boundaries.
+
+If the snapshot succeeds, commit it:
+```bash
+if [ -f ".planning/metrics/phase-$(printf '%02d' ${PHASE_NUMBER}).json" ]; then
+  node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(phase-{X}): capture token metrics snapshot" --files .planning/metrics/phase-*.json
+fi
+```
+</step>
+
 <step name="offer_next">
 
 **Exception:** If `gaps_found`, the `verify_phase_goal` step already presents the gap-closure path (`/gsd:plan-phase {X} --gaps`). No additional routing needed — skip auto-advance.

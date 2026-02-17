@@ -438,6 +438,21 @@ rm .planning/REQUIREMENTS.md
 
 </step>
 
+<step name="capture_milestone_metrics">
+Save a milestone-level token metrics snapshot for the permanent record:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs metrics milestone-snapshot "${VERSION}" 2>/dev/null || true
+```
+
+If the snapshot succeeds, commit it:
+```bash
+if ls .planning/metrics/milestone-*.json 1>/dev/null 2>&1; then
+  node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs: capture milestone v${VERSION} token metrics" --files .planning/metrics/milestone-*.json
+fi
+```
+</step>
+
 <step name="update_state">
 
 Most STATE.md updates were handled by `milestone complete`, but verify and update remaining fields:

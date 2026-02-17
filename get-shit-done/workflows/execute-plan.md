@@ -324,6 +324,19 @@ Create `{phase}-{plan}-SUMMARY.md` at `.planning/phases/XX-name/`. Use `~/.claud
 
 **Frontmatter:** phase, plan, subsystem, tags | requires/provides/affects | tech-stack.added/patterns | key-files.created/modified | key-decisions | requirements-completed (**MUST** copy `requirements` array from PLAN.md frontmatter verbatim) | duration ($DURATION), completed ($PLAN_END_TIME date).
 
+**Token metrics frontmatter:** Query token usage for this plan's execution window:
+```bash
+PLAN_TOKENS=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs metrics phase "${PHASE}" --plan "${PLAN}" --raw 2>/dev/null || echo '{}')
+```
+If the JSON contains `api_calls`, populate the `tokens:` frontmatter section:
+- `tokens.api_calls`: from `api_calls`
+- `tokens.new_work`: from `tokens.new_work`
+- `tokens.cache_read`: from `tokens.cache_read`
+- `tokens.total`: from `tokens.total`
+- `tokens.model_mix`: from `models` object, formatted as `"opus(N) sonnet(M) haiku(P)"`
+
+If the query fails or returns empty, leave tokens at defaults (0). This is best-effort — metrics require git commits to detect time boundaries.
+
 Title: `# Phase [X] Plan [Y]: [Name] Summary`
 
 One-liner SUBSTANTIVE: "JWT auth with refresh rotation using jose library" not "Authentication implemented"
@@ -343,10 +356,19 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs state advance-plan
 # Recalculate progress bar from disk state
 node ~/.claude/get-shit-done/bin/gsd-tools.cjs state update-progress
 
-# Record execution metrics
+# Record execution metrics (include token data if available from PLAN_TOKENS)
+# PLAN_TOKENS was set in create_summary step via metrics phase query
+TOKENS_FLAG=""
+CALLS_FLAG=""
+if echo "${PLAN_TOKENS}" | grep -q '"api_calls"'; then
+  NW=$(echo "${PLAN_TOKENS}" | grep -o '"new_work":[0-9]*' | head -1 | cut -d: -f2)
+  AC=$(echo "${PLAN_TOKENS}" | grep -o '"api_calls":[0-9]*' | head -1 | cut -d: -f2)
+  [ -n "$NW" ] && TOKENS_FLAG="--tokens $NW"
+  [ -n "$AC" ] && CALLS_FLAG="--calls $AC"
+fi
 node ~/.claude/get-shit-done/bin/gsd-tools.cjs state record-metric \
   --phase "${PHASE}" --plan "${PLAN}" --duration "${DURATION}" \
-  --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
+  --tasks "${TASK_COUNT}" --files "${FILE_COUNT}" ${TOKENS_FLAG} ${CALLS_FLAG}
 ```
 </step>
 
