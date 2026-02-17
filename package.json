@@ -59,6 +59,13 @@
   "scripts": {
     "build:hooks": "node scripts/build-hooks.js",
     "prepublishOnly": "npm run build:hooks",
-    "test": "node --test get-shit-done/bin/gsd-tools.test.js"
-  }
+    "test": "node --test get-shit-done/bin/gsd-tools.test.js",
+    "install:gsd": "node scripts/install-orchestrator.js",
+    "health-check": "node scripts/health-check.js",
+    "uninstall:gsd": "bash scripts/uninstall.sh"
+  },
+  "workspaces": [
+    "get-shit-done/modules/*",
+    "mcp-servers/*"
+  ]
 }
