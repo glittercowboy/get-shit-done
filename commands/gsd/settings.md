@@ -4,6 +4,7 @@ description: Configure GSD workflow toggles and model profile
 allowed-tools:
   - Read
   - Write
+  - Bash
   - AskUserQuestion
 ---
 
@@ -141,19 +142,27 @@ AskUserQuestion([
     ]
   },
   // ONLY show if co-planners = "Yes":
-  // First detect which CLIs are installed:
-  // Run: node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner detect --raw
-  // Use results to annotate options with (installed) or (not installed)
+  // 1. Show: "Detecting installed CLIs..."
+  // 2. Run: node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner detect
+  //    (uses Bash tool — outputs JSON)
+  // 3. Parse JSON result and map each CLI to badge text:
+  //    - available: true                    → "(installed)"
+  //    - available: false, error: NOT_FOUND → "(not installed)"
+  //    - available: false, other error      → "(status unknown)"
+  //    - detection failure/timeout          → "(status unknown)"
+  // 4. Annotate options below with badge text inline:
   {
     question: "Which external agents to use as default?",
     header: "Global Co-Planner Agents",
     multiSelect: true,
     options: [
-      { label: "codex", description: "OpenAI Codex CLI" },
-      { label: "gemini", description: "Google Gemini CLI" },
-      { label: "opencode", description: "OpenCode CLI" }
+      { label: "codex (<badge>)", description: "OpenAI Codex CLI" },
+      { label: "gemini (<badge>)", description: "Google Gemini CLI" },
+      { label: "opencode (<badge>)", description: "OpenCode CLI" }
     ]
   },
+  // If any selected agent has "(not installed)" or "(status unknown)" badge:
+  // Display note: "Note: Agents marked as not-installed will be skipped until installed."
   // ONLY show if co-planners = "Yes":
   {
     question: "Use different agents at specific checkpoints?",
@@ -165,14 +174,15 @@ AskUserQuestion([
     ]
   },
   // ONLY show if overrides = "Yes" — one question per checkpoint:
+  // Per-checkpoint options reuse cached detection results from step 2 above
   {
     question: "Agents for 'requirements' checkpoint?",
     header: "Requirements Checkpoint",
     multiSelect: true,
     options: [
-      { label: "codex", description: "OpenAI Codex CLI" },
-      { label: "gemini", description: "Google Gemini CLI" },
-      { label: "opencode", description: "OpenCode CLI" }
+      { label: "codex (<badge>)", description: "OpenAI Codex CLI" },
+      { label: "gemini (<badge>)", description: "Google Gemini CLI" },
+      { label: "opencode (<badge>)", description: "OpenCode CLI" }
     ]
   },
   {
@@ -180,9 +190,9 @@ AskUserQuestion([
     header: "Roadmap Checkpoint",
     multiSelect: true,
     options: [
-      { label: "codex", description: "OpenAI Codex CLI" },
-      { label: "gemini", description: "Google Gemini CLI" },
-      { label: "opencode", description: "OpenCode CLI" }
+      { label: "codex (<badge>)", description: "OpenAI Codex CLI" },
+      { label: "gemini (<badge>)", description: "Google Gemini CLI" },
+      { label: "opencode (<badge>)", description: "OpenCode CLI" }
     ]
   },
   {
@@ -190,9 +200,9 @@ AskUserQuestion([
     header: "Plan Checkpoint",
     multiSelect: true,
     options: [
-      { label: "codex", description: "OpenAI Codex CLI" },
-      { label: "gemini", description: "Google Gemini CLI" },
-      { label: "opencode", description: "OpenCode CLI" }
+      { label: "codex (<badge>)", description: "OpenAI Codex CLI" },
+      { label: "gemini (<badge>)", description: "Google Gemini CLI" },
+      { label: "opencode (<badge>)", description: "OpenCode CLI" }
     ]
   },
   {
@@ -200,9 +210,9 @@ AskUserQuestion([
     header: "Verification Checkpoint",
     multiSelect: true,
     options: [
-      { label: "codex", description: "OpenAI Codex CLI" },
-      { label: "gemini", description: "Google Gemini CLI" },
-      { label: "opencode", description: "OpenCode CLI" }
+      { label: "codex (<badge>)", description: "OpenAI Codex CLI" },
+      { label: "gemini (<badge>)", description: "Google Gemini CLI" },
+      { label: "opencode (<badge>)", description: "OpenCode CLI" }
     ]
   }
 ])
