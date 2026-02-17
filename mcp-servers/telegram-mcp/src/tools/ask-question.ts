@@ -1,4 +1,5 @@
-import { appendQuestion } from '../storage/question-queue.js';
+import { appendQuestion, PendingQuestion } from '../storage/question-queue.js';
+import { sendMessage } from '../bot/telegram-bot.js';
 
 /**
  * Input schema for ask_blocking_question tool
@@ -46,10 +47,22 @@ export const ASK_QUESTION_TOOL_DEF = {
 };
 
 /**
+ * Format question for Telegram message
+ */
+function formatQuestionMessage(question: PendingQuestion): string {
+  let msg = `❓ **Question from Claude:**\n\n${question.question}\n\n`;
+  msg += `ID: \`${question.id}\`\n`;
+  if (question.context) {
+    msg += `Context: ${question.context}\n`;
+  }
+  msg += `\nReply with your answer or use the Pending Questions button.`;
+  return msg;
+}
+
+/**
  * Handler for ask_blocking_question tool
  *
- * Creates a pending question in the JSONL queue and returns question_id.
- * NOTE: Telegram message sending will be added in Plan 04 when bot is integrated.
+ * Creates a pending question in the JSONL queue and sends to Telegram.
  *
  * @param args Input arguments conforming to AskQuestionInput
  * @returns Output conforming to AskQuestionOutput
@@ -86,6 +99,22 @@ export async function askBlockingQuestionHandler(
     question: input.question.trim(),
     context: input.context?.trim()
   });
+
+  // Send to Telegram if bot is running and chat ID is set
+  const chatId = process.env.TELEGRAM_OWNER_ID;
+  if (chatId) {
+    try {
+      const message = formatQuestionMessage(question);
+      await sendMessage(message, { parse_mode: 'Markdown' });
+      console.error(`[ask_blocking_question] Sent to Telegram chat ${chatId}`);
+    } catch (err: any) {
+      // Log error but don't fail - question is still in queue
+      console.error(`[ask_blocking_question] Failed to send to Telegram: ${err.message}`);
+      console.error('[ask_blocking_question] Question saved to queue for manual checking');
+    }
+  } else {
+    console.error('[ask_blocking_question] TELEGRAM_OWNER_ID not set, skipping Telegram notification');
+  }
 
   // Return response
   return {
