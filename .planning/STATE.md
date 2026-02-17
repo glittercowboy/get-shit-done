@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Performance is the product of alignment and integrity. Declare makes both structurally enforced and visibly measured.
-**Current focus:** Phase 05 in progress -- Integrity System
+**Current focus:** Phase 05 complete -- Integrity System
 
 ## Current Position
 
-Phase: 05 of 6 (Integrity System) -- IN PROGRESS
-Plan: 2 of 3 in current phase
-Status: Plan 05-02 complete
-Last activity: 2026-02-16 — Completed 05-02 (CLI wiring, isCompleted() adoption, integrity aggregation)
+Phase: 05 of 6 (Integrity System) -- COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase 05 complete
+Last activity: 2026-02-16 — Completed 05-03 (milestone truth verification, auto-remediation, escalation in /declare:execute)
 
-Progress: [█████████░] 78%
+Progress: [█████████░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 4min
-- Total execution time: 0.83 hours
+- Total execution time: 0.86 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [█████████░] 78%
 | 02.1-artifact-separation-and-command-split | 3/3 | 11min | 4min |
 | 03-traceability-navigation | 2/2 | 7min | 4min |
 | 04-execution-pipeline | 2/2 | 5min | 3min |
-| 05-integrity-system | 2/3 | 6min | 3min |
+| 05-integrity-system | 3/3 | 8min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (3min), 04-01 (2min), 04-02 (3min), 05-01 (4min), 05-02 (2min)
+- Last 5 plans: 04-01 (2min), 04-02 (3min), 05-01 (4min), 05-02 (2min), 05-03 (2min)
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -93,6 +93,10 @@ Recent decisions affecting current work:
 - [05-02]: isCompleted() replaces all hardcoded DONE checks for forward-compatible integrity status handling
 - [05-02]: Integrity aggregation uses factual counts (verified/kept/honored), not scores or percentages (INTG-03)
 - [05-02]: BROKEN milestones set health to 'warnings' (state in remediation, not error)
+- [05-03]: DONE is intermediate state; KEPT/HONORED/RENEGOTIATED are final verification outcomes
+- [05-03]: Programmatic check failures skip AI assessment (definitive, go straight to remediation)
+- [05-03]: Remediation actions appended to existing PLAN.md with derived marker
+- [05-03]: Escalation provides specific per-criterion suggestions, never judgment
 
 ### Pending Todos
 
@@ -110,5 +114,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 05-02-PLAN.md
-Resume file: .planning/phases/05-integrity-system/05-02-SUMMARY.md
+Stopped at: Completed 05-03-PLAN.md (Phase 05 complete)
+Resume file: .planning/phases/05-integrity-system/05-03-SUMMARY.md
