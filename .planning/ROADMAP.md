@@ -110,11 +110,12 @@ Plans:
   1. Every commitment has a visible state (ACTIVE, KEPT, HONORED, BROKEN, or RENEGOTIATED) tracked in INTEGRITY.md
   2. When a commitment breaks, the system activates the honor protocol: acknowledge, inform affected nodes, clean up consequences, renegotiate
   3. Integrity is presented as restoration opportunity ("what do you want to do about it?"), never as judgment or score
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md -- CJS foundation: engine integrity statuses, isCompleted helper, verification.js artifact module, verify-milestone command (TDD)
+- [ ] 05-02-PLAN.md -- CLI wiring: verify-milestone in declare-tools.js, isCompleted() backward compat updates, integrity aggregation in status, bundle rebuild
+- [ ] 05-03-PLAN.md -- Slash command: /declare:execute truth verification, auto-remediation loop, escalation, VERIFICATION.md writing
 
 ### Phase 6: Alignment + Performance
 **Goal**: The system actively detects drift from the declared future and computes performance as alignment multiplied by integrity
