@@ -179,11 +179,37 @@ Track:
 
 ---
 
+**Check workflow mode (used by all routes below):**
+
+```bash
+CONSOLIDATED=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow.consolidated 2>/dev/null || echo "false")
+```
+
+If `CONSOLIDATED` is `true`, suggest `/gsd:consolidated-phase {next}` instead of the separate plan/execute commands in all routes below.
+
+---
+
 **Route A: Unexecuted plan exists**
 
 Find the first PLAN.md without matching SUMMARY.md.
 Read its `<objective>` section.
 
+If `CONSOLIDATED` is `true`:
+```
+---
+
+## ▶ Next Up
+
+**{phase}-{plan}: [Plan Name]** — [objective summary from PLAN.md]
+
+`/gsd:consolidated-phase {phase}`
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+```
+
+Otherwise:
 ```
 ---
 
@@ -206,6 +232,23 @@ Check if `{phase_num}-CONTEXT.md` exists in phase directory.
 
 **If CONTEXT.md exists:**
 
+If `CONSOLIDATED` is `true`:
+```
+---
+
+## ▶ Next Up
+
+**Phase {N}: {Name}** — {Goal from ROADMAP.md}
+<sub>✓ Context gathered, ready for consolidated workflow</sub>
+
+`/gsd:consolidated-phase {phase-number}`
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+```
+
+Otherwise:
 ```
 ---
 
@@ -223,6 +266,28 @@ Check if `{phase_num}-CONTEXT.md` exists in phase directory.
 
 **If CONTEXT.md does NOT exist:**
 
+If `CONSOLIDATED` is `true`:
+```
+---
+
+## ▶ Next Up
+
+**Phase {N}: {Name}** — {Goal from ROADMAP.md}
+
+`/gsd:consolidated-phase {phase}` — consolidated consensus+plan+execute
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+
+**Also available:**
+- `/gsd:discuss-phase {phase}` — gather context first (separate step)
+- `/gsd:list-phase-assumptions {phase}` — see Claude's assumptions
+
+---
+```
+
+Otherwise:
 ```
 ---
 
@@ -294,6 +359,31 @@ State: "Current phase is {X}. Milestone has {N} phases (highest: {Y})."
 
 Read ROADMAP.md to get the next phase's name and goal.
 
+If `CONSOLIDATED` is `true`:
+```
+---
+
+## ✓ Phase {Z} Complete
+
+## ▶ Next Up
+
+**Phase {Z+1}: {Name}** — {Goal from ROADMAP.md}
+
+`/gsd:consolidated-phase {Z+1}` — consolidated consensus+plan+execute
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+
+**Also available:**
+- `/gsd:discuss-phase {Z+1}` — gather context first (separate step)
+- `/gsd:sprint {Z+1}-{last}` — run all remaining phases unattended
+- `/gsd:verify-work {Z}` — user acceptance test before continuing
+
+---
+```
+
+Otherwise:
 ```
 ---
 
@@ -311,6 +401,7 @@ Read ROADMAP.md to get the next phase's name and goal.
 
 **Also available:**
 - `/gsd:plan-phase {Z+1}` — skip discussion, plan directly
+- `/gsd:sprint {Z+1}-{last}` — run all remaining phases unattended
 - `/gsd:verify-work {Z}` — user acceptance test before continuing
 
 ---

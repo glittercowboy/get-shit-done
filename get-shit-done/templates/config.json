@@ -5,7 +5,8 @@
     "research": true,
     "plan_check": true,
     "verifier": true,
-    "auto_advance": false
+    "auto_advance": false,
+    "consolidated": false
   },
   "planning": {
     "commit_docs": true,
@@ -32,5 +33,8 @@
   "safety": {
     "always_confirm_destructive": true,
     "always_confirm_external_services": true
+  },
+  "sprint": {
+    "skip_on_failure": false
   }
 }
