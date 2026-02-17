@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 
 ## Current Position
 
-Phase: 11 of 12 (Session-End Knowledge Extraction)
-Plan: 04 of 04
-Status: Complete
-Last activity: 2026-02-17 — Completed plan 11-04 (CLI Commands and Analysis Workflow)
+Phase: 12 of 12 (Historical Conversation Mining)
+Plan: 01 of 03
+Status: In Progress
+Last activity: 2026-02-17 — Completed plan 12-01 (Conversation Miner Format Adapter)
 
-Progress: [█████████████████████                ] 61%
+Progress: [███████████████████████              ] 64%
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [█████████████████████      
 | Phase 11 P02 | 4 | 2 tasks | 2 files |
 | Phase 11 P03 | 3 | 2 tasks | 4 files |
 | Phase 11 P04 | 4 | 3 tasks | 3 files |
+| Phase 12 P01 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -271,6 +272,9 @@ Recent decisions affecting current work:
 - [Phase 11-04]: ROADMAP.md completed phase detection uses three patterns: [x] checkbox, table Complete/Done status, and ## [x] section header
 - [Phase 11-04]: list-pending-sessions double-guards against re-analysis: session_analysis_complete JSONL entry check AND isAlreadyAnalyzed() call
 - [Phase 11-04]: store-analysis-result appends session_analysis_complete to JSONL after storing insights, enabling list-pending-sessions filter
+- [Phase 12]: Use separate .planning/knowledge/.conversation-analysis-log.jsonl for conversation re-analysis prevention (separate from Telegram session log)
+- [Phase 12]: shouldMineConversation() uses bot_response >= 2 and totalChars >= 500 thresholds for conversation format, never shouldAnalyzeSession() which requires question/answer types
+- [Phase 12]: Lazy-require Phase 11 modules inside prepareConversationForMining() body to match gsd-tools.js lazy-loading pattern
 
 ### Roadmap Evolution
 
@@ -286,6 +290,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-17T21:17:57Z (plan execution)
-Stopped at: Completed 11-04-PLAN.md (CLI Commands and Analysis Workflow) - Phase 11 Plan 04 of 04 (Phase 11 COMPLETE)
+Last session: 2026-02-17T22:03:58Z (plan execution)
+Stopped at: Completed 12-01-PLAN.md (Conversation Miner Format Adapter) - Phase 12 Plan 01 of 03
 Resume file: None
