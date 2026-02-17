@@ -262,6 +262,7 @@ Phase 8 (Notifications & Observability) --> Phase 08.1 (Telegram MCP Server)
 | 10. GSD Installation System | 4 | Complete | 2026-02-17 |
 | 10.1. Multi-Instance MCP Safety | 4 | Complete | 2026-02-17 |
 | 11. Session-End Knowledge Extraction | 4 | Complete | 2026-02-17 |
+| 12. Historical Conversation Mining | 3 | Planning complete | - |
 
 ### Phase 9: Hook-based documentation compression - Optimize context injection by extracting AI-friendly headers from docs and injecting only summaries with absolute links instead of full content
 
@@ -343,13 +344,15 @@ Plans:
 
 ### Phase 12: Historical conversation mining - Analyze Claude Code project conversations and planning documents to extract meta-knowledge, reasoning patterns, and decision context for enhanced context building
 
-**Goal:** [To be planned]
+**Goal:** Claude Code project conversations (JSONL files at ~/.claude/projects/{slug}/*.jsonl) are mined for decisions, reasoning patterns, and meta-knowledge using a format adapter that converts Claude Code entries to Phase 11-compatible format, enabling full reuse of the Haiku extraction pipeline with zero Phase 11 infrastructure changes
 **Depends on:** Phase 11
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 12 to break down)
+- [ ] 12-01-PLAN.md - conversation-miner.js core module (format adapter, discovery, quality gate, extraction prep)
+- [ ] 12-02-PLAN.md - gsd-tools.js CLI commands (mine-conversations, store-conversation-result)
+- [ ] 12-03-PLAN.md - mine-conversations.md workflow and end-to-end integration verification
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-17 after Phase 10.1 execution*
+*Last updated: 2026-02-17 after Phase 12 planning*
