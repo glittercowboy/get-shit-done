@@ -12,10 +12,13 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "telegraf": "^4.16.0",
-    "dotenv": "^16.0.0"
+    "dotenv": "^16.0.0",
+    "fluent-ffmpeg": "^2.1.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/fluent-ffmpeg": "^2.1.0",
     "typescript": "^5.0.0"
   }
 }
