@@ -63,6 +63,43 @@ Display a banner:
 **Actions:** [pendingCount] pending of [totalActions] total | **Waves:** [waves.length]
 ```
 
+**Step 2.5: Check for drift.**
+
+Before executing waves, check whether any nodes have drifted from the declared future.
+
+Run:
+
+```bash
+node dist/declare-tools.cjs check-drift
+```
+
+Parse the JSON output.
+
+If `hasDrift` is true:
+- Display a drift warning:
+
+```
+## Drift Detected
+
+The following nodes have no causation path to any declaration:
+```
+
+For each drifted node in `driftedNodes`, display:
+```
+- [type] [id]: [title] (status: [status])
+  Suggestions:
+  - Connect to [suggestion.target] ([suggestion.targetTitle]) -- [suggestion.reason]
+```
+
+Then ask: "Drifted nodes detected. Continue execution anyway? (yes/no/fix)"
+- "yes" -> proceed with execution
+- "no" -> abort execution
+- "fix" -> suggest the user run /declare:milestones or manually edit MILESTONES.md/PLAN.md to reconnect orphaned nodes, then retry
+
+This is a SOFT BLOCK -- warn but allow continuation.
+
+If `hasDrift` is false: proceed silently.
+
 **Step 3: For each wave, execute actions.**
 
 Iterate over each wave in the `waves` array:
@@ -372,7 +409,86 @@ Display the final execution summary:
 **Waves executed:** [count of waves]
 **Verification:** [KEPT | HONORED | RENEGOTIATED | BROKEN (user accepted)]
 **Milestone status:** [final status in MILESTONES.md]
+**Occurrence check:** [Performed / Skipped (if no declarations affected)]
 ```
+
+**Step 9: Occurrence check at milestone completion.**
+
+After displaying the completion banner, check whether declarations still occur as declared.
+
+Run:
+
+```bash
+node dist/declare-tools.cjs check-occurrence
+```
+
+Parse the JSON output. For each declaration in the `declarations` array:
+
+Perform AI assessment: Given the declaration statement and its connected milestones/actions, assess:
+1. Does this declaration still occur as what was declared? (Is it still true/relevant?)
+2. Has any work drifted from the declaration's intent?
+3. Rate alignment: HIGH / MEDIUM / LOW
+
+Display the assessment:
+
+```
+### Occurrence Check: [declarationId] -- [statement]
+
+**Statement:** "[statement]"
+**Connected milestones:** [milestoneCount] ([count of verified] verified)
+**Assessment:** [AI assessment of whether this still occurs as declared]
+**Alignment:** [HIGH/MEDIUM/LOW]
+```
+
+If the AI assessment determines a declaration is "no longer true" or alignment is LOW:
+- Ask the user: "Declaration [declarationId] appears to no longer occur as declared. Renegotiate? (yes/no)"
+- If "yes" -> enter renegotiation flow (Step 9a)
+- If "no" -> note it and continue
+
+**Step 9a: Renegotiation flow (if triggered).**
+
+Ask the user: "Why is this declaration no longer true?" and capture their reason.
+
+Run:
+
+```bash
+node dist/declare-tools.cjs renegotiate --declaration D-XX --reason "[user's reason]"
+```
+
+Parse the JSON output.
+
+Display:
+
+```
+### Renegotiation Complete: [archived.id]
+
+**Archived to:** FUTURE-ARCHIVE.md
+**Reason:** [reason]
+```
+
+If `orphanedMilestones` is non-empty, display them grouped:
+
+```
+**Orphaned milestones requiring review:**
+```
+
+For each orphaned milestone:
+```
+- [id]: [title] ([status])
+  Actions: [action.id] ([action.status]), ...
+  Options:
+  1. Reassign to another declaration
+  2. Archive this milestone
+  3. Leave for now (will appear as drift)
+```
+
+"Which milestones would you like to reassign? Provide IDs or 'skip' to leave for later."
+
+If user provides IDs, guide them through reassignment (edit MILESTONES.md to update the Realizes column). If "skip", acknowledge and continue.
+
+Then prompt: "Would you like to create a replacement declaration now? (yes/no)"
+- If "yes": suggest running `/declare:future` to add a new declaration
+- If "no": continue
 
 **Error handling:**
 
@@ -396,3 +512,7 @@ Display the final execution summary:
 - Language is restoration-focused: "criterion not yet met" not "failed", "requires attention" not "broken".
 - State transitions: DONE -> KEPT (all criteria met first try), DONE -> BROKEN -> HONORED (remediated), DONE -> BROKEN -> RENEGOTIATED (user adjusted criteria).
 - VERIFICATION.md written to milestone folder with full attempt history and audit trail.
+- Drift pre-check (Step 2.5): soft-block warning before wave execution if orphaned nodes detected.
+- Occurrence checks (Step 9): AI assessment of each declaration after milestone completion.
+- Renegotiation flow (Step 9a): archives declaration to FUTURE-ARCHIVE.md, presents orphans for reassignment.
+- FUTURE.md is the shared future document referenced as the source of truth for all alignment checks.
