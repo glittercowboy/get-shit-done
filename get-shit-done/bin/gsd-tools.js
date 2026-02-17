@@ -131,6 +131,10 @@
  *   analysis-status                             Show analysis statistics
  *   list-pending-sessions                       Find sessions awaiting Haiku analysis
  *   store-analysis-result <id> <json>           Store Haiku extraction results
+ *   mine-conversations                          Discover and prepare conversation mining
+ *     [--max-age-days N] [--include-subagents] [--limit N]
+ *   store-conversation-result <id> <json>       Store conversation mining results
+ *     [--content-hash <hash>]
  *
  * Compound Commands (workflow-specific initialization):
  *   init execute-phase <phase>         All context for execute-phase workflow
@@ -7475,6 +7479,207 @@ async function cmdStoreAnalysisResult(cwd, args, raw) {
   }, raw);
 }
 
+/**
+ * mine-conversations [--max-age-days N] [--include-subagents] [--limit N]
+ *
+ * Discovers Claude Code project JSONL conversation files, converts entries to
+ * session-like format, applies quality gates, checks re-analysis prevention
+ * via conversation-specific analysis log, and returns extraction requests
+ * ready for the calling GSD workflow to pass to Task().
+ */
+async function cmdMineConversations(cwd, args, raw) {
+  const maxAgeDays = args.includes('--max-age-days')
+    ? parseInt(args[args.indexOf('--max-age-days') + 1])
+    : 30;
+  const includeSubagents = args.includes('--include-subagents');
+  const limit = args.includes('--limit')
+    ? parseInt(args[args.indexOf('--limit') + 1])
+    : 0;
+
+  // Lazy-require conversation-miner.js
+  let conversationMiner;
+  try {
+    conversationMiner = require(path.join(__dirname, 'conversation-miner.js'));
+  } catch (err) {
+    output({ status: 'error', reason: 'Failed to load conversation-miner.js: ' + err.message }, raw);
+    return;
+  }
+
+  // Discover project conversations
+  const { files, projectSlugDir, error: discoverError } = conversationMiner.discoverProjectConversations(
+    cwd,
+    { maxAgeDays, includeSubagents }
+  );
+
+  if (discoverError) {
+    output({ status: 'error', reason: discoverError, projectSlugDir }, raw);
+    return;
+  }
+
+  // Apply limit
+  const targetFiles = limit > 0 ? files.slice(0, limit) : files;
+
+  const extractionSessions = [];
+  const skipped = [];
+
+  for (const fileInfo of targetFiles) {
+    const prepared = conversationMiner.prepareConversationForMining(fileInfo.path, fileInfo.sessionId);
+
+    if (!prepared.shouldMine) {
+      skipped.push({ sessionId: fileInfo.sessionId, reason: prepared.reason });
+    } else {
+      extractionSessions.push({
+        sessionId: fileInfo.sessionId,
+        sessionPath: fileInfo.path,
+        mtime: fileInfo.mtime,
+        chunkCount: prepared.chunkCount,
+        extractionRequests: prepared.extractionRequests
+      });
+    }
+  }
+
+  output({
+    status: 'ready',
+    filesFound: files.length,
+    filesTargeted: targetFiles.length,
+    sessionsReady: extractionSessions.length,
+    sessionsSkipped: skipped.length,
+    sessions: extractionSessions,
+    skipped
+  }, raw);
+}
+
+/**
+ * store-conversation-result <session-id> <results-json> [--content-hash <hash>]
+ *
+ * Accepts Haiku extraction results from conversation mining and persists them
+ * to the knowledge DB. Marks the conversation as analyzed in the
+ * conversation-specific analysis log (.planning/knowledge/.conversation-analysis-log.jsonl)
+ * — completely separate from the Telegram session analysis log.
+ */
+async function cmdStoreConversationResult(cwd, args, raw) {
+  // Strip --content-hash flag before extracting sessionId and resultsArg
+  const contentHashIdx = args.indexOf('--content-hash');
+  const contentHash = contentHashIdx !== -1 ? args[contentHashIdx + 1] : 'unknown';
+  // Build filtered args without --content-hash and its value (only filter when flag present)
+  const filteredArgs = contentHashIdx !== -1
+    ? args.filter((_, i) => i !== contentHashIdx && i !== contentHashIdx + 1)
+    : args;
+
+  const sessionId = filteredArgs[0];
+  const resultsArg = filteredArgs.slice(1).join(' ');
+
+  if (!sessionId) {
+    output({ status: 'error', reason: 'Usage: store-conversation-result <session-id> <results-json> [--content-hash <hash>]' }, raw);
+    return;
+  }
+
+  if (!resultsArg) {
+    output({ stored: 0, skipped: 0, evolved: 0, errors: ['No results JSON provided'] }, raw);
+    return;
+  }
+
+  // Parse the results JSON (may be a JSON string or path to JSON file)
+  let results = [];
+  try {
+    results = JSON.parse(resultsArg);
+  } catch {
+    const resolvedPath = path.isAbsolute(resultsArg)
+      ? resultsArg
+      : path.join(cwd, resultsArg);
+    try {
+      const fileContent = fs.readFileSync(resolvedPath, 'utf8');
+      results = JSON.parse(fileContent);
+    } catch (err) {
+      output({ stored: 0, skipped: 0, evolved: 0, errors: ['Failed to parse results JSON: ' + err.message] }, raw);
+      return;
+    }
+  }
+
+  // Handle empty results
+  if (!Array.isArray(results) || results.length === 0) {
+    output({ stored: 0, skipped: 0, evolved: 0, errors: [] }, raw);
+    return;
+  }
+
+  // Lazy-require session-analyzer.js
+  let parseExtractionResult;
+  try {
+    const analyzer = require(path.join(__dirname, 'session-analyzer.js'));
+    parseExtractionResult = analyzer.parseExtractionResult;
+  } catch (err) {
+    output({ stored: 0, skipped: 0, evolved: 0, errors: ['Failed to load session-analyzer.js: ' + err.message] }, raw);
+    return;
+  }
+
+  // Lazy-require knowledge-writer.js
+  let storeInsights;
+  try {
+    const writer = require(path.join(__dirname, 'knowledge-writer.js'));
+    storeInsights = writer.storeInsights;
+  } catch (err) {
+    output({ stored: 0, skipped: 0, evolved: 0, errors: ['Failed to load knowledge-writer.js: ' + err.message] }, raw);
+    return;
+  }
+
+  // Collect all insights from all result objects
+  const allInsights = [];
+  const parseErrors = [];
+
+  for (const resultObj of results) {
+    if (!resultObj || typeof resultObj.type !== 'string' || typeof resultObj.result !== 'string') {
+      parseErrors.push('Invalid result object (missing type or result field)');
+      continue;
+    }
+
+    const { insights, errors } = parseExtractionResult(resultObj.type, resultObj.result);
+    allInsights.push(...insights);
+    parseErrors.push(...errors);
+  }
+
+  // Store all insights in knowledge DB (pass conversationId for context tracking)
+  let storeResult = { stored: 0, skipped: 0, evolved: 0, errors: [] };
+  if (allInsights.length > 0) {
+    try {
+      storeResult = await storeInsights(allInsights, {
+        sessionId,
+        conversationId: sessionId,
+        scope: 'project'
+      });
+    } catch (err) {
+      storeResult.errors.push('storeInsights failed: ' + err.message);
+    }
+  }
+
+  // Mark conversation as analyzed in the conversation-specific analysis log
+  const totalInsights = storeResult.stored + storeResult.evolved;
+  const conversationLogPath = path.join(cwd, '.planning', 'knowledge', '.conversation-analysis-log.jsonl');
+  try {
+    // Ensure parent directory exists
+    const logDir = path.dirname(conversationLogPath);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logEntry = JSON.stringify({
+      session_id: sessionId,
+      content_hash: contentHash,
+      analyzed_at: new Date().toISOString(),
+      insight_count: totalInsights,
+      version: 1
+    }) + '\n';
+    fs.appendFileSync(conversationLogPath, logEntry, 'utf8');
+  } catch (err) {
+    storeResult.errors.push('Failed to write conversation analysis log: ' + err.message);
+  }
+
+  output({
+    stored: storeResult.stored,
+    skipped: storeResult.skipped,
+    evolved: storeResult.evolved,
+    errors: [...parseErrors, ...storeResult.errors]
+  }, raw);
+}
+
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
 async function main() {
@@ -8184,6 +8389,16 @@ async function main() {
 
     case 'store-analysis-result': {
       await cmdStoreAnalysisResult(cwd, args.slice(1), raw);
+      break;
+    }
+
+    case 'mine-conversations': {
+      await cmdMineConversations(cwd, args.slice(1), raw);
+      break;
+    }
+
+    case 'store-conversation-result': {
+      await cmdStoreConversationResult(cwd, args.slice(1), raw);
       break;
     }
 
