@@ -25,7 +25,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full details.
 
 - [x] **Phase 6: Foundation** - CLI detection, invocation normalization, and graceful degradation layer (completed 2026-02-17)
 - [x] **Phase 7: Configuration** - Per-checkpoint agent assignment in config.json (completed 2026-02-17)
-- [ ] **Phase 8: Workflow Integration** - Draft-review-synthesize pattern at all workflow checkpoints
+- [x] **Phase 8: Workflow Integration** - Draft-review-synthesize pattern at all workflow checkpoints (completed 2026-02-17)
 - [ ] **Phase 9: Multi-Agent Orchestration** - Parallel review and merged synthesis with attribution
 
 ## Phase Details
@@ -71,9 +71,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Co-planner review at requirements and roadmap checkpoints (new-project.md)
-- [ ] 08-02-PLAN.md -- Co-planner review at plan and verification checkpoints (plan-phase.md, execute-phase.md)
-- [ ] 08-03-PLAN.md -- Gap closure: fix dead commits, hardcoded scope, missing criteria, missing handler
+- [x] 08-01-PLAN.md -- Co-planner review at requirements and roadmap checkpoints (new-project.md)
+- [x] 08-02-PLAN.md -- Co-planner review at plan and verification checkpoints (plan-phase.md, execute-phase.md)
+- [x] 08-03-PLAN.md -- Gap closure: fix dead commits, hardcoded scope, missing criteria, missing handler
 
 ### Phase 9: Multi-Agent Orchestration
 **Goal**: Multiple external agents review the same artifact in parallel, producing a single merged synthesis with source attribution
@@ -97,5 +97,5 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 |-------|-----------|----------------|--------|-----------|
 | 6. Foundation | v2.2 | 2/2 | Complete | 2026-02-17 |
 | 7. Configuration | v2.2 | 1/1 | Complete | 2026-02-17 |
-| 8. Workflow Integration | v2.2 | 0/3 | Not started | - |
+| 8. Workflow Integration | v2.2 | 3/3 | Complete | 2026-02-17 |
 | 9. Multi-Agent Orchestration | v2.2 | 0/? | Not started | - |
