@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `gsd-tools state-snapshot` now supports `--cwd <path>` (and `--cwd=<path>`) so tooling can target a project directory when invoked from outside the repo; invalid paths now return a clear error
+
 ## [1.20.3] - 2026-02-16
 
 ### Fixed

@@ -949,6 +949,36 @@ describe('state-snapshot command', () => {
     const output = JSON.parse(result.output);
     assert.strictEqual(output.paused_at, 'Phase 3, Plan 1, Task 2 - mid-implementation', 'paused_at extracted');
   });
+
+  test('supports --cwd override when command runs outside project root', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, '.planning', 'STATE.md'),
+      `# Session State
+
+**Current Phase:** 03
+**Status:** Ready to plan
+`
+    );
+    const outsideDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'gsd-test-outside-'));
+
+    try {
+      const result = runGsdTools(`state-snapshot --cwd "${tmpDir}"`, outsideDir);
+      assert.ok(result.success, `Command failed: ${result.error}`);
+
+      const output = JSON.parse(result.output);
+      assert.strictEqual(output.current_phase, '03', 'should read STATE.md from overridden cwd');
+      assert.strictEqual(output.status, 'Ready to plan', 'should parse status from overridden cwd');
+    } finally {
+      cleanup(outsideDir);
+    }
+  });
+
+  test('returns error for invalid --cwd path', () => {
+    const invalid = path.join(tmpDir, 'does-not-exist');
+    const result = runGsdTools(`state-snapshot --cwd "${invalid}"`, tmpDir);
+    assert.ok(!result.success, 'should fail for invalid --cwd');
+    assert.ok(result.error.includes('Invalid --cwd'), 'error should mention invalid --cwd');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
