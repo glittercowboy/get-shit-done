@@ -50,11 +50,7 @@ This returns JSON with:
 - `phase_count`, `completed_phases`, `total_plans`, `total_summaries`, `progress_percent`
 - `current_phase` — the current phase number
 
-Also get the progress bar:
-
-```bash
-PROGRESS_BAR=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs progress bar --raw)
-```
+Compute the progress bar from the analyze data: use `completed_phases`, `phase_count`, and `progress_percent` to build a simple `{completed_phases}/{phase_count} phases` summary.
 </step>
 
 <step name="display">
@@ -64,8 +60,6 @@ Use this format:
 
 ```
 # Phases — {milestone_name} ({milestone_version})
-
-{PROGRESS_BAR}
 
 | #  | Phase                            | Status      | Plans   | Depends on |
 |----|----------------------------------|-------------|---------|------------|
@@ -100,7 +94,7 @@ Use this format:
 
 <success_criteria>
 - [ ] Table shows all phases with correct status icons
-- [ ] Progress bar renders at the top
+- [ ] Summary line includes completion count and plan percentage
 - [ ] Current phase is marked with ▸ indicator
 - [ ] Plans column shows executed/total counts
 - [ ] Summary line shows totals
