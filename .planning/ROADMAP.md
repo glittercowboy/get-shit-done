@@ -24,7 +24,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full details.
 ### v2.2 Collaborative Design (In Progress)
 
 - [x] **Phase 6: Foundation** - CLI detection, invocation normalization, and graceful degradation layer (completed 2026-02-17)
-- [ ] **Phase 7: Configuration** - Per-checkpoint agent assignment in config.json
+- [x] **Phase 7: Configuration** - Per-checkpoint agent assignment in config.json (completed 2026-02-17)
 - [ ] **Phase 8: Workflow Integration** - Draft-review-synthesize pattern at all workflow checkpoints
 - [ ] **Phase 9: Multi-Agent Orchestration** - Parallel review and merged synthesis with attribution
 
@@ -56,7 +56,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 07-01-PLAN.md -- Config resolution function, config template schema, and settings command extension
+- [x] 07-01-PLAN.md -- Config resolution function, config template schema, and settings command extension
 
 ### Phase 8: Workflow Integration
 **Goal**: External agents participate as co-planners at workflow checkpoints with clear, attributed feedback that Claude synthesizes
@@ -96,6 +96,6 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 6. Foundation | v2.2 | 2/2 | Complete | 2026-02-17 |
-| 7. Configuration | v2.2 | 0/1 | Planned | - |
+| 7. Configuration | v2.2 | 1/1 | Complete | 2026-02-17 |
 | 8. Workflow Integration | v2.2 | 0/? | Not started | - |
 | 9. Multi-Agent Orchestration | v2.2 | 0/? | Not started | - |

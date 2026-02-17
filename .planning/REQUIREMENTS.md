@@ -21,7 +21,7 @@ Requirements for Collaborative Design milestone. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **CFG-01**: User can configure which external agent(s) participate at each workflow checkpoint (requirements, roadmap, plan, verification)
+- [x] **CFG-01**: User can configure which external agent(s) participate at each workflow checkpoint (requirements, roadmap, plan, verification)
 
 ### User Experience
 
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORE-02 | Phase 8 | Pending |
 | CORE-03 | Phase 6 | Complete |
 | CORE-04 | Phase 8 | Pending |
-| CFG-01 | Phase 7 | Pending |
+| CFG-01 | Phase 7 | Complete |
 | UX-01 | Phase 8 | Pending |
 | UX-02 | Phase 8 | Pending |
 | MULTI-01 | Phase 9 | Pending |
@@ -88,4 +88,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-16*
-*Last updated: 2026-02-17 after Phase 6 completion*
+*Last updated: 2026-02-17 after Phase 7 completion*
