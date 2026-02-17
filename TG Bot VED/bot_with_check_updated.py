@@ -236,8 +236,9 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
         return [(c, t, "Подбор по ключевым словам (без LLM).") for c, t in candidates[:top_k]]
 
     try:
-        from openai import OpenAI  # pip install openai
-    except Exception:
+        from openai import OpenAI
+    except ImportError:
+        logger.warning("Библиотека openai не установлена. Запустите: pip install openai")
         return [(c, t, "LLM недоступен (нет библиотеки openai).") for c, t in candidates[:top_k]]
 
     client = OpenAI(api_key=OPENAI_API_KEY)
@@ -259,18 +260,19 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
         "candidates": cand_payload
     }
 
-    # Responses API пример: :contentReference[oaicite:1]{index=1}
-    resp = client.responses.create(
-        model=OPENAI_MODEL,
-        input=json.dumps(user_input, ensure_ascii=False),
-        instructions=instructions,
-        reasoning={"effort": "none"},
-    )
+    try:
+        resp = client.responses.create(
+            model=OPENAI_MODEL,
+            input=json.dumps(user_input, ensure_ascii=False),
+            instructions=instructions,
+        )
+    except Exception as e:
+        logger.error("Ошибка OpenAI API: %s", e)
+        return [(c, t, "LLM временно недоступен, показаны кандидаты по БД.") for c, t in candidates[:top_k]]
 
-    # В SDK обычно есть output_text
+    # output_text — стандартное поле Responses API
     text = getattr(resp, "output_text", None)
     if not text:
-        # fallback: попробуем собрать из resp.output (на всякий случай)
         try:
             text = json.dumps(resp.model_dump(), ensure_ascii=False)
         except Exception:
@@ -280,12 +282,17 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
     try:
         data = json.loads(text)
     except Exception:
-        # если модель вдруг добавила лишнее — выдернем JSON по первой/последней скобке
+        # если модель добавила лишнее — берём первый валидный JSON-блок
         j1 = text.find("{")
         j2 = text.rfind("}")
         if j1 != -1 and j2 != -1 and j2 > j1:
-            data = json.loads(text[j1 : j2 + 1])
+            try:
+                data = json.loads(text[j1 : j2 + 1])
+            except Exception:
+                logger.warning("Не удалось распарсить ответ LLM: %s", text[:200])
+                return [(c, t, "LLM ответ не распознан, показаны кандидаты по БД.") for c, t in candidates[:top_k]]
         else:
+            logger.warning("LLM вернул неожиданный формат: %s", text[:200])
             return [(c, t, "LLM ответ не распознан, показаны кандидаты по БД.") for c, t in candidates[:top_k]]
 
     items = data.get("items", [])
