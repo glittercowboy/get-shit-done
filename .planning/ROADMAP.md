@@ -297,10 +297,13 @@ Plans:
   8. Health check validates: NPM packages, Whisper models, hooks, MCP servers, module imports
   9. Uninstall script available for clean removal
   10. Installation works on macOS, Linux (Ubuntu/Debian), and reports unsupported platforms gracefully
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 10 to break down)
+- [ ] 10-01-PLAN.md - Installation orchestrator and npm workspace configuration
+- [ ] 10-02-PLAN.md - Whisper model automation and health check
+- [ ] 10-03-PLAN.md - Hook installation and MCP configuration
+- [ ] 10-04-PLAN.md - Environment template, uninstall script, and verification
 
 ### Phase 11: Session-end knowledge extraction - Implement Haiku-based analysis of completed sessions to extract reasoning patterns and decisions beyond keyword matching
 
@@ -322,4 +325,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-15*
-*Last updated: 2026-02-17 after Phase 08.1 planning*
+*Last updated: 2026-02-17 after Phase 10 planning*
