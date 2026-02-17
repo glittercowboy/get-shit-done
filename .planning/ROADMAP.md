@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 02.1: Artifact Separation and Command Split** (INSERTED) - Per-milestone PLAN.md folders, milestones-only derivation, new /declare:actions
 - [x] **Phase 3: Traceability + Navigation** - Why-chains, visualization, and impact-based prioritization (completed 2026-02-16)
 - [ ] **Phase 4: Execution Pipeline** - Topology-aware execution with wave scheduling
-- [ ] **Phase 5: Integrity System** - Commitment tracking and honor protocol
+- [x] **Phase 5: Integrity System** - Commitment tracking and honor protocol (completed 2026-02-17)
 - [ ] **Phase 6: Alignment + Performance** - Drift detection, occurrence checks, and performance scoring
 
 ## Phase Details
@@ -144,5 +144,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 02.1. Artifact Separation + Command Split | 3/3 | Complete | 2026-02-16 |
 | 3. Traceability + Navigation | 0/2 | Complete    | 2026-02-16 |
 | 4. Execution Pipeline | 0/2 | Not started | - |
-| 5. Integrity System | 0/2 | Not started | - |
+| 5. Integrity System | 0/2 | Complete    | 2026-02-17 |
 | 6. Alignment + Performance | 0/2 | Not started | - |
