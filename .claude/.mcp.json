@@ -2,7 +2,9 @@
   "mcpServers": {
     "telegram": {
       "command": "node",
-      "args": ["mcp-servers/telegram-mcp/dist/index.js"],
+      "args": [
+        "mcp-servers/telegram-mcp/dist/index.js"
+      ],
       "env": {
         "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN}",
         "TELEGRAM_OWNER_ID": "${TELEGRAM_OWNER_ID}"
