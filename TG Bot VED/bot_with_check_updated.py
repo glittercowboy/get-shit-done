@@ -57,7 +57,7 @@ WELCOME_AND_COMMANDS = (
     "/start — выбор режима\n"
     "/mode — переключение режима\n"
     "/classify — начать классификацию\n"
-    "/check <код> — проверить код (10 цифр, 8408… или 8418…)\n"
+    "/check <код> — проверить любой 10-значный код ТН ВЭД\n"
     "/suggest <описание> — подобрать 3–5 кодов по описанию\n"
     "/analysis — аналитика (демо)\n"
     "/history — история запросов\n"
@@ -69,7 +69,7 @@ ANALYSIS_TEXT = """1. Юридические риски
 ... (сокращено) ...
 """
 
-CODE10_RE = re.compile(r"\b(84(?:08|18)\d{6})\b")
+CODE10_RE = re.compile(r"\b(\d{10})\b")
 
 # =========================
 # DATA STRUCTURES
@@ -360,20 +360,19 @@ def llm_rank_candidates(user_text: str, candidates: list[tuple[str, str]], top_k
 
 def classify_text_with_db(db_path: str, text: str) -> list[ClassificationResult]:
     """
-    Текущая "строгая" логика:
-    - если есть конкретный 10-значный код 8408/8418 -> проверяем в БД
-    - иначе возвращаем "нужно уточнение"
+    Проверяет, содержит ли текст 10-значный код ТН ВЭД, и ищет его в БД.
+    Работает с любым кодом ТН ВЭД (не ограничен группами 8408/8418).
     """
     raw = (text or "").strip()
 
     # 1) если пользователь ввёл ровно 10 цифр
-    if raw.isdigit() and len(raw) == 10 and raw.startswith(("8408", "8418")):
+    if raw.isdigit() and len(raw) == 10:
         title = tnved_get_by_code(db_path, raw)
         if title:
             return [ClassificationResult(raw, title, 0.92, "Код найден в классификаторе (БД)")]
         return [ClassificationResult(raw, "Код не найден в вашей БД (tnved).", 0.35, "Нет записи в таблице tnved")]
 
-    # 2) если код “спрятан” в тексте
+    # 2) если код "спрятан" в тексте
     m = CODE10_RE.search(raw)
     if m:
         code10 = m.group(1)
@@ -382,11 +381,11 @@ def classify_text_with_db(db_path: str, text: str) -> list[ClassificationResult]
             return [ClassificationResult(code10, title, 0.90, "Код найден в тексте и подтверждён БД")]
         return [ClassificationResult(code10, "Код найден в тексте, но отсутствует в БД (tnved).", 0.35, "Нет записи")]
 
-    # 3) иначе — мало данных
+    # 3) иначе — код не обнаружен, нужен подбор
     return [
         ClassificationResult(
             "0000000000",
-            "Требуется уточнение классификации (8408/8418)",
+            "Требуется уточнение классификации",
             0.45,
             "Недостаточно признаков: нужен 10-значный код или технические параметры.",
         )
@@ -580,8 +579,8 @@ async def check_code(message: Message, command: CommandObject) -> None:
         return
 
     code = command.args.strip()
-    if not (code.isdigit() and len(code) == 10 and code.startswith(("8408", "8418"))):
-        await message.answer("Код должен быть 10 цифр и начинаться на 8408 или 8418.")
+    if not (code.isdigit() and len(code) == 10):
+        await message.answer("Код должен содержать ровно 10 цифр. Пример: /check 8408101100")
         return
 
     title = await asyncio.to_thread(tnved_get_by_code, DB_PATH, code)
@@ -641,7 +640,7 @@ async def classify_command(message: Message, state: FSMContext, command: Command
         user_modes[message.chat.id] = "expert"
     await message.answer(
         "Expert режим: пришлите описание товара (можно с тех.характеристиками). "
-        "Если знаете 10-значный код 8408…/8418… — вставьте его в текст."
+        "Если знаете 10-значный код ТН ВЭД — вставьте его в текст."
     )
 
 
