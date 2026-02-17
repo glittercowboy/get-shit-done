@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Traceability + Navigation** - Why-chains, visualization, and impact-based prioritization (completed 2026-02-16)
 - [ ] **Phase 4: Execution Pipeline** - Topology-aware execution with wave scheduling
 - [x] **Phase 5: Integrity System** - Commitment tracking and honor protocol (completed 2026-02-17)
-- [ ] **Phase 6: Alignment + Performance** - Drift detection, occurrence checks, and performance scoring
+- [x] **Phase 6: Alignment + Performance** - Drift detection, occurrence checks, and performance scoring (completed 2026-02-17)
 
 ## Phase Details
 
@@ -129,8 +129,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- CJS data layer: check-drift, check-occurrence, compute-performance, renegotiate commands, FUTURE-ARCHIVE.md support, bundle rebuild
-- [ ] 06-02-PLAN.md -- Slash command orchestration: execute.md drift pre-checks + occurrence checks, status.md performance display, renegotiation flow
+- [x] 06-01-PLAN.md -- CJS data layer: check-drift, check-occurrence, compute-performance, renegotiate commands, FUTURE-ARCHIVE.md support, bundle rebuild
+- [x] 06-02-PLAN.md -- Slash command orchestration: execute.md drift pre-checks + occurrence checks, status.md performance display, renegotiation flow
 
 ## Progress
 
@@ -142,7 +142,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Foundation | 3/3 | Complete | 2026-02-15 |
 | 2. Future Declaration + Backward Derivation | 2/2 | Complete | 2026-02-15 |
 | 02.1. Artifact Separation + Command Split | 3/3 | Complete | 2026-02-16 |
-| 3. Traceability + Navigation | 0/2 | Complete    | 2026-02-16 |
-| 4. Execution Pipeline | 0/2 | Not started | - |
-| 5. Integrity System | 0/2 | Complete    | 2026-02-17 |
-| 6. Alignment + Performance | 0/2 | Not started | - |
+| 3. Traceability + Navigation | 2/2 | Complete | 2026-02-16 |
+| 4. Execution Pipeline | 2/2 | Complete | 2026-02-17 |
+| 5. Integrity System | 3/3 | Complete | 2026-02-17 |
+| 6. Alignment + Performance | 2/2 | Complete | 2026-02-17 |
