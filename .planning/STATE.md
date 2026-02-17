@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 10.1 of 12 (Multi-Instance MCP Safety)
-Plan: 01 of 04
+Plan: 02 of 04
 Status: Complete
-Last activity: 2026-02-17 — Completed plan 10.1-01 (Session Infrastructure)
+Last activity: 2026-02-17 — Completed plan 10.1-02 (Session-Scoped Question Storage)
 
-Progress: [█████████                           ] 25%
+Progress: [██████████████████                  ] 50%
 
 ## Performance Metrics
 
@@ -34,7 +34,7 @@ Progress: [█████████                           ] 25%
 | 09    | 4     | 18 min | 4.5 min  |
 | 08.1  | 5     | 19 min | 3.8 min  |
 | 10    | 4     | 9 min  | 2.3 min  |
-| 10.1  | 1     | 2 min  | 2.0 min  |
+| 10.1  | 2     | 5 min  | 2.5 min  |
 
 **Recent Completions:**
 
@@ -73,6 +73,7 @@ Progress: [█████████                           ] 25%
 | 10    | 03   | 2 min    | 2     | 2     |
 | 10    | 04   | 2 min    | 3     | 3     |
 | 10.1  | 01   | 2 min    | 2     | 4     |
+| 10.1  | 02   | 3 min    | 2     | 6     |
 
 ## Accumulated Context
 
@@ -240,6 +241,9 @@ Recent decisions affecting current work:
 - [Phase 10.1-01]: 10% corruption threshold triggers warnings in self-healing JSONL reader
 - [Phase 10.1-01]: Opportunistic cleanup on session creation prevents stale session buildup
 - [Phase 10.1-01]: Date-based archive folders (YYYY-MM-DD) enable organized historical session storage
+- [Phase 10.1-02]: Changed PendingQuestion.session_id from number (PID) to string (UUID)
+- [Phase 10.1-02]: Questions stored in per-session JSONL files, not global pending.jsonl
+- [Phase 10.1-02]: markAnswered updates in-place within session file (no separate archiving)
 
 ### Roadmap Evolution
 
@@ -255,6 +259,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-17T16:02:22Z (plan execution)
-Stopped at: Completed 10.1-01-PLAN.md (Session Infrastructure) - Phase 10.1 Plan 01 of 04
+Last session: 2026-02-17T16:09:42Z (plan execution)
+Stopped at: Completed 10.1-02-PLAN.md (Session-Scoped Question Storage) - Phase 10.1 Plan 02 of 04
 Resume file: None
