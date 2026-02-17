@@ -65,9 +65,10 @@ Key decisions from 07-01:
 
 ### Pending Todos
 
-2 pending todo(s) in `.planning/todos/pending/`:
+3 pending todo(s) in `.planning/todos/pending/`:
 - **Automate full phase lifecycle with agents** (area: commands)
 - **Add phase-specific context files to GSD workflow** (area: workflows)
+- **Update CLAUDE.md / memory after key steps in the pipeline** (area: workflows)
 
 ### Blockers/Concerns
 
