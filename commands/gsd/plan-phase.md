@@ -494,8 +494,6 @@ Display banner:
 
 Set `CO_PLANNER_RAN_PLANS=true`.
 
-**For each agent in agents array:**
-
 1. **Read artifacts from disk:**
    ```bash
    ARTIFACT_CONTENT=$(cat "${PHASE_DIR}"/*-PLAN.md)
@@ -503,9 +501,10 @@ Set `CO_PLANNER_RAN_PLANS=true`.
    ROADMAP_CONTEXT=$(cat .planning/ROADMAP.md 2>/dev/null)
    ```
 
-2. **Construct review prompt and invoke:**
+2. **Write review prompt to temp file and invoke all agents in parallel:**
    ```bash
-   REVIEW_PROMPT=$(cat <<'PROMPT_EOF'
+   PROMPT_FILE=$(mktemp)
+   cat > "$PROMPT_FILE" << 'PROMPT_EOF'
    Review this implementation plan for a software project. Focus on:
    1. COMPLETENESS: Are tasks atomic enough? Can each be verified independently?
    2. WIRING: Are integration points explicitly planned? Does component A connect to component B?
@@ -526,27 +525,32 @@ Set `CO_PLANNER_RAN_PLANS=true`.
    Plan to review:
    {ARTIFACT_CONTENT}
    PROMPT_EOF
-   )
-
-   RESULT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner invoke {agent} --prompt "$REVIEW_PROMPT")
    ```
 
-3. **Check for errors:**
-   Parse `RESULT` JSON. If `errorType` is non-null:
-   ```
-   ⚠ {agent} failed ({errorType}): {error}
-   Continuing with remaining agents...
-   ```
-   Skip to next agent.
+   Replace `{REQUIREMENTS_CONTEXT}`, `{ROADMAP_CONTEXT}`, and `{ARTIFACT_CONTENT}` with the actual content read in step 1.
 
-4. **If ALL agents failed:** Display warning and skip to step 12.5.
-   ```
-   ⚠ All co-planners failed. Proceeding with adversary review only.
+   Invoke all agents in parallel:
+   ```bash
+   RESULTS_JSON=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs coplanner invoke-all --checkpoint "plan" --prompt-file "$PROMPT_FILE")
+   rm -f "$PROMPT_FILE"
    ```
 
-5. **Display attributed feedback block:**
+3. **Failure triage:**
+   Parse `RESULTS_JSON`. Extract `results` array: `[{agent, status, response, error, errorType, duration}]`.
+
+   Count successes and failures from results array.
+
+   - **If ALL failed:** Display `⚠ All co-planners failed. Proceeding with adversary review only.` and skip to step 12.5.
+   - **If SOME failed:** Display inline warning at top of output: `⚠ {N} of {M} agents failed ({agent}: {errorType})`
+
+4. **Display per-agent feedback blocks:**
+
+   For each successful result, map agent CLI name to display name: `codex` -> "Codex", `gemini` -> "Gemini CLI", `opencode` -> "OpenCode". Use title case of the CLI name as fallback.
+
+   Parse the response text into Suggestions, Challenges, and Endorsements sections (Claude's natural language understanding -- not programmatic parsing).
+
    ```
-   ─── {Agent Name} Feedback ───
+   ─── {Display Name} Feedback ───
 
    **Suggestions:**
    - {extracted from response}
@@ -560,30 +564,35 @@ Set `CO_PLANNER_RAN_PLANS=true`.
    ──────────────────────────────
    ```
 
-**After all agents reviewed:**
+   If the response has no actionable feedback, note "No actionable feedback" and move on.
 
-**Co-Planner Synthesis:**
+5. **Merged Synthesis:**
 
-Review all suggestions and challenges. For each feedback item, apply acceptance criteria:
+   Organize all feedback by theme (e.g., "Task Completeness", "Dependency Conflicts", "Wiring Gaps", "Complexity Risks") rather than by agent. Use bracket-tag attribution inline after each point: `[Codex]`, `[Gemini CLI]`, `[Codex, OpenCode]`.
 
-- **Accept** if feedback identifies: a logical gap in the plan, a dependency conflict between tasks, an incorrect task ordering, a missing verification step, a feasibility concern with specific technical evidence, or a wiring gap between components.
-- **Reject** if feedback is: stylistic/formatting preference, a scope expansion beyond the phase goal, speculative ("might need") without evidence, or duplicates an existing task.
-- **Note** if feedback is: valid but deferred to a later phase, or raises a concern already captured in existing plan constraints.
+   For conflicts between agents, highlight explicitly: `Codex suggested X but OpenCode flagged Y -- {resolution with one-line rationale}`.
 
-Apply accepted changes to the relevant PLAN.md file(s) via Write tool (read current content, apply changes, write back). Set `CO_PLANNER_REVISED_PLANS=true` if any changes were made.
+   Apply acceptance criteria to each themed feedback item:
 
-Display accept/reject log:
-```
-### Co-Planner Synthesis
+   - **Accept** if feedback identifies: a logical gap in the plan, a dependency conflict between tasks, an incorrect task ordering, a missing verification step, a feasibility concern with specific technical evidence, or a wiring gap between components.
+   - **Reject** if feedback is: stylistic/formatting preference, a scope expansion beyond the phase goal, speculative ("might need") without evidence, or duplicates an existing task.
+   - **Note** if feedback is: valid but deferred to a later phase, or raises a concern already captured in existing plan constraints.
 
-| # | Source | Feedback | Decision | Reasoning |
-|---|--------|----------|----------|-----------|
-| 1 | {agent} | {feedback summary} | Accepted | {why} |
-| 2 | {agent} | {feedback summary} | Rejected | {why} |
-| 3 | {agent} | {feedback summary} | Noted | {why} |
+   Apply accepted changes to the relevant PLAN.md file(s) via Write tool (read current content, apply changes, write back). Set `CO_PLANNER_REVISED_PLANS=true` if any changes were made.
 
-{N} suggestions accepted, {M} rejected, {P} noted
-```
+   **Display accept/reject log:**
+
+   ```
+   ### Merged Synthesis
+
+   | # | Theme | Feedback | Source(s) | Decision | Reasoning |
+   |---|-------|----------|-----------|----------|-----------|
+   | 1 | {theme} | {feedback summary} | [{Agent1}] | Accepted | {why} |
+   | 2 | {theme} | {feedback summary} | [{Agent1}, {Agent2}] | Rejected | {why} |
+   | 3 | {theme} | {feedback summary} | [{Agent2}] | Noted | {why} |
+
+   {N} suggestions accepted, {M} rejected, {P} noted
+   ```
 
 **Conditional commit:**
 If artifact was revised (`CO_PLANNER_REVISED_PLANS = true`):
