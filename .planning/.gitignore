@@ -1,0 +1,10 @@
+# Telegram session files (runtime, per-instance)
+telegram-sessions/*.jsonl
+telegram-sessions/**/*.lock
+telegram-sessions/archive/
+
+# Legacy question queue (replaced by per-session storage)
+telegram-questions/
+
+# Telegram queue (runtime)
+telegram-queue/
