@@ -107,15 +107,16 @@ Phase: "API documentation"
 
 <process>
 
-<step name="validate_phase" priority="first">
+<step name="initialize" priority="first">
 Phase number from argument (required).
 
-Load and validate:
-- Read `.planning/ROADMAP.md`
-- Find phase entry
-- Extract: number, name, description, status
+```bash
+INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs init phase-op "${PHASE}")
+```
 
-**If phase not found:**
+Parse JSON for: `commit_docs`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `padded_phase`, `has_research`, `has_context`, `has_plans`, `has_verification`, `plan_count`, `roadmap_exists`, `planning_exists`.
+
+**If `phase_found` is false:**
 ```
 Phase [X] not found in roadmap.
 
@@ -123,21 +124,19 @@ Use /gsd:progress to see available phases.
 ```
 Exit workflow.
 
-**If phase found:** Continue to analyze_phase.
+**If `phase_found` is true:** Continue to check_existing.
 </step>
 
 <step name="check_existing">
-Check if CONTEXT.md already exists:
+Check if CONTEXT.md already exists using `has_context` from init.
 
 ```bash
-# Match both zero-padded (05-*) and unpadded (5-*) folders
-PADDED_PHASE=$(printf "%02d" ${PHASE})
-ls .planning/phases/${PADDED_PHASE}-*/*-CONTEXT.md .planning/phases/${PHASE}-*/*-CONTEXT.md 2>/dev/null
+ls ${phase_dir}/*-CONTEXT.md 2>/dev/null
 ```
 
 **If exists:**
 Use AskUserQuestion:
-- header: "Existing context"
+- header: "Context"
 - question: "Phase [X] already has context. What do you want to do?"
 - options:
   - "Update it" — Review and revise existing context
@@ -148,7 +147,23 @@ If "Update": Load existing, continue to analyze_phase
 If "View": Display CONTEXT.md, then offer update/skip
 If "Skip": Exit workflow
 
-**If doesn't exist:** Continue to analyze_phase.
+**If doesn't exist:**
+
+Check `has_plans` and `plan_count` from init. **If `has_plans` is true:**
+
+Use AskUserQuestion:
+- header: "Plans exist"
+- question: "Phase [X] already has {plan_count} plan(s) created without user context. Your decisions here won't affect existing plans unless you replan."
+- options:
+  - "Continue and replan after" — Capture context, then run /gsd:plan-phase {X} to replan
+  - "View existing plans" — Show plans before deciding
+  - "Cancel" — Skip discuss-phase
+
+If "Continue and replan after": Continue to analyze_phase.
+If "View existing plans": Display plan files, then offer "Continue" / "Cancel".
+If "Cancel": Exit workflow.
+
+**If `has_plans` is false:** Continue to analyze_phase.
 </step>
 
 <step name="analyze_phase">
@@ -241,18 +256,19 @@ Ask 4 questions per area before offering to continue or move on. Each answer oft
    ```
 
 2. **Ask 4 questions using AskUserQuestion:**
-   - header: "[Area]"
+   - header: "[Area]" (max 12 chars — abbreviate if needed)
    - question: Specific decision for this area
    - options: 2-3 concrete choices (AskUserQuestion adds "Other" automatically)
    - Include "You decide" as an option when reasonable — captures Claude discretion
 
 3. **After 4 questions, check:**
-   - header: "[Area]"
+   - header: "[Area]" (max 12 chars)
    - question: "More questions about [area], or move to next?"
    - options: "More questions" / "Next area"
 
    If "More questions" → ask 4 more, then check again
    If "Next area" → proceed to next selected area
+   If "Other" (free text) → interpret intent: continuation phrases ("chat more", "keep going", "yes", "more") map to "More questions"; advancement phrases ("done", "move on", "next", "skip") map to "Next area". If ambiguous, ask: "Continue with more questions about [area], or move to the next area?"
 
 4. **After all areas complete:**
    - header: "Done"
@@ -281,19 +297,14 @@ Create CONTEXT.md capturing decisions made.
 
 **Find or create phase directory:**
 
+Use values from init: `phase_dir`, `phase_slug`, `padded_phase`.
+
+If `phase_dir` is null (phase exists in roadmap but no directory):
 ```bash
-# Match existing directory (padded or unpadded)
-PADDED_PHASE=$(printf "%02d" ${PHASE})
-PHASE_DIR=$(ls -d .planning/phases/${PADDED_PHASE}-* .planning/phases/${PHASE}-* 2>/dev/null | head -1)
-if [ -z "$PHASE_DIR" ]; then
-  # Create from roadmap name (lowercase, hyphens)
-  PHASE_NAME=$(grep "Phase ${PHASE}:" .planning/ROADMAP.md | sed 's/.*Phase [0-9]*: //' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-  mkdir -p ".planning/phases/${PADDED_PHASE}-${PHASE_NAME}"
-  PHASE_DIR=".planning/phases/${PADDED_PHASE}-${PHASE_NAME}"
-fi
+mkdir -p ".planning/phases/${padded_phase}-${phase_slug}"
 ```
 
-**File location:** `${PHASE_DIR}/${PADDED_PHASE}-CONTEXT.md`
+**File location:** `${phase_dir}/${padded_phase}-CONTEXT.md`
 
 **Structure the content by what was discussed:**
 
@@ -391,32 +402,77 @@ Created: .planning/phases/${PADDED_PHASE}-${SLUG}/${PADDED_PHASE}-CONTEXT.md
 </step>
 
 <step name="git_commit">
-Commit phase context:
-
-**Check planning config:**
+Commit phase context (uses `commit_docs` from init internally):
 
 ```bash
-COMMIT_PLANNING_DOCS=$(cat .planning/config.json 2>/dev/null | grep -o '"commit_docs"[[:space:]]*:[[:space:]]*[^,}]*' | grep -o 'true\|false' || echo "true")
-git check-ignore -q .planning 2>/dev/null && COMMIT_PLANNING_DOCS=false
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(${padded_phase}): capture phase context" --files "${phase_dir}/${padded_phase}-CONTEXT.md"
 ```
 
-**If `COMMIT_PLANNING_DOCS=false`:** Skip git operations
+Confirm: "Committed: docs(${padded_phase}): capture phase context"
+</step>
 
-**If `COMMIT_PLANNING_DOCS=true` (default):**
+<step name="update_state">
+Update STATE.md with session info:
 
 ```bash
-git add "${PHASE_DIR}/${PADDED_PHASE}-CONTEXT.md"
-git commit -m "$(cat <<'EOF'
-docs(${PADDED_PHASE}): capture phase context
-
-Phase ${PADDED_PHASE}: ${PHASE_NAME}
-- Implementation decisions documented
-- Phase boundary established
-EOF
-)"
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs state record-session \
+  --stopped-at "Phase ${PHASE} context gathered" \
+  --resume-file "${phase_dir}/${padded_phase}-CONTEXT.md"
 ```
 
-Confirm: "Committed: docs(${PADDED_PHASE}): capture phase context"
+Commit STATE.md:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(state): record phase ${PHASE} context session" --files .planning/STATE.md
+```
+</step>
+
+<step name="auto_advance">
+Check for auto-advance trigger:
+
+1. Parse `--auto` flag from $ARGUMENTS
+2. Read `workflow.auto_advance` from config:
+   ```bash
+   AUTO_CFG=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow.auto_advance 2>/dev/null || echo "false")
+   ```
+
+**If `--auto` flag present AND `AUTO_CFG` is not true:** Persist auto-advance to config (handles direct `--auto` usage without new-project):
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance true
+```
+
+**If `--auto` flag present OR `AUTO_CFG` is true:**
+
+Display banner:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► AUTO-ADVANCING TO PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Context captured. Spawning plan-phase...
+```
+
+Spawn plan-phase as Task:
+```
+Task(
+  prompt="Run /gsd:plan-phase ${PHASE} --auto",
+  subagent_type="general-purpose",
+  description="Plan Phase ${PHASE}"
+)
+```
+
+**Handle plan-phase return:**
+- **PLANNING COMPLETE** → Plan-phase handles chaining to execute-phase (via its own auto_advance step)
+- **PLANNING INCONCLUSIVE / CHECKPOINT** → Display result, stop chain:
+  ```
+  Auto-advance stopped: Planning needs input.
+
+  Review the output above and continue manually:
+  /gsd:plan-phase ${PHASE}
+  ```
+
+**If neither `--auto` nor config enabled:**
+Route to `confirm_creation` step (existing behavior — show manual next steps).
 </step>
 
 </process>
@@ -429,5 +485,6 @@ Confirm: "Committed: docs(${PADDED_PHASE}): capture phase context"
 - Scope creep redirected to deferred ideas
 - CONTEXT.md captures actual decisions, not vague vision
 - Deferred ideas preserved for future phases
+- STATE.md updated with session info
 - User knows next steps
 </success_criteria>

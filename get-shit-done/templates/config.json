@@ -4,7 +4,8 @@
   "workflow": {
     "research": true,
     "plan_check": true,
-    "verifier": true
+    "verifier": true,
+    "auto_advance": false
   },
   "planning": {
     "commit_docs": true,

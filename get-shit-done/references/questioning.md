@@ -79,6 +79,7 @@ Use AskUserQuestion to help users think by presenting concrete options to react 
 - Generic categories ("Technical", "Business", "Other")
 - Leading options that presume an answer
 - Too many options (2-4 is ideal)
+- Headers longer than 12 characters (hard limit — validation will reject them)
 
 **Example — vague answer:**
 User says "it should be fast"
@@ -93,6 +94,9 @@ User mentions "frustrated with current tools"
 - header: "Frustration"
 - question: "What specifically frustrates you?"
 - options: ["Too many clicks", "Missing features", "Unreliable", "Let me explain"]
+
+**Tip for users — modifying an option:**
+Users who want a slightly modified version of an option can select "Other" and reference the option by number: `#1 but for finger joints only` or `#2 with pagination disabled`. This avoids retyping the full option text.
 
 </using_askuserquestion>
 

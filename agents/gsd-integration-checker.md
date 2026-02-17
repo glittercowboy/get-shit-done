@@ -45,6 +45,12 @@ A "complete" codebase with broken wiring is a broken product.
 
 - Which phases should connect to which
 - What each phase provides vs. consumes
+
+**Milestone Requirements:**
+
+- List of REQ-IDs with descriptions and assigned phases (provided by milestone auditor)
+- MUST map each integration finding to affected requirement IDs where applicable
+- Requirements with no cross-phase wiring MUST be flagged in the Requirements Integration Map
   </inputs>
 
 <verification_process>
@@ -391,6 +397,15 @@ Return structured report to milestone auditor:
 #### Unprotected Routes
 
 {List each with path/reason}
+
+#### Requirements Integration Map
+
+| Requirement | Integration Path | Status | Issue |
+|-------------|-----------------|--------|-------|
+| {REQ-ID} | {Phase X export → Phase Y import → consumer} | WIRED / PARTIAL / UNWIRED | {specific issue or "—"} |
+
+**Requirements with no cross-phase wiring:**
+{List REQ-IDs that exist in a single phase with no integration touchpoints — these may be self-contained or may indicate missing connections}
 ```
 
 </output>
@@ -419,5 +434,7 @@ Return structured report to milestone auditor:
 - [ ] Orphaned code identified
 - [ ] Missing connections identified
 - [ ] Broken flows identified with specific break points
+- [ ] Requirements Integration Map produced with per-requirement wiring status
+- [ ] Requirements with no cross-phase wiring identified
 - [ ] Structured report returned to auditor
       </success_criteria>

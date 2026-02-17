@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Phase 1: [Name]
 **Goal**: [What this phase delivers]
 **Depends on**: Nothing (first phase)
-**Requirements**: [REQ-01, REQ-02, REQ-03]
+**Requirements**: [REQ-01, REQ-02, REQ-03]  <!-- brackets optional, parser handles both formats -->
 **Success Criteria** (what must be TRUE):
   1. [Observable behavior from user perspective]
   2. [Observable behavior from user perspective]
