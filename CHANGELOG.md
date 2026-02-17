@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `summary-extract` now maps SUMMARY frontmatter `requirements-completed` to `requirements_completed`, enabling milestone audit cross-check extraction
+
 ## [1.20.3] - 2026-02-16
 
 ### Fixed
