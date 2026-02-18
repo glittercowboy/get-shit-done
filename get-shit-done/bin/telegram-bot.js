@@ -13,9 +13,7 @@ const fs = require('fs');
 
 // Check for Telegram bot token
 if (!process.env.TELEGRAM_BOT_TOKEN) {
-  console.error('[ERROR] TELEGRAM_BOT_TOKEN not set. Set it in .env file.');
-  console.error('To create a bot: Message @BotFather on Telegram -> /newbot');
-  process.exit(1);
+  throw new Error('[ERROR] TELEGRAM_BOT_TOKEN not set. Set it in .env file.\nTo create a bot: Message @BotFather on Telegram -> /newbot');
 }
 
 const { Telegraf } = require('telegraf');

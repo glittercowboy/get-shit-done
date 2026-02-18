@@ -156,7 +156,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { EVENT_TYPES, initLog, appendEvent, getHistory, getCurrentPhase, getLastCheckpoint, getExecutionStats, needsResume, getResumeContext, markResumed, getPhaseTimeline } = require('./execution-log.js');
 const { parseRoadmap, buildDAG, getExecutionOrder, detectParallelOpportunities } = require('./roadmap-parser.js');
-const { TokenBudgetMonitor, estimatePhaseTokens } = require('./token-monitor.js');
+const { TokenBudgetMonitor } = require('./token-monitor.js');
 const { FailureHandler, executeWithRetry } = require('./failure-handler.js');
 const { CompletionSignal, COMPLETION_STATUS } = require('./completion-signal.js');
 const { TaskChunker, BatchCoordinator, analyzeTask, estimateTaskTokens } = require('./task-chunker.js');
@@ -3850,8 +3850,16 @@ async function cmdTelegram(args, raw) {
     error('telegram: subcommand required (start|stop|test|ask|pending|status|logs)');
   }
 
-  // Lazy-load telegram modules
-  const telegram = require('./telegram-bot.js');
+  // Lazy-load telegram modules (bot requires TELEGRAM_BOT_TOKEN)
+  let telegram;
+  try {
+    telegram = require('./telegram-bot.js');
+  } catch (e) {
+    if (subcommand !== 'status' && subcommand !== 'logs' && subcommand !== 'pending') {
+      error(`telegram: ${e.message}`);
+      return;
+    }
+  }
   const conversation = require('./telegram-conversation.js');
 
   switch (subcommand) {
@@ -8912,6 +8920,11 @@ async function main() {
 
     case 'circuit-breaker': {
       const subCommand = args[1];
+
+      if (!circuitBreaker) {
+        error('circuit-breaker module not available — run npm install in get-shit-done/');
+        break;
+      }
 
       if (subCommand === 'thresholds') {
         const modelIdx = args.indexOf('--model');
