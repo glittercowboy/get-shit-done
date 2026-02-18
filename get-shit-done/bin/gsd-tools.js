@@ -3864,13 +3864,18 @@ async function cmdTelegram(args, raw) {
 
   switch (subcommand) {
     case 'start': {
+      const mcpStatus = await checkTelegramMCP();
+      if (mcpStatus.available && !process.env.TELEGRAM_STANDALONE_FORCE) {
+        error('telegram start: MCP server already configured — starting standalone bot ' +
+              'would cause a race condition (two Telegraf pollers on the same token).\n' +
+              'Use the MCP server instead, or set TELEGRAM_STANDALONE_FORCE=1 to override.');
+        break;
+      }
       console.log('Starting Telegram bot with Haiku monitor...');
       await telegram.startBot();
       console.log('\nBot running! Press Ctrl+C to stop.\n');
-      console.log('📱 Send /start to your bot in Telegram to see the menu.');
-
-      // Keep process alive
-      await new Promise(() => {}); // Never resolves
+      console.log('Send /start to your bot in Telegram to see the menu.');
+      await new Promise(() => {});
       break;
     }
 
@@ -3933,11 +3938,14 @@ async function cmdTelegram(args, raw) {
 
     case 'status': {
       const pending = conversation.getPendingQuestions();
-      const botStatus = telegram.bot ? 'running' : 'not configured';
+      const botStatus = telegram?.bot ? 'running' : 'not configured';
+      const mcpStatus = await checkTelegramMCP();
       output({
-        bot_status: botStatus,
+        standalone_bot: botStatus,
+        mcp_server: mcpStatus.available ? 'configured' : 'not configured',
+        conflict_risk: mcpStatus.available && botStatus === 'running',
         pending_count: pending.length
-      }, raw, `Bot: ${botStatus}\nPending questions: ${pending.length}`);
+      }, raw);
       break;
     }
 
