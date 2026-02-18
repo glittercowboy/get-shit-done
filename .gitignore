@@ -16,9 +16,15 @@ hooks/dist/
 animation/
 *.gif
 
-# SQLite WAL/SHM files (should never be committed)
+# SQLite databases and WAL/SHM files
+*.db
+*.sqlite
 *.db-shm
 *.db-wal
+
+# Project planning/state (local only)
+.planning/
+get-shit-done/.planning/
 
 # Internal planning documents
 reports/

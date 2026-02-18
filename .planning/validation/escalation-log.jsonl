@@ -1,2 +1,0 @@
-{"_comment":"GSD escalation event log - tracks error scoring and model escalation","created":"2026-02-15T22:52:25Z"}
-{"task_id":"test-task-2","error_type":"VALIDATION_FIX","weight":0.5,"cumulative_score":1.25,"from_model":"haiku","to_model":"sonnet","explanation":"Too many validation errors","timestamp":"2026-02-15T22:52:46.625Z"}
