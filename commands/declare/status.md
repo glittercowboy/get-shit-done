@@ -12,7 +12,7 @@ Show the current state of the Declare project graph.
 **Step 1: Run the status tool.**
 
 ```bash
-node /Users/guilherme/Projects/get-shit-done/dist/declare-tools.cjs status
+node dist/declare-tools.cjs status
 ```
 
 Parse the JSON output.
@@ -45,18 +45,21 @@ For each validation error, provide a brief suggestion:
 - `cycle`: "Check for circular dependencies in your graph"
 - `broken_edge`: "The target node may have been removed -- update or remove the edge"
 
-**Coverage:** Show milestone plan coverage from the `coverage` field:
-- "Plan coverage: X of Y milestones have plans (Z%)"
-- If coverage is less than 100%, list milestones without plans and suggest: "Run `/declare:actions` to derive plans for uncovered milestones."
-
-**Health Indicators:** If `staleness` indicators exist, render them:
-- NO_PLAN: "[M-XX] has no action plan"
-- STALE: "[M-XX] plan not updated in N days"
-- COMPLETABLE: "[M-XX] all actions done -- consider marking milestone as DONE"
-- INCONSISTENT: "[M-XX] marked DONE but has incomplete actions"
-
-If no staleness indicators: "All milestones healthy."
-
 **Last Activity:** Show the timestamp and commit message from the last git activity.
+
+**Performance:** If the status output contains a `performance` field (non-null):
+
+Show the project rollup first:
+"Performance: [rollup.performance] (alignment: [rollup.alignment] x integrity: [rollup.integrity])"
+
+Then show per-declaration breakdown:
+
+| Declaration | Alignment | Integrity | Performance |
+|-------------|-----------|-----------|-------------|
+| D-XX: [title] | HIGH | MEDIUM | MEDIUM |
+
+If `performance` is null, skip this section entirely (graceful degradation for projects with no declarations).
+
+Keep the "Performance: HIGH (alignment: HIGH x integrity: HIGH)" plain text label format -- qualitative labels only, never numeric scores.
 
 The overall feel should be like a dashboard -- compact, scannable, with clear health indicators.
