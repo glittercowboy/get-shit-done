@@ -9,3 +9,8 @@
 **Statement:** Declare handles the complete project lifecycle — map codebase, init project, complete milestones with archiving and git tags, start new milestone cycles — from first declaration through shipping.
 **Status:** PENDING
 **Milestones:** 
+
+## D-03: Post-Execution Quality Loops
+**Statement:** Declare has post-execution quality loops — conversational UAT, systematic debugging with persistent state, milestone auditing — so issues are caught and resolved before a milestone is declared complete.
+**Status:** PENDING
+**Milestones:** 
