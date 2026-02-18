@@ -58,11 +58,21 @@ async function convertToWav(inputPath, outputPath) {
 /**
  * Lazy-load whisper-node to avoid cwd corruption at import time.
  * whisper-node calls process.chdir() internally during module initialization.
+ *
+ * whisper-node is a CJS module exporting { whisper: fn }.
+ * When imported via ESM dynamic import():
+ *   mod.whisper  — named export (Node CJS interop, preferred)
+ *   mod.default  — the whole CJS exports object { whisper: fn }
+ * So mod.default is NOT callable; we must use mod.whisper or mod.default.whisper.
  */
 async function getWhisperFn() {
     // @ts-ignore — whisper-node ships no TypeScript types
     const mod = await import('whisper-node');
-    return (mod.default ?? mod);
+    const fn = mod.whisper ?? mod.default?.whisper;
+    if (typeof fn !== 'function') {
+        throw new TypeError(`whisper-node did not export a callable 'whisper' function (got ${typeof fn})`);
+    }
+    return fn;
 }
 // ─── Public API ────────────────────────────────────────────────────────────────
 /**
@@ -92,13 +102,26 @@ export async function transcribeVoice(fileLink) {
         let transcript;
         try {
             const whisper = await getWhisperFn();
+            // Use modelPath (absolute) instead of modelName to bypass whisper-node's
+            // relative-path existsSync check, which always fails because:
+            //   - whisper-node looks for ./models/ggml-base.bin relative to process.cwd()
+            //   - we set process.cwd() to /tmp above, so it checks /tmp/models/ggml-base.bin
+            //   - that file doesn't exist; whisper-node throws, catches silently, returns undefined
+            // The actual model lives at ~/.cache/whisper/ggml-base.bin (downloaded separately).
+            const modelPath = path.join(os.homedir(), '.cache', 'whisper', 'ggml-base.bin');
             const result = await whisper(tempWav, {
-                modelName: 'base.en',
+                modelPath,
                 whisperOptions: {
-                    language: 'en',
+                    language: 'auto',
                     word_timestamps: false,
                 },
             });
+            // Guard: whisper-node silently swallows errors and returns undefined.
+            // If result is undefined, the binary failed (model not found, exec error, etc.).
+            if (result === undefined || result === null) {
+                throw new Error('whisper-node returned undefined — binary execution likely failed. ' +
+                    'Check that the model file exists and whisper.cpp/main is compiled.');
+            }
             // whisper-node returns an array of { speech: string } segment objects
             transcript = Array.isArray(result)
                 ? result
