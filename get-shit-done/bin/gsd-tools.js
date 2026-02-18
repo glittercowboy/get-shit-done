@@ -172,7 +172,7 @@ try { feedback = require('./gsd-feedback'); } catch (e) { feedback = null; }
 try { learning = require('./gsd-learning'); } catch (e) { learning = null; }
 
 // Load environment variables from project root .env
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../.env'), quiet: true });
 
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
