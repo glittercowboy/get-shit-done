@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 14 of 14 (Telegram MCP and Bot Audit and Rework)
-Plan: 03 of 06
+Plan: 04 of 06
 Status: In Progress
-Last activity: 2026-02-18 — Completed plan 14-03 (Telegram Bot Module: webhook/polling, forum threads, Status/Questions panels, voice transcription)
+Last activity: 2026-02-18 — Completed plan 14-04 (Question Service: forum thread lifecycle, EventEmitter blocking delivery, all IPC stubs replaced)
 
 Progress: [████████████████████████████████████░] 97%
 
@@ -91,6 +91,7 @@ Progress: [███████████████████████
 | Phase 14 P01 | 9min | 2 tasks | 8 files |
 | Phase 14 P02 | 2min | 2 tasks | 4 files |
 | Phase 14 P03 | 6min | 3 tasks | 5 files |
+| Phase 14 P04 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -321,6 +322,10 @@ Recent decisions affecting current work:
 - [Phase 14-03]: Webhook mode uses Node built-in http module — no express dependency (not in package.json)
 - [Phase 14-03]: handlerEvents named EventEmitter exported from handlers.ts — explicit import avoids emitter/listener mismatch
 - [Phase 14-03]: Whisper cwd guard uses finally block to guarantee restore even on transcription failure
+- [Phase 14-04]: QuestionService takes createForumTopic/sendToThread/sendToGroup as constructor args for testability and decoupling from bot singleton
+- [Phase 14-04]: Thread reuse uses 5-minute window on most recently answered question per session for follow-up conversations
+- [Phase 14-04]: sendToThread failure is non-fatal for ask() — question still blocks for answer, logged as error
+- [Phase 14-04]: mark_question_answered delivers via deliverAnswer(threadId) when thread exists, emits answer:questionId directly for threadless questions
 
 ### Roadmap Evolution
 
@@ -329,6 +334,7 @@ Recent decisions affecting current work:
 - Phase 14 Plan 01 complete: AUDIT.md written, standalone bot deleted, shared foundation modules created
 - Phase 14 Plan 02 complete: IPC server (NDJSON Unix socket) and SessionService (in-memory registry with events) created; daemon entry point bootstraps full IPC method routing
 - Phase 14 Plan 03 complete: Daemon bot module created — webhook/polling auto-detect, forum thread support, Status/Questions panels, voice transcription with cwd fix, handlerEvents EventEmitter for Plan 04 wiring
+- Phase 14 Plan 04 complete: QuestionService created with forum thread lifecycle and EventEmitter blocking delivery; all 5 IPC stubs replaced with full implementations; bot thread:text_reply/voice_reply events wired to question answer delivery
 
 ### Pending Todos
 
@@ -340,6 +346,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18T14:05:51Z (plan execution)
-Stopped at: Completed 14-03-PLAN.md (Bot Module) - Phase 14 Plan 03 - daemon/bot/index.ts, handlers.ts, menu.ts, whisper.ts created
+Last session: 2026-02-18T14:11:00Z (plan execution)
+Stopped at: Completed 14-04-PLAN.md (Question Service) - Phase 14 Plan 04 - question-service.ts created, daemon/index.ts fully wired
 Resume file: None
