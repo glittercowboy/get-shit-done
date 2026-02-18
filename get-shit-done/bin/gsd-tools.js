@@ -7479,6 +7479,375 @@ async function cmdStoreAnalysisResult(cwd, args, raw) {
   }, raw);
 }
 
+// ============================================================
+// Routing: model selection + context injection (Phase 01)
+// ============================================================
+
+function loadRoutingRules(filePath) {
+  const content = safeReadFile(filePath);
+  if (!content) return [];
+
+  const lines = content.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+  const tableRows = lines.filter(l => l.trim().startsWith('|'));
+  const dataRows = tableRows.slice(2);
+
+  return dataRows.map(line => {
+    const trimmed = line.trim();
+    const withoutLeadingPipe = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed;
+    const withoutTrailingPipe = withoutLeadingPipe.endsWith('|') ? withoutLeadingPipe.slice(0, -1) : withoutLeadingPipe;
+
+    const allParts = withoutTrailingPipe.split('|').map(c => c.trim());
+
+    if (allParts.length < 4) return null;
+
+    const rationale = allParts[allParts.length - 1];
+    const priority = allParts[allParts.length - 2];
+    const model = allParts[allParts.length - 3];
+    const patternStr = allParts.slice(0, allParts.length - 3).join('|').trim();
+
+    if (!patternStr || !model || !priority) return null;
+    if (patternStr.toLowerCase() === 'pattern' || model.toLowerCase() === 'model') return null;
+
+    const patterns = patternStr.split(',').map(p => p.trim().replace(/\*\*/g, ''));
+    const validPatterns = patterns.filter(p => p && !p.toLowerCase().includes('testing') && !p.toLowerCase().includes('architecture'));
+
+    if (validPatterns.length === 0) return null;
+
+    const patternRegex = validPatterns.map(p => {
+      // Protect existing .* sequences before escaping, then restore
+      const protected_ = p.replace(/\.\*/g, '\x00');
+      const escaped = protected_.replace(/\./g, '\\.');
+      return escaped.replace(/\x00/g, '.*').replace(/(?<!\.)\*/g, '.*');
+    }).join('|');
+
+    return {
+      patterns: validPatterns,
+      regex: patternRegex,
+      model: model.toLowerCase(),
+      priority: parseInt(priority) || 1,
+      rationale: rationale || ''
+    };
+  }).filter(Boolean);
+}
+
+function mergeRoutingRules(globalRules, projectRules) {
+  const merged = [...globalRules];
+
+  for (const projectRule of projectRules) {
+    const existingIdx = merged.findIndex(r =>
+      r.patterns.some(p => projectRule.patterns.includes(p))
+    );
+
+    if (existingIdx >= 0) {
+      merged[existingIdx] = projectRule;
+    } else {
+      merged.push(projectRule);
+    }
+  }
+
+  return merged;
+}
+
+function selectModelFromRules(taskDesc, rules) {
+  const lowerTask = taskDesc.toLowerCase();
+  let bestMatch = null;
+  let highestPriority = -1;
+
+  for (const rule of rules) {
+    try {
+      const regex = new RegExp(rule.regex, 'i');
+      if (regex.test(lowerTask)) {
+        if (rule.priority > highestPriority) {
+          highestPriority = rule.priority;
+          bestMatch = rule;
+        }
+      }
+    } catch (e) {
+      // Skip invalid regex patterns
+    }
+  }
+
+  if (bestMatch) {
+    return {
+      model: bestMatch.model,
+      reason: bestMatch.rationale,
+      matched: true,
+      pattern: bestMatch.patterns.join(',')
+    };
+  }
+
+  return {
+    model: 'sonnet',
+    reason: 'default (no pattern match)',
+    matched: false
+  };
+}
+
+function cmdRoutingMatch(cwd, taskDesc, raw) {
+  if (!taskDesc) { error('task description required'); return; }
+
+  const HOME = require('os').homedir();
+  const globalRules = loadRoutingRules(path.join(HOME, '.claude', 'routing-rules.md'));
+  const projectRules = loadRoutingRules(path.join(cwd, '.planning', 'routing', 'project-rules.md'));
+  const merged = mergeRoutingRules(globalRules, projectRules);
+  const result = selectModelFromRules(taskDesc, merged);
+
+  output(result, raw);
+}
+
+function extractKeywords(text) {
+  const stopWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+    'should', 'could', 'can', 'may', 'might', 'must', 'this', 'that',
+    'these', 'those', 'it', 'its', 'i', 'we', 'they', 'them', 'their'
+  ]);
+
+  return text.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
+}
+
+function buildContextIndex(basePaths, includeSummaries = false) {
+  const index = { entries: [], created_at: new Date().toISOString() };
+
+  let extractor = null;
+  if (includeSummaries) {
+    try {
+      const { HeaderExtractor } = require('./compression/header-extractor');
+      extractor = new HeaderExtractor();
+    } catch (e) { /* compression optional */ }
+  }
+
+  for (const basePath of basePaths) {
+    if (!fs.existsSync(basePath)) continue;
+
+    const findMd = (dir) => {
+      const files = [];
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...findMd(fullPath));
+        } else if (entry.name.endsWith('.md')) {
+          files.push(fullPath);
+        }
+      }
+      return files;
+    };
+
+    for (const file of findMd(basePath)) {
+      try {
+        const content = fs.readFileSync(file, 'utf-8');
+        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+        let tags = [];
+        if (frontmatterMatch) {
+          const tagMatch = frontmatterMatch[1].match(/tags:\s*\[([^\]]*)\]/);
+          if (tagMatch) {
+            tags = tagMatch[1].split(',').map(t => t.trim().replace(/['"]/g, ''));
+          }
+        }
+
+        const titleMatch = content.match(/^#\s+(.+)/m);
+        const title = titleMatch ? titleMatch[1].trim() : path.basename(file, '.md');
+
+        const bodyText = content.replace(/^---\n[\s\S]*?\n---\n/, '').replace(/^#+\s+.+$/mg, '');
+        const keywords = extractKeywords(bodyText);
+
+        let summary = null;
+        if (includeSummaries && extractor) {
+          try {
+            const result = extractor.extractSummary(content, file);
+            summary = result.summary;
+          } catch (e) { /* skip */ }
+        }
+
+        index.entries.push({
+          path: file,
+          title,
+          tags,
+          keywords: [...new Set(keywords)].slice(0, 50),
+          ...(summary !== null && { summary })
+        });
+      } catch (e) { /* skip unreadable files */ }
+    }
+  }
+
+  return index;
+}
+
+function matchContextDocs(taskDesc, index, topN = 3) {
+  const taskKeywords = new Set(extractKeywords(taskDesc));
+  const taskWords = taskDesc.toLowerCase().split(/\s+/);
+
+  const scored = index.entries.map(entry => {
+    let score = 0;
+
+    // Tag matches (2x weight)
+    for (const tag of entry.tags) {
+      if (taskWords.some(w => tag.toLowerCase().includes(w) || w.includes(tag.toLowerCase()))) {
+        score += 2;
+      }
+    }
+
+    // Keyword matches (1x weight)
+    for (const kw of entry.keywords) {
+      if (taskKeywords.has(kw)) score += 1;
+    }
+
+    // Title word matches (1.5x weight)
+    const titleWords = extractKeywords(entry.title);
+    for (const tw of titleWords) {
+      if (taskKeywords.has(tw)) score += 1.5;
+    }
+
+    return { ...entry, score };
+  });
+
+  return scored
+    .filter(e => e.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN);
+}
+
+function loadContextIndex(cwd) {
+  const HOME = require('os').homedir();
+  const cachePath = path.join(HOME, '.claude', 'cache', 'context-index.json');
+
+  if (fs.existsSync(cachePath)) {
+    const stat = fs.statSync(cachePath);
+    const ageMs = Date.now() - stat.mtime.getTime();
+    if (ageMs < 3600000) { // 1 hour TTL
+      return JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+    }
+  }
+
+  // Rebuild and cache
+  const basePaths = [
+    path.join(HOME, '.claude', 'guides'),
+    path.join(HOME, '.claude', 'get-shit-done', 'references'),
+    path.join(cwd, '.planning', 'codebase'),
+    path.join(cwd, 'docs')
+  ];
+  const index = buildContextIndex(basePaths);
+
+  fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+  fs.writeFileSync(cachePath, JSON.stringify(index, null, 2));
+
+  return index;
+}
+
+function cmdRoutingContext(cwd, taskDesc, raw) {
+  if (!taskDesc) { error('task description required'); return; }
+
+  const index = loadContextIndex(cwd);
+  const matches = matchContextDocs(taskDesc, index, 3);
+
+  output({ task: taskDesc, matches, index_size: index.entries.length }, raw);
+}
+
+function cmdRoutingFull(cwd, taskDesc, raw) {
+  if (!taskDesc) { error('task description required'); return; }
+
+  const HOME = require('os').homedir();
+
+  const globalRules = loadRoutingRules(path.join(HOME, '.claude', 'routing-rules.md'));
+  const projectRules = loadRoutingRules(path.join(cwd, '.planning', 'routing', 'project-rules.md'));
+  const merged = mergeRoutingRules(globalRules, projectRules);
+  const modelResult = selectModelFromRules(taskDesc, merged);
+
+  const index = loadContextIndex(cwd);
+  const contextMatches = matchContextDocs(taskDesc, index, 3);
+
+  let contextWithSummaries = contextMatches;
+  try {
+    const { HeaderExtractor } = require('./compression/header-extractor');
+    const extractor = new HeaderExtractor();
+    contextWithSummaries = contextMatches.map(match => {
+      try {
+        const content = fs.readFileSync(match.path, 'utf-8');
+        const { summary } = extractor.extractSummary(content, match.path);
+        return { ...match, summary };
+      } catch (e) {
+        return { ...match, summary: null };
+      }
+    });
+  } catch (e) { /* compression optional */ }
+
+  // Extract CLAUDE.md keywords
+  const claudeMdPath = path.join(HOME, '.claude', 'CLAUDE.md');
+  let claudeMd = { has_instructions: false, relevant_keywords: [] };
+  if (fs.existsSync(claudeMdPath)) {
+    const content = fs.readFileSync(claudeMdPath, 'utf-8');
+    const listItems = content.match(/^[\s]*[-*]\s+(.+)$/mg) || [];
+    const numberedItems = content.match(/^[\s]*\d+\.\s+(.+)$/mg) || [];
+    const allItems = [...listItems, ...numberedItems].map(item =>
+      item.replace(/^[\s]*[-*\d.]+\s+/, '').trim()
+    );
+    const taskKws = new Set(extractKeywords(taskDesc));
+    const relevant = allItems.filter(item =>
+      extractKeywords(item).some(kw => taskKws.has(kw))
+    );
+    claudeMd = {
+      has_instructions: allItems.length > 0,
+      relevant_keywords: relevant.slice(0, 5)
+    };
+  }
+
+  output({ task: taskDesc, model: modelResult, context: contextWithSummaries, claude_md: claudeMd }, raw);
+}
+
+function cmdRoutingIndexBuild(cwd, args, raw) {
+  const HOME = require('os').homedir();
+  const cachePath = path.join(HOME, '.claude', 'cache', 'context-index.json');
+  const withSummaries = args.includes('--with-summaries');
+  const force = args.includes('--force');
+
+  if (!force && fs.existsSync(cachePath)) {
+    const stat = fs.statSync(cachePath);
+    const ageMs = Date.now() - stat.mtime.getTime();
+    if (ageMs < 3600000) {
+      output({ cached: true, age_minutes: Math.floor(ageMs / 60000) }, raw);
+      return;
+    }
+  }
+
+  const basePaths = [
+    path.join(HOME, '.claude', 'guides'),
+    path.join(HOME, '.claude', 'get-shit-done', 'references'),
+    path.join(cwd, '.planning', 'codebase'),
+    path.join(cwd, 'docs')
+  ];
+  const index = buildContextIndex(basePaths, withSummaries);
+
+  fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+  fs.writeFileSync(cachePath, JSON.stringify(index, null, 2));
+
+  output({ cached: false, entries: index.entries.length, with_summaries: withSummaries }, raw);
+}
+
+function cmdRoutingIndexRefresh(cwd, raw) {
+  const HOME = require('os').homedir();
+  const cachePath = path.join(HOME, '.claude', 'cache', 'context-index.json');
+
+  if (!fs.existsSync(cachePath)) {
+    output({ stale: true, reason: 'Cache does not exist', entries: 0 }, raw);
+    return;
+  }
+
+  const cached = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+  const stale = cached.entries.some(entry => {
+    if (!fs.existsSync(entry.path)) return true;
+    const stat = fs.statSync(entry.path);
+    const cacheTime = new Date(cached.created_at).getTime();
+    const mtime = stat.mtime.getTime();
+    return mtime > cacheTime;
+  });
+
+  output({ stale, entries: cached.entries.length }, raw);
+}
+
 /**
  * mine-conversations [--max-age-days N] [--include-subagents] [--limit N]
  *
@@ -8400,6 +8769,24 @@ async function main() {
 
     case 'store-conversation-result': {
       await cmdStoreConversationResult(cwd, args.slice(1), raw);
+      break;
+    }
+
+    case 'routing': {
+      const subcommand = args[1];
+      if (subcommand === 'match') {
+        cmdRoutingMatch(cwd, args.slice(2).join(' '), raw);
+      } else if (subcommand === 'context') {
+        cmdRoutingContext(cwd, args.slice(2).join(' '), raw);
+      } else if (subcommand === 'full') {
+        cmdRoutingFull(cwd, args.slice(2).join(' '), raw);
+      } else if (subcommand === 'index-build') {
+        cmdRoutingIndexBuild(cwd, args, raw);
+      } else if (subcommand === 'index-refresh') {
+        cmdRoutingIndexRefresh(cwd, raw);
+      } else {
+        error('Unknown routing subcommand. Available: match, context, full, index-build, index-refresh');
+      }
       break;
     }
 
