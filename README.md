@@ -2,7 +2,7 @@
 
 # GET SHIT DONE
 
-**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code, OpenCode, and Gemini CLI.**
+**A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code, OpenCode, Gemini CLI, and Codex.**
 
 **Solves context rot — the quality degradation that happens as Claude fills its context window.**
 
@@ -79,10 +79,16 @@ npx get-shit-done-cc@latest
 ```
 
 The installer prompts you to choose:
-1. **Runtime** — Claude Code, OpenCode, Gemini, or all
+1. **Runtime** — Claude Code, OpenCode, Gemini, Codex, or all
 2. **Location** — Global (all projects) or local (current project only)
 
-Verify with `/gsd:help` inside your chosen runtime.
+Verify with:
+- Claude Code / Gemini: `/gsd:help`
+- OpenCode: `/gsd-help`
+- Codex: `$gsd-help`
+
+> [!NOTE]
+> Codex installation uses skills (`skills/gsd-*/SKILL.md`) rather than custom prompts.
 
 ### Staying Updated
 
@@ -106,12 +112,16 @@ npx get-shit-done-cc --opencode --global # Install to ~/.config/opencode/
 # Gemini CLI
 npx get-shit-done-cc --gemini --global   # Install to ~/.gemini/
 
+# Codex (skills-first)
+npx get-shit-done-cc --codex --global    # Install to ~/.codex/
+npx get-shit-done-cc --codex --local     # Install to ./.codex/
+
 # All runtimes
 npx get-shit-done-cc --all --global      # Install to all directories
 ```
 
 Use `--global` (`-g`) or `--local` (`-l`) to skip the location prompt.
-Use `--claude`, `--opencode`, `--gemini`, or `--all` to skip the runtime prompt.
+Use `--claude`, `--opencode`, `--gemini`, `--codex`, or `--all` to skip the runtime prompt.
 
 </details>
 
@@ -615,8 +625,9 @@ This prevents Claude from reading these files entirely, regardless of what comma
 ## Troubleshooting
 
 **Commands not found after install?**
-- Restart Claude Code to reload slash commands
+- Restart your runtime to reload commands/skills
 - Verify files exist in `~/.claude/commands/gsd/` (global) or `./.claude/commands/gsd/` (local)
+- For Codex, verify skills exist in `~/.codex/skills/gsd-*/SKILL.md` (global) or `./.codex/skills/gsd-*/SKILL.md` (local)
 
 **Commands not working as expected?**
 - Run `/gsd:help` to verify installation
@@ -643,10 +654,12 @@ To remove GSD completely:
 # Global installs
 npx get-shit-done-cc --claude --global --uninstall
 npx get-shit-done-cc --opencode --global --uninstall
+npx get-shit-done-cc --codex --global --uninstall
 
 # Local installs (current project)
 npx get-shit-done-cc --claude --local --uninstall
 npx get-shit-done-cc --opencode --local --uninstall
+npx get-shit-done-cc --codex --local --uninstall
 ```
 
 This removes all GSD commands, agents, hooks, and settings while preserving your other configurations.
@@ -655,7 +668,7 @@ This removes all GSD commands, agents, hooks, and settings while preserving your
 
 ## Community Ports
 
-OpenCode and Gemini CLI are now natively supported via `npx get-shit-done-cc`.
+OpenCode, Gemini CLI, and Codex are now natively supported via `npx get-shit-done-cc`.
 
 These community ports pioneered multi-runtime support:
 

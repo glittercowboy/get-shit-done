@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Native Codex runtime support in installer via `--codex` and `--all` (Codex included), with config resolution precedence: `--config-dir` → `CODEX_HOME` → `~/.codex`
+- Skills-first Codex installation path that transpiles GSD commands to `skills/gsd-*/SKILL.md` (no custom-prompt dependency)
+- Codex-specific install/uninstall + manifest support for skill layout tracking and cleanup
+
+### Changed
+- Codex-installed content rewrites slash-command references to skill mentions (`/gsd:*` → `$gsd-*`) and normalizes command arguments (`$ARGUMENTS` → `{{GSD_ARGS}}`)
+- README/package metadata updated to document Codex install, invocation (`$gsd-help`), and uninstall flow
+
 ## [1.20.4] - 2026-02-17
 
 ### Fixed
