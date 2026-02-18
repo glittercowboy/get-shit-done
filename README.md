@@ -109,14 +109,17 @@ This fork extends the base GSD system with autonomous execution, a persistent kn
 ### What Was Built
 
 **Auto Mode (Phases 1–2)**
-Two things happen when a task is routed: model selection (Haiku/Sonnet/Opus based on task description matched against `~/.claude/routing-rules.md`) and context injection (top 3 relevant docs injected into the subagent prompt). Circuit breakers, iteration caps, error escalation ladder, and a feedback loop that learns from mis-routings. 40–60% token savings vs all-Sonnet.
+Two things happen when a task is routed: model selection and context injection. A Haiku subagent (`gsd-task-router`) reads the task description and uses LLM reasoning — not keyword matching — to pick the right tier (Haiku for mechanical one-step tasks, Sonnet for multi-step implementation, Opus for architecture and high-stakes decisions). Quota pressure adjusts selection downward at >80% and >95% usage. Top 3 relevant docs are injected into the subagent prompt alongside the routing decision. Circuit breakers, iteration caps, error escalation ladder, and a feedback loop that learns from mis-routings. ~40–60% token savings vs all-Opus.
 
 Test:
 ```bash
 # Model + top-3 context docs + CLAUDE.md keywords (what orchestrators actually use)
 node ~/.claude/get-shit-done/bin/gsd-tools.js routing full "Design database schema for users"
 
-# Model selection only
+# LLM-scored model selection with quota awareness
+node ~/.claude/get-shit-done/bin/gsd-tools.js routing match-with-quota "Add button to dashboard" --json
+
+# Model selection only (rule-based, no quota check)
 node ~/.claude/get-shit-done/bin/gsd-tools.js routing match "Add button to dashboard"
 
 # Rebuild context index after adding docs to ~/.claude/guides or .planning/codebase/
@@ -136,6 +139,11 @@ MCP server (`mcp-servers/telegram-mcp/`) that auto-loads with Claude Code. Sends
 
 **Doc Compression (Phase 9)**
 PreToolUse hook intercepts reads of GSD planning documents and injects compressed summaries (60–70% token reduction) with absolute file links. Cache invalidated on content change. Circuit breaker disables compression after 3 failures.
+
+Disabled by default. Enable in `hook-config.json`:
+```json
+{ "enabled": true, "compression": { "enabled": true } }
+```
 
 **Installation System (Phase 10)**
 Single command installs all dependencies, hooks, MCP config, and Whisper models:
@@ -258,13 +266,15 @@ Settings in `.planning/config.json`. Change via `/gsd:settings`.
 | `balanced` | Opus | Sonnet | Sonnet |
 | `budget` | Sonnet | Sonnet | Haiku |
 
-`auto` uses complexity signals (task type, file count, keywords) to route each task to the cheapest model that can handle it — Haiku for simple reads and docs, Sonnet for standard work, Opus for architecture and complex decisions. Circuit breakers and error escalation ensure quality.
+`auto` spawns a Haiku subagent (`gsd-task-router`) that reads each task description and reasons about which model tier to use — Haiku for mechanical single-step tasks, Sonnet for standard multi-step implementation, Opus for architecture and high-stakes decisions. Quota pressure downgrade: >80% usage drops Opus→Sonnet, >95% drops all to Haiku. Circuit breakers and error escalation ensure quality.
 
 ---
 
 ## Troubleshooting
 
 **Commands not found after install** — restart Claude Code, verify `~/.claude/commands/gsd/` exists.
+
+**`PreToolUse:Read hook error` on every file read** — the doc-compression hook can't find its dependencies. Run `npm install --prefix ~/.claude/get-shit-done/ markdown-it gray-matter minimatch`. This is handled automatically by `npm run install:gsd` from v1.18+.
 
 **Docker / CI** — set `CLAUDE_CONFIG_DIR=/home/user/.claude` before installing.
 
