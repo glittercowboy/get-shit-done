@@ -9,8 +9,23 @@
     "plan_check": true,
     "verifier": true
   },
+  "git": {
+    "branching_strategy": "none"
+  },
+  "adversary": {
+    "enabled": true,
+    "max_rounds": 3,
+    "checkpoints": {
+      "requirements": true,
+      "roadmap": true,
+      "plan": true,
+      "verification": true
+    }
+  },
   "co_planners": {
-    "enabled": false,
-    "timeout_ms": 120000
+    "enabled": true,
+    "timeout_ms": 120000,
+    "agents": ["codex"],
+    "checkpoints": {}
   }
 }
