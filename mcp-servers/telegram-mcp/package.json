@@ -13,6 +13,7 @@
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@ngrok/ngrok": "^1.7.0",
     "dotenv": "^16.0.0",
     "fluent-ffmpeg": "^2.1.0",
     "pino": "^9.0.0",

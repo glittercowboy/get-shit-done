@@ -374,12 +374,14 @@ Plans:
 **Plans:** 6 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Audit and cleanup: delete standalone bot, create shared types/logger/socket-path
-- [ ] 14-02-PLAN.md — Daemon core: IPC server and session service
-- [ ] 14-03-PLAN.md — Daemon bot: Telegraf with forum threads, status/questions panels, whisper
-- [ ] 14-04-PLAN.md — Question service: thread lifecycle, EventEmitter answer delivery
-- [ ] 14-05-PLAN.md — MCP adapter: thin stdio proxy with IPC client and daemon launcher
-- [ ] 14-06-PLAN.md — Integration: MCP config update, cleanup, env docs, end-to-end verification
+- [x] 14-01-PLAN.md — Audit and cleanup: delete standalone bot, create shared types/logger/socket-path
+- [x] 14-02-PLAN.md — Daemon core: IPC server and session service
+- [x] 14-03-PLAN.md — Daemon bot: Telegraf with forum threads, status/questions panels, whisper
+- [x] 14-04-PLAN.md — Question service: thread lifecycle, EventEmitter answer delivery
+- [x] 14-05-PLAN.md — MCP adapter: thin stdio proxy with IPC client and daemon launcher
+- [x] 14-06-PLAN.md — Integration: MCP config update, cleanup, env docs, end-to-end verification
+
+**Completed:** 2026-02-18 | **Status:** ✓ Verified (9/9 must-haves)
 
 ---
 *Roadmap created: 2026-02-15*

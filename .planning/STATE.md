@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 14 of 14 (Telegram MCP and Bot Audit and Rework)
-Plan: 05 of 06
-Status: In Progress
-Last activity: 2026-02-18 — Completed plan 14-05 (MCP Adapter: thin stdio adapter, IPC client, daemon launcher, 6-tool proxy)
+Plan: 06 of 06
+Status: ✓ Complete — verified 9/9 must-haves (2026-02-18)
+Last activity: 2026-02-18 — Phase 14 verified: daemon+adapter architecture, 6 MCP tools, multi-session registry, Q&A forum threads, voice transcription, env docs
 
-Progress: [████████████████████████████████████░] 97%
+Progress: [█████████████████████████████████████] 100%
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Progress: [███████████████████████
 | Phase 14 P03 | 6min | 3 tasks | 5 files |
 | Phase 14 P04 | 2min | 2 tasks | 2 files |
 | Phase 14 P05 | 2min | 2 tasks | 4 files |
+| Phase 14 P06 | 1min | 1 task (partial) | 19 files |
 
 ## Accumulated Context
 
@@ -331,6 +332,9 @@ Recent decisions affecting current work:
 - [Phase 14-05]: isDaemonRunning() uses connect+disconnect (not socket stat) to confirm daemon is actually accepting connections
 - [Phase 14-05]: Reconnect-once pattern on unexpected daemon disconnect — re-registers session; second disconnect triggers process.exit(1)
 - [Phase 14-05]: ask_blocking_question adapter unpacks { answer } response to plain string for MCP text content
+- [Phase 14-06]: Project-level .claude/.mcp.json updated autonomously; global ~/.claude/.mcp.json requires manual user update (cross-project risk)
+- [Phase 14-06]: src/index.ts kept as re-export shim to keep dist/index.js valid (package.json main field references it)
+- [Phase 14-06]: TELEGRAM_GROUP_CHAT_ID documented as Required for forum Q&A, TELEGRAM_OWNER_ID as Optional DM fallback
 
 ### Roadmap Evolution
 
@@ -352,6 +356,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18T14:15:52Z (plan execution)
-Stopped at: Completed 14-05-PLAN.md (MCP Adapter) - Phase 14 Plan 05 - adapter/ipc-client.ts, adapter/daemon-launcher.ts, adapter/index.ts created; package.json start script updated
+Last session: 2026-02-18T14:20:31Z (plan execution)
+Stopped at: Checkpoint in 14-06-PLAN.md (Integration Cutover) - Task 1 committed (e3c9311), awaiting checkpoint:human-verify (Task 2: end-to-end flow verification)
 Resume file: None
