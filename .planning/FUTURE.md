@@ -13,7 +13,7 @@
 ## D-03: Post-Execution Quality Loops
 **Statement:** Declare has post-execution quality loops — conversational UAT, systematic debugging with persistent state, milestone auditing — so issues are caught and resolved before a milestone is declared complete.
 **Status:** PENDING
-**Milestones:** 
+**Milestones:** M-08, M-09, M-10
 
 ## D-04: Web Dashboard
 **Statement:** A localhost web dashboard renders the live DAG — declarations, milestones, actions, integrity status, performance scores — browsable and interactive in a browser.
