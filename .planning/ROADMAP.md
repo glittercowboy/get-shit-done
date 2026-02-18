@@ -12,7 +12,7 @@ This roadmap transforms GSD from a phase-based development framework into an int
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [] **Phase 1: Auto Mode Foundation** - Intelligent model selection with complexity detection and cost tracking
+- [x] **Phase 1: Auto Mode Foundation** - Intelligent model selection with complexity detection and cost tracking
 - [x] **Phase 2: Auto Mode Refinement** - Circuit breakers, learning feedback loops, and error handling
 - [ ] **Phase 3: Knowledge System Foundation** - SQLite + sqlite-vec with multi-phase search, TTL lifecycle, and access tracking
 - [ ] **Phase 4: Knowledge Extraction & Hooks** - Passive capture via hooks, deduplication, memory evolution, and principle learning
