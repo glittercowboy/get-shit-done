@@ -291,9 +291,46 @@ issue:
   fix_hint: "Remove search task - belongs in future phase per user decision"
 ```
 
+## Dimension 8: Requirements Frontmatter Coverage
+
+**Question:** Does every phase requirement ID appear in at least one plan's `requirements` frontmatter field?
+
+**FAIL condition (blocking — hard FAIL, not a warning):**
+
+If any requirement ID from ROADMAP.md or REQUIREMENTS.md mapped to this phase is absent from ALL plans' `requirements` frontmatter fields, this is a FAIL. No exception.
+
+**Process:**
+1. Extract requirement IDs for this phase from REQUIREMENTS.md and ROADMAP.md
+2. For each plan, read its `requirements` frontmatter field
+3. Verify every phase requirement ID appears in at least one plan
+
+**Example issue:**
+```yaml
+issue:
+  dimension: requirements_frontmatter_coverage
+  severity: blocker
+  description: "REQ-03 (data export) is listed in phase requirements but absent from all plan frontmatter"
+  phase: "19-bug-fixes-context"
+  fix_hint: "Add REQ-03 to the requirements field of whichever plan implements data export"
+```
+
+**Why this matters:** If requirements never appear in plan frontmatter, the executor cannot mark them complete and the verifier cannot trace coverage. This breaks the requirements verification loop.
+
 </verification_dimensions>
 
 <verification_process>
+
+## Step 0: Extract Phase Requirements
+
+Before loading plans, extract requirement IDs for this phase:
+
+```bash
+# Get requirements mapped to this phase
+cat .planning/REQUIREMENTS.md 2>/dev/null | grep -A 5 "Phase ${PHASE_NUMBER}"
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE_NUMBER}" 2>/dev/null
+```
+
+Parse all REQ-IDs (e.g., REQ-01, AUTH-02, EXEC-01) associated with this phase. These must all appear in plan frontmatter.
 
 ## Step 1: Load Context
 
@@ -615,6 +652,8 @@ Plan verification complete when:
   - [ ] Locked decisions have implementing tasks
   - [ ] No tasks contradict locked decisions
   - [ ] Deferred ideas not included in plans
+- [ ] Phase requirement IDs extracted (Step 0)
+- [ ] Requirements frontmatter coverage checked (all REQ-IDs in at least one plan)
 - [ ] Overall status determined (passed | issues_found)
 - [ ] Structured issues returned (if any found)
 - [ ] Result returned to orchestrator
