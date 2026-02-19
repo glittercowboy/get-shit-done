@@ -299,6 +299,14 @@ Verified patterns from official sources:
 
 **Research date:** [date]
 **Valid until:** [estimate - 30 days for stable, 7 for fast-moving]
+
+## Phase Requirements
+
+| REQ-ID | Description | Research Findings | Confidence |
+|--------|-------------|-------------------|------------|
+| [REQ-XX] | [requirement description from ROADMAP.md] | [relevant findings from research] | HIGH/MEDIUM/LOW |
+
+**Purpose:** This table maps each requirement ID to relevant research findings, so the planner can verify research covers all requirements before creating plans.
 ```
 
 </output_format>
@@ -334,7 +342,15 @@ cat "$phase_dir"/*-CONTEXT.md 2>/dev/null
 - User decided "simple UI, no animations" → don't research animation libraries
 - Marked as Claude's discretion → research options and recommend
 
-## Step 2: Identify Research Domains
+## Step 2: Identify Research Domains and Extract Requirements
+
+Extract phase requirements first:
+```bash
+cat .planning/REQUIREMENTS.md 2>/dev/null | grep -A 3 "Phase ${PHASE_NUMBER}"
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE_NUMBER}" 2>/dev/null
+```
+
+Note all REQ-IDs — each must appear in the Phase Requirements table in RESEARCH.md.
 
 Based on phase description, identify what needs investigating:
 
