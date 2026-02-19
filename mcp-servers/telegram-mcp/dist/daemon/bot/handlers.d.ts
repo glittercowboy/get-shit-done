@@ -20,8 +20,8 @@ import type { Question } from '../../shared/types.js';
  * Named EventEmitter for cross-module handler event wiring.
  *
  * Events:
- *   'thread:text_reply'  — { threadId: number, text: string }
- *   'thread:voice_reply' — { threadId: number, text: string }
+ *   'thread:text_reply'  — { threadId: number, text: string, messageId: number }
+ *   'thread:voice_reply' — { threadId: number, text: string, messageId: number }
  *
  * Plan 04 imports this from './bot/handlers' and subscribes to route answers.
  */

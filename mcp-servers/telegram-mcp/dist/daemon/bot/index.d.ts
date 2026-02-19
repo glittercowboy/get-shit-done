@@ -45,6 +45,16 @@ export declare function stopBot(): Promise<void>;
  */
 export declare function getBot(): Telegraf<BotContext> | null;
 /**
+ * React to a message with an emoji (requires Bot API 7.0+).
+ *
+ * Used to mark a user's reply as "read" — gives immediate visual feedback
+ * without a text response cluttering the thread.
+ *
+ * @param messageId  The message_id of the message to react to
+ * @param emoji      Emoji to use as reaction (default: ✅)
+ */
+export declare function reactToMessage(messageId: number, emoji?: string): Promise<void>;
+/**
  * Send a plain message to the Telegram group chat.
  *
  * Falls back to TELEGRAM_OWNER_ID if TELEGRAM_GROUP_CHAT_ID is not set.

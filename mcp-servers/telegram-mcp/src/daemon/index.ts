@@ -27,6 +27,7 @@ import {
   createForumTopic,
   sendToThread,
   sendToGroup,
+  reactToMessage,
 } from './bot/index.js';
 import { handlerEvents } from './bot/handlers.js';
 
@@ -59,21 +60,28 @@ async function main(): Promise<void> {
 
     // ─── Wire bot events to question service ─────────────────────────────
 
-    handlerEvents.on('thread:text_reply', ({ threadId, text }: { threadId: number; text: string }) => {
+    handlerEvents.on('thread:text_reply', ({ threadId, text, messageId }: { threadId: number; text: string; messageId: number }) => {
       const delivered = questionService!.deliverAnswer(threadId, text);
       if (delivered) {
-        log.info({ threadId }, 'Text reply delivered to pending question');
+        log.info({ threadId, messageId }, 'Text reply delivered to pending question');
+        // React to confirm receipt — gives immediate visual feedback to the user
+        reactToMessage(messageId).catch((err: any) => {
+          log.warn({ messageId, err: err.message }, 'Failed to react to message (Bot API 7.0+ required)');
+        });
       } else {
-        log.debug({ threadId }, 'Text reply in thread with no pending question — ignored');
+        log.warn({ threadId, messageId }, 'Text reply in thread with no pending question — ignored (map miss or already timed out)');
       }
     });
 
-    handlerEvents.on('thread:voice_reply', ({ threadId, text }: { threadId: number; text: string }) => {
+    handlerEvents.on('thread:voice_reply', ({ threadId, text, messageId }: { threadId: number; text: string; messageId: number }) => {
       const delivered = questionService!.deliverAnswer(threadId, text);
       if (delivered) {
-        log.info({ threadId }, 'Voice reply delivered to pending question');
+        log.info({ threadId, messageId }, 'Voice reply delivered to pending question');
+        reactToMessage(messageId).catch((err: any) => {
+          log.warn({ messageId, err: err.message }, 'Failed to react to message (Bot API 7.0+ required)');
+        });
       } else {
-        log.debug({ threadId }, 'Voice reply in thread with no pending question — ignored');
+        log.warn({ threadId, messageId }, 'Voice reply in thread with no pending question — ignored (map miss or already timed out)');
       }
     });
   } else {

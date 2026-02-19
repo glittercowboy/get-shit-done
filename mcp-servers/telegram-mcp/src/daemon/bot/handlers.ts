@@ -29,8 +29,8 @@ const log = createLogger('handlers');
  * Named EventEmitter for cross-module handler event wiring.
  *
  * Events:
- *   'thread:text_reply'  — { threadId: number, text: string }
- *   'thread:voice_reply' — { threadId: number, text: string }
+ *   'thread:text_reply'  — { threadId: number, text: string, messageId: number }
+ *   'thread:voice_reply' — { threadId: number, text: string, messageId: number }
  *
  * Plan 04 imports this from './bot/handlers' and subscribes to route answers.
  */
@@ -93,8 +93,9 @@ export function setupHandlers(
     if (threadId !== undefined) {
       // Message is inside a forum thread — emit as a potential question answer
       const text = msg.text;
-      log.info({ threadId, textLength: text.length }, 'Thread text reply received');
-      handlerEvents.emit('thread:text_reply', { threadId, text });
+      const messageId = msg.message_id;
+      log.info({ threadId, messageId, textLength: text.length }, 'Thread text reply received');
+      handlerEvents.emit('thread:text_reply', { threadId, text, messageId });
     } else {
       // Top-level message — show the main menu
       const keyboard = getMainMenuKeyboard();
@@ -128,7 +129,7 @@ export function setupHandlers(
         const suffix = transcript.length > 50 ? '...' : '';
         await ctx.reply(`Transcribed: ${preview}${suffix}`);
 
-        handlerEvents.emit('thread:voice_reply', { threadId, text: transcript });
+        handlerEvents.emit('thread:voice_reply', { threadId, text: transcript, messageId: msg.message_id });
         log.info({ threadId }, 'Thread voice reply emitted');
       } catch (err: any) {
         log.error({ threadId, err: err.message }, 'Voice handler error');

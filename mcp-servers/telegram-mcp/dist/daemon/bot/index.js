@@ -207,6 +207,29 @@ export function getBot() {
 }
 // ─── Messaging helpers ─────────────────────────────────────────────────────────
 /**
+ * React to a message with an emoji (requires Bot API 7.0+).
+ *
+ * Used to mark a user's reply as "read" — gives immediate visual feedback
+ * without a text response cluttering the thread.
+ *
+ * @param messageId  The message_id of the message to react to
+ * @param emoji      Emoji to use as reaction (default: ✅)
+ */
+export async function reactToMessage(messageId, emoji = '✅') {
+    if (!bot) {
+        throw new Error('Bot not initialized. Call startBot() first.');
+    }
+    const chatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+    if (!chatId) {
+        throw new Error('TELEGRAM_GROUP_CHAT_ID is not set — cannot react to messages');
+    }
+    // setMessageReaction requires Bot API 7.0+ — use `as any` since older Telegraf
+    // type definitions may not include it yet.
+    await bot.telegram.setMessageReaction(chatId, messageId, [
+        { type: 'emoji', emoji },
+    ]);
+}
+/**
  * Send a plain message to the Telegram group chat.
  *
  * Falls back to TELEGRAM_OWNER_ID if TELEGRAM_GROUP_CHAT_ID is not set.

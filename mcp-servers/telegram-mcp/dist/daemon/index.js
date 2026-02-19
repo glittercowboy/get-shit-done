@@ -18,7 +18,7 @@ import { SessionService } from './session-service.js';
 import { QuestionService } from './question-service.js';
 import { getSocketPath } from '../shared/socket-path.js';
 import { createLogger } from '../shared/logger.js';
-import { initializeBot, startBot, stopBot, createForumTopic, sendToThread, sendToGroup, } from './bot/index.js';
+import { initializeBot, startBot, stopBot, createForumTopic, sendToThread, sendToGroup, reactToMessage, } from './bot/index.js';
 import { handlerEvents } from './bot/handlers.js';
 const log = createLogger('daemon/index');
 async function main() {
@@ -36,22 +36,29 @@ async function main() {
         // Start bot — pass real getQuestions callback from question service
         await startBot(sessionService, () => questionService.getPendingQuestions());
         // ─── Wire bot events to question service ─────────────────────────────
-        handlerEvents.on('thread:text_reply', ({ threadId, text }) => {
+        handlerEvents.on('thread:text_reply', ({ threadId, text, messageId }) => {
             const delivered = questionService.deliverAnswer(threadId, text);
             if (delivered) {
-                log.info({ threadId }, 'Text reply delivered to pending question');
+                log.info({ threadId, messageId }, 'Text reply delivered to pending question');
+                // React to confirm receipt — gives immediate visual feedback to the user
+                reactToMessage(messageId).catch((err) => {
+                    log.warn({ messageId, err: err.message }, 'Failed to react to message (Bot API 7.0+ required)');
+                });
             }
             else {
-                log.debug({ threadId }, 'Text reply in thread with no pending question — ignored');
+                log.warn({ threadId, messageId }, 'Text reply in thread with no pending question — ignored (map miss or already timed out)');
             }
         });
-        handlerEvents.on('thread:voice_reply', ({ threadId, text }) => {
+        handlerEvents.on('thread:voice_reply', ({ threadId, text, messageId }) => {
             const delivered = questionService.deliverAnswer(threadId, text);
             if (delivered) {
-                log.info({ threadId }, 'Voice reply delivered to pending question');
+                log.info({ threadId, messageId }, 'Voice reply delivered to pending question');
+                reactToMessage(messageId).catch((err) => {
+                    log.warn({ messageId, err: err.message }, 'Failed to react to message (Bot API 7.0+ required)');
+                });
             }
             else {
-                log.debug({ threadId }, 'Voice reply in thread with no pending question — ignored');
+                log.warn({ threadId, messageId }, 'Voice reply in thread with no pending question — ignored (map miss or already timed out)');
             }
         });
     }
