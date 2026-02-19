@@ -346,6 +346,8 @@ depends_on: []              # Plan IDs this plan requires
 files_modified: []          # Files this plan touches
 autonomous: true            # false if plan has checkpoints
 user_setup: []              # Human-required setup (omit if empty)
+requirements: []            # REQUIRED — MUST NOT be empty if ROADMAP.md lists requirements for this phase.
+                            # Copy all REQ-IDs that this plan addresses from ROADMAP/REQUIREMENTS.md.
 
 must_haves:
   truths: []                # Observable behaviors
@@ -411,6 +413,7 @@ After completion, create `.planning/phases/XX-name/{phase}-{plan}-SUMMARY.md`
 | `files_modified` | Yes | Files this plan touches |
 | `autonomous` | Yes | `true` if no checkpoints |
 | `user_setup` | No | Human-required setup items |
+| `requirements` | Yes | REQUIRED — Requirement IDs this plan addresses. MUST NOT be empty if phase has requirements. |
 | `must_haves` | Yes | Goal-backward verification criteria |
 
 Wave numbers are pre-computed during planning. Execute-phase reads `wave` directly from frontmatter.
@@ -829,6 +832,22 @@ node ~/.claude/get-shit-done/bin/gsd-tools.js commit "fix($PHASE): revise plans 
 
 <execution_flow>
 
+<step name="extract_requirement_ids" priority="zero">
+Before any other step, extract requirement IDs mapped to this phase from ROADMAP.md and REQUIREMENTS.md.
+
+```bash
+# Get phase requirements from REQUIREMENTS.md (if it exists)
+cat .planning/REQUIREMENTS.md 2>/dev/null | grep -A 3 "Phase ${PHASE_NUMBER}"
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE_NUMBER}" --raw 2>/dev/null
+```
+
+Parse requirement IDs (REQ-XX format or project-specific IDs like AUTH-01, DASH-02) associated with this phase.
+
+**CRITICAL:** Every plan that addresses a requirement MUST include it in the plan's `requirements:` frontmatter field. If a requirement maps to multiple plans, include it in each plan that implements part of it.
+
+If REQUIREMENTS.md does not exist or phase has no requirements: set `requirements: []` in all plans.
+</step>
+
 <step name="load_project_state" priority="first">
 Load planning context:
 
@@ -1013,7 +1032,9 @@ Returns JSON: `{ valid, missing, present, schema }`
 **If `valid=false`:** Fix missing required fields before proceeding.
 
 Required plan frontmatter fields:
-- `phase`, `plan`, `type`, `wave`, `depends_on`, `files_modified`, `autonomous`, `must_haves`
+- `phase`, `plan`, `type`, `wave`, `depends_on`, `files_modified`, `autonomous`, `requirements`, `must_haves`
+
+**Requirements coverage check:** If phase has REQ-IDs (from Step 0), verify every REQ-ID appears in at least one plan's `requirements` field. Missing coverage is a planning error — add the REQ-ID to the appropriate plan before committing.
 
 Also validate plan structure:
 
