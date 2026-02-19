@@ -18,7 +18,7 @@ Load all context in one call:
 ```bash
 # Use temp file to avoid bash command substitution buffer limits
 INIT_FILE="/tmp/gsd-init-$$.json"
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE_ARG}" > "$INIT_FILE"
+node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE_ARG}" > "$INIT_FILE"
 ```
 
 Parse JSON for: `executor_model`, `verifier_model`, `commit_docs`, `parallelization`, `branching_strategy`, `branch_name`, `phase_found`, `phase_dir`, `phase_number`, `phase_name`, `phase_slug`, `plans`, `incomplete_plans`, `plan_count`, `incomplete_count`, `state_exists`, `roadmap_exists`.
@@ -71,7 +71,7 @@ Report: "Found {plan_count} plans in {phase_dir} ({incomplete_count} incomplete)
 Load plan inventory with wave grouping in one call:
 
 ```bash
-PLAN_INDEX=$(node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js phase-plan-index "${PHASE_NUMBER}")
+PLAN_INDEX=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phase-plan-index "${PHASE_NUMBER}")
 ```
 
 Parse JSON for: `phase`, `plans[]` (each with `id`, `wave`, `autonomous`, `objective`, `files_modified`, `task_count`, `has_summary`), `waves` (map of wave number → plan IDs), `incomplete`, `has_checkpoints`.
@@ -148,6 +148,8 @@ Execute each wave in sequence. Within a wave: parallel if `PARALLELIZATION=true`
        - [ ] Each task committed individually
        - [ ] SUMMARY.md created in plan directory
        - [ ] STATE.md updated with position and decisions
+       - [ ] Requirements marked complete in REQUIREMENTS.md (if plan has requirements)
+       - [ ] ROADMAP.md progress updated
        </success_criteria>
      "
    )
@@ -221,6 +223,12 @@ Plans with `autonomous: false` require user interaction.
 **Why fresh agent, not resume:** Resume relies on internal serialization that breaks with parallel tool calls. Fresh agents with explicit state are more reliable.
 
 **Checkpoints in parallel waves:** Agent pauses and returns while other parallel agents may complete. Present checkpoint, spawn continuation, wait for all before next wave.
+
+**Auto-mode checkpoint handling:**
+If `config.workflow.auto_advance` is true:
+- `checkpoint:human-verify` → auto-approve, log and continue
+- `checkpoint:decision` → auto-select first option, log and continue
+- `checkpoint:human-action` → always stop, present to user even in auto mode
 </step>
 
 <step name="aggregate_results">
@@ -249,12 +257,23 @@ After all waves:
 <step name="verify_phase_goal">
 Verify phase achieved its GOAL, not just completed tasks.
 
+First, extract phase requirement IDs to pass to the verifier:
+```bash
+# Get requirement IDs for this phase from ROADMAP.md
+PHASE_REQS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap get-phase "${PHASE_NUMBER}" 2>/dev/null)
+# Also aggregate from plan frontmatter (most reliable source)
+for plan in "${PHASE_DIR}"/*-PLAN.md; do
+  node ~/.claude/get-shit-done/bin/gsd-tools.js frontmatter get "$plan" --field requirements 2>/dev/null
+done
+```
+
 ```
 Task(
   prompt="Verify phase {phase_number} goal achievement.
 Phase directory: {phase_dir}
 Phase goal: {goal from ROADMAP.md}
-Check must_haves against actual codebase. Create VERIFICATION.md.",
+Phase requirement IDs: {comma-separated list of REQ-IDs from plan frontmatter requirements fields, or 'none' if empty}
+Check must_haves and requirements coverage against actual codebase. Create VERIFICATION.md.",
   subagent_type="gsd-verifier",
   model="{verifier_model}"
 )
@@ -310,7 +329,7 @@ Gap closure cycle: `/gsd:plan-phase {X} --gaps` reads VERIFICATION.md → create
 Mark phase complete in ROADMAP.md (date, status).
 
 ```bash
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/phases/{phase_dir}/*-VERIFICATION.md .planning/REQUIREMENTS.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs(phase-{X}): complete phase execution" --files .planning/ROADMAP.md .planning/STATE.md .planning/phases/{phase_dir}/*-VERIFICATION.md .planning/REQUIREMENTS.md
 ```
 </step>
 
