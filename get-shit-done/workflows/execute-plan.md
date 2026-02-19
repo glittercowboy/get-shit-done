@@ -17,7 +17,7 @@ Load execution context (uses `init execute-phase` for full context, including fi
 ```bash
 # Use temp file to avoid bash command substitution buffer limits
 INIT_FILE="/tmp/gsd-init-$$.json"
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE}" --include state,config > "$INIT_FILE"
+node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE}" --include state,config > "$INIT_FILE"
 ```
 
 Extract from init JSON: `executor_model`, `commit_docs`, `phase_dir`, `phase_number`, `plans`, `summaries`, `incomplete_plans`.
@@ -375,6 +375,8 @@ Create `{phase}-{plan}-SUMMARY.md` at `.planning/phases/XX-name/`. Use `/Users/o
 
 **Frontmatter:** phase, plan, subsystem, tags | requires/provides/affects | tech-stack.added/patterns | key-files.created/modified | key-decisions | duration ($DURATION), completed ($PLAN_END_TIME date).
 
+**requirements-completed:** REQUIRED — Copy ALL requirement IDs verbatim from this plan's `requirements` frontmatter field. Do NOT leave empty if plan has requirements.
+
 Title: `# Phase [X] Plan [Y]: [Name] Summary`
 
 One-liner SUBSTANTIVE: "JWT auth with refresh rotation using jose library" not "Authentication implemented"
@@ -389,13 +391,13 @@ Update STATE.md using gsd-tools:
 
 ```bash
 # Advance plan counter (handles last-plan edge case)
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state advance-plan
+node ~/.claude/get-shit-done/bin/gsd-tools.js state advance-plan
 
 # Recalculate progress bar from disk state
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state update-progress
+node ~/.claude/get-shit-done/bin/gsd-tools.js state update-progress
 
 # Record execution metrics
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state record-metric \
+node ~/.claude/get-shit-done/bin/gsd-tools.js state record-metric \
   --phase "${PHASE}" --plan "${PLAN}" --duration "${DURATION}" \
   --tasks "${TASK_COUNT}" --files "${FILE_COUNT}"
 ```
@@ -406,11 +408,11 @@ From SUMMARY: Extract decisions and add to STATE.md:
 
 ```bash
 # Add each decision from SUMMARY key-decisions
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state add-decision \
+node ~/.claude/get-shit-done/bin/gsd-tools.js state add-decision \
   --phase "${PHASE}" --summary "${DECISION_TEXT}" --rationale "${RATIONALE}"
 
 # Add blockers if any found
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state add-blocker "Blocker description"
+node ~/.claude/get-shit-done/bin/gsd-tools.js state add-blocker "Blocker description"
 ```
 </step>
 
@@ -418,12 +420,32 @@ node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state add-blocker "Bl
 Update session info using gsd-tools:
 
 ```bash
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js state record-session \
+node ~/.claude/get-shit-done/bin/gsd-tools.js state record-session \
   --stopped-at "Completed ${PHASE}-${PLAN}-PLAN.md" \
   --resume-file "None"
 ```
 
 Keep STATE.md under 150 lines.
+</step>
+
+<step name="update_requirements">
+Mark plan requirements complete in REQUIREMENTS.md and update ROADMAP.md progress:
+
+```bash
+# Extract requirements from plan frontmatter
+PLAN_PATH=".planning/phases/XX-name/{phase}-{plan}-PLAN.md"
+PLAN_REQS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js frontmatter get "${PLAN_PATH}" --field requirements 2>/dev/null)
+
+# Mark them complete if present and non-empty
+if [ -n "${PLAN_REQS}" ] && [ "${PLAN_REQS}" != "[]" ] && [ "${PLAN_REQS}" != "null" ]; then
+  node ~/.claude/get-shit-done/bin/gsd-tools.js requirements mark-complete "${PLAN_REQS}"
+fi
+
+# Update ROADMAP.md progress row for this phase
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap update-plan-progress "${PHASE_NUMBER}"
+```
+
+If REQUIREMENTS.md does not exist or requirements not found, log and continue — do not fail.
 </step>
 
 <step name="issues_review_gate">
@@ -435,10 +457,10 @@ More plans → update plan count, keep "In progress". Last plan → mark phase "
 </step>
 
 <step name="git_commit_metadata">
-Task code already committed per-task. Commit plan metadata:
+Task code already committed per-task. Commit plan metadata including ROADMAP.md and REQUIREMENTS.md (updated by update_requirements step):
 
 ```bash
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
 </step>
 
@@ -453,7 +475,7 @@ git diff --name-only ${FIRST_TASK}^..HEAD 2>/dev/null
 Update only structural changes: new src/ dir → STRUCTURE.md | deps → STACK.md | file pattern → CONVENTIONS.md | API client → INTEGRATIONS.md | config → STACK.md | renamed → update paths. Skip code-only/bugfix/content changes.
 
 ```bash
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "" --files .planning/codebase/*.md --amend
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "" --files .planning/codebase/*.md --amend
 ```
 </step>
 
@@ -483,7 +505,8 @@ All routes: `/clear` first for fresh context.
 - USER-SETUP.md generated if user_setup in frontmatter
 - SUMMARY.md created with substantive content
 - STATE.md updated (position, decisions, issues, session)
-- ROADMAP.md updated
+- Requirements marked complete in REQUIREMENTS.md (if plan has requirements)
+- ROADMAP.md updated (progress row updated by update_requirements step)
 - If codebase map exists: map updated with execution changes (or skipped if no significant changes)
 - If USER-SETUP.md created: prominently surfaced in completion output
 </success_criteria>
