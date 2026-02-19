@@ -13,6 +13,41 @@ Spawned by `/gsd:execute-phase` orchestrator.
 Your job: Execute the plan completely, commit each task, create SUMMARY.md, update STATE.md.
 </role>
 
+<scope_boundary>
+
+**CRITICAL: Only fix what you break.**
+
+When executing tasks you will discover issues in the codebase. Apply this rule:
+
+- **In scope:** Issues directly caused by changes in the current task
+- **Out of scope:** Pre-existing issues unrelated to current task's changes
+
+**If you find an out-of-scope issue:**
+1. Log it to `deferred-items.md` in the phase directory: `- [DEFERRED] {description} — found during task {N}`
+2. Do NOT fix it
+3. Continue with the current task
+
+**Fix attempt limit:** If a fix doesn't work after 2 attempts, stop trying that approach. Either log to `deferred-items.md` or escalate via Rule 4 (architectural decision needed). This prevents infinite fix loops.
+
+</scope_boundary>
+
+<auto_mode_detection>
+
+Detect whether auto mode is active:
+
+```bash
+AUTO_ADVANCE=$(node ~/.claude/get-shit-done/bin/gsd-tools.js config get workflow.auto_advance 2>/dev/null || echo "false")
+```
+
+**Auto mode behavior for checkpoints:**
+- `checkpoint:human-verify` → Auto-approve if `AUTO_ADVANCE=true`. Log: "Auto-approved: [checkpoint name]"
+- `checkpoint:decision` → Auto-select first option if `AUTO_ADVANCE=true`. Log: "Auto-selected: [option]"
+- `checkpoint:human-action` → **ALWAYS STOP** — even in auto mode. These require physical user action.
+
+**When auto mode is NOT active:** Normal checkpoint behavior (pause and return structured message).
+
+</auto_mode_detection>
+
 <execution_flow>
 
 <step name="load_project_state" priority="first">
@@ -36,9 +71,14 @@ If .planning/ missing: Error — project not initialized.
 <step name="load_plan">
 Read the plan file provided in your prompt context.
 
-Parse: frontmatter (phase, plan, type, autonomous, wave, depends_on), objective, context (@-references), tasks with types, verification/success criteria, output spec.
+Parse: frontmatter (phase, plan, type, autonomous, wave, depends_on, requirements), objective, context (@-references), tasks with types, verification/success criteria, output spec.
 
 **If plan references CONTEXT.md:** Honor user's vision throughout execution.
+
+**Extract requirements IDs from frontmatter** for use in the `update_requirements` step:
+```bash
+REQUIREMENTS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js frontmatter get {plan_path} --field requirements 2>/dev/null || echo "[]")
+```
 </step>
 
 <step name="record_start_time">
@@ -72,7 +112,10 @@ For each task:
    - Track completion + commit hash for Summary
 
 2. **If `type="checkpoint:*"`:**
-   - STOP immediately — return structured checkpoint message
+   - Check auto mode detection (see auto_mode_detection)
+   - If auto mode active and type is `human-verify` or `decision`: auto-approve/select first option
+   - If auto mode active and type is `human-action`: STOP — return structured checkpoint message
+   - If auto mode not active: STOP immediately — return structured checkpoint message
    - A fresh agent will be spawned to continue
 
 3. After all tasks: run overall verification, confirm success criteria, document deviations
@@ -167,7 +210,7 @@ For full automation-first patterns, server lifecycle, CLI handling:
 
 ---
 
-When encountering `type="checkpoint:*"`: **STOP immediately.** Return structured checkpoint message using checkpoint_return_format.
+When encountering `type="checkpoint:*"`: Check auto mode first (see auto_mode_detection). If not auto-approving, **STOP immediately.** Return structured checkpoint message using checkpoint_return_format.
 
 **checkpoint:human-verify (90%)** — Visual/functional verification after automation.
 Provide: what was built, exact verification steps (URLs, commands, expected behavior).
@@ -269,6 +312,8 @@ git commit -m "{type}({phase}-{plan}): {concise task description}
 ```
 
 **5. Record hash:** `TASK_COMMIT=$(git rev-parse --short HEAD)` — track for SUMMARY.
+
+**ALWAYS use Write tool** for file creation — never use `Bash(cat << 'EOF')` heredoc patterns for file creation.
 </task_commit_protocol>
 
 <summary_creation>
@@ -277,6 +322,8 @@ After all tasks complete, create `{phase}-{plan}-SUMMARY.md` at `.planning/phase
 **Use template:** @~/.claude/get-shit-done/templates/summary.md
 
 **Frontmatter:** phase, plan, subsystem, tags, dependency graph (requires/provides/affects), tech-stack (added/patterns), key-files (created/modified), decisions, metrics (duration, completed date).
+
+**requirements-completed:** REQUIRED — Copy ALL requirement IDs from this plan's `requirements` frontmatter field. If plan has no requirements, write `[]`.
 
 **Title:** `# Phase [X] Plan [Y]: [Name] Summary`
 
@@ -363,10 +410,31 @@ node ~/.claude/get-shit-done/bin/gsd-tools.js state add-blocker "Blocker descrip
 ```
 </state_updates>
 
+<update_requirements>
+After state updates, mark plan requirements as complete in REQUIREMENTS.md:
+
+```bash
+# Extract requirements from PLAN.md frontmatter
+PLAN_REQS=$(node ~/.claude/get-shit-done/bin/gsd-tools.js frontmatter get "${PLAN_PATH}" --field requirements 2>/dev/null)
+
+# If requirements exist and are non-empty, mark them complete
+if [ -n "$PLAN_REQS" ] && [ "$PLAN_REQS" != "[]" ] && [ "$PLAN_REQS" != "null" ]; then
+  node ~/.claude/get-shit-done/bin/gsd-tools.js requirements mark-complete "${PLAN_REQS}"
+fi
+
+# Also update ROADMAP.md progress row for this phase
+node ~/.claude/get-shit-done/bin/gsd-tools.js roadmap update-plan-progress "${PHASE_NUMBER}"
+```
+
+If REQUIREMENTS.md doesn't exist or requirement not found, log and continue — do not fail.
+</update_requirements>
+
 <final_commit>
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs({phase}-{plan}): complete [plan-name] plan" --files .planning/phases/XX-name/{phase}-{plan}-SUMMARY.md .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md
 ```
+
+Include ROADMAP.md and REQUIREMENTS.md in the final commit — they are updated by the `update_requirements` step above. If either file doesn't exist, the commit tool will skip it gracefully.
 
 Separate from per-task commits — captures execution results only.
 </final_commit>
@@ -398,6 +466,8 @@ Plan execution complete when:
 - [ ] Authentication gates handled and documented
 - [ ] SUMMARY.md created with substantive content
 - [ ] STATE.md updated (position, decisions, issues, session)
-- [ ] Final metadata commit made
+- [ ] Requirements marked complete in REQUIREMENTS.md (if plan has requirements)
+- [ ] ROADMAP.md progress updated
+- [ ] Final metadata commit made (includes SUMMARY.md, STATE.md, ROADMAP.md, REQUIREMENTS.md)
 - [ ] Completion format returned to orchestrator
 </success_criteria>
