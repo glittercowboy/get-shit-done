@@ -161,6 +161,7 @@ Task(
   @/Users/ollorin/.claude/get-shit-done/workflows/execute-phase-lifecycle.md
 
   Create checkpoint after each step.
+  telegram_topic_id: {telegram_topic_id}
   Return structured completion state as JSON."
 )
 ```

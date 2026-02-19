@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Claude learns to make autonomous decisions based on user's reasoning patterns, only stopping for irreversible/external/costly actions
-**Current focus:** v1.10.0 — Telegram Notifications (Phase 24 in progress)
+**Current focus:** v1.10.0 — Telegram Notifications (Phase 24 complete)
 
 ## Current Position
 
 Phase: 24 of 25 (Telegram Notifications) — complete
-Plan: 3 of 3 (complete)
-Status: Plan 24-03 complete — telegram_topic_id accepted in phase coordinator and wired into Task() spawn call in execute-roadmap
-Last activity: 2026-02-19 — Plan 24-03 complete (telegram_topic_id propagation from execute-roadmap parent to gsd-phase-coordinator)
+Plan: 4 of 4 (complete)
+Status: Plan 24-04 complete — six phase lifecycle notification events and JSONL logging woven into gsd-phase-coordinator.md
+Last activity: 2026-02-19 — Plan 24-04 complete (phase lifecycle notifications: phase_start, context_ready, research_done, plans_ready, phase_complete, phase_failed)
 
-Progress: [█████████████░░░░░░░] 60% (v1.10.0)
+Progress: [██████████████░░░░░░] 65% (v1.10.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 99 (v1.9.0: 85, v1.9.1: 5, v1.10.0: 9)
+- Total plans completed: 100 (v1.9.0: 85, v1.9.1: 5, v1.10.0: 10)
 - Average duration: 3.0 min
-- Total execution time: ~4.7 hours
+- Total execution time: ~4.8 hours
 
 **By Phase (recent):**
 
@@ -33,7 +33,7 @@ Progress: [█████████████░░░░░░░] 60% (v1
 | 21    | 3/3   | 10 min  | 3.3 min  |
 | 22    | 4/4   | 13 min  | 3.25 min  |
 | 23    | 2/2   | 6 min   | 3.0 min   |
-| 24    | 3/3   | 7 min   | 2.3 min   |
+| 24    | 4/4   | 15 min  | 3.75 min  |
 
 **Recent Trend:**
 - Last 5 plans: 4, 4, 2, 2, 4 min
@@ -90,6 +90,12 @@ Recent decisions affecting current work:
 - [Phase 24-03]: update_session_status calls intentionally excluded from thread_id wiring — daemon-level bookkeeping, no thread_id field on that tool
 - [Phase 24-03]: ask_blocking_question left unchanged — creates its own reply thread, not a forum notification
 - [Phase 24-03]: Parent spawn convention is prompt string injection: "telegram_topic_id: {value}" or "telegram_topic_id: null"
+- [Phase 24-04]: Phase start notification fires before discuss step check — captures every phase entry even if CONTEXT.md already exists
+- [Phase 24-04]: context_ready fires on both CONTEXT.md skip path (distinct message) and run path (with counts)
+- [Phase 24-04]: research_done and plans_ready notifications only fire for 'complete' status — skip paths are silent (no noise)
+- [Phase 24-04]: phase_complete includes duration_minutes calculated from phase start timestamp — key UX metric
+- [Phase 24-04]: phase_failed fires for all failed/blocked outcomes with retry/skip/stop options — actionable recovery prompt
+- [Phase 24-04]: Coordinator failure notification coexists with execute-roadmap failure notification — different scopes (phase-level vs roadmap-level)
 
 ### Pending Todos
 
@@ -101,11 +107,12 @@ None.
 
 ### Next Steps
 
-- Phase 24 complete — all 3 plans (create_topic MCP tool, execute-roadmap notifications, phase coordinator thread_id propagation) done
+- Phase 24 complete — all 4 plans done (create_topic MCP tool, execute-roadmap notifications, phase coordinator thread_id propagation, phase lifecycle notifications)
+- v1.10.0 Telegram Notifications milestone feature is complete end-to-end
 - Proceed to Phase 25 if it exists, or complete milestone v1.10.0
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 24-03-PLAN.md — telegram_topic_id propagation from execute-roadmap to gsd-phase-coordinator
+Stopped at: Completed 24-04-PLAN.md — six phase lifecycle notification events and JSONL logging in phase coordinator
 Resume file: None
