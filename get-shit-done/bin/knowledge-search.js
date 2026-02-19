@@ -45,9 +45,10 @@ function sanitizeFTSQuery(query) {
  * @param {number} options.limit - Maximum results (default: 20)
  * @param {string} options.scope - Filter by scope ('global' or 'project')
  * @param {string[]} options.types - Filter by types
+ * @param {string} options.project_slug - Filter by project slug
  * @returns {object[]} Array of results with bm25_score and fts_rank
  */
-function ftsSearch(db, query, { limit = 20, scope = null, types = null } = {}) {
+function ftsSearch(db, query, { limit = 20, scope = null, types = null, project_slug = null } = {}) {
   if (!query || query.trim().length === 0) {
     return []
   }
@@ -68,6 +69,7 @@ function ftsSearch(db, query, { limit = 20, scope = null, types = null } = {}) {
       k.access_count,
       k.created_at,
       k.metadata,
+      k.project_slug,
       bm25(knowledge_fts) as bm25_score
     FROM knowledge_fts
     JOIN knowledge k ON knowledge_fts.rowid = k.id
@@ -84,6 +86,11 @@ function ftsSearch(db, query, { limit = 20, scope = null, types = null } = {}) {
   if (types && types.length > 0) {
     sql += ` AND k.type IN (${types.map(() => '?').join(',')})`
     params.push(...types)
+  }
+
+  if (project_slug) {
+    sql += ' AND k.project_slug = ?'
+    params.push(project_slug)
   }
 
   // Exclude expired entries
@@ -130,9 +137,10 @@ function normalizeEmbedding(embedding) {
  * @param {number} options.limit - Maximum results (default: 20)
  * @param {string} options.scope - Filter by scope ('global' or 'project')
  * @param {string[]} options.types - Filter by types
+ * @param {string} options.project_slug - Filter by project slug
  * @returns {object[]} Array of results with vec_distance and vec_rank
  */
-function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null } = {}) {
+function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null, project_slug = null } = {}) {
   if (!conn.vectorEnabled) {
     return [] // Gracefully degrade if sqlite-vec not available
   }
@@ -151,7 +159,7 @@ function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null 
   const now = Date.now()
 
   // Simple case: no filters, just use vec0 k parameter
-  if (!scope && (!types || types.length === 0)) {
+  if (!scope && (!types || types.length === 0) && !project_slug) {
     const sql = `
       SELECT
         k.id,
@@ -161,6 +169,7 @@ function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null 
         k.access_count,
         k.created_at,
         k.metadata,
+        k.project_slug,
         distance as vec_distance
       FROM knowledge_vec
       JOIN knowledge k ON knowledge_vec.rowid = k.id
@@ -194,6 +203,7 @@ function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null 
       k.access_count,
       k.created_at,
       k.metadata,
+      k.project_slug,
       distance as vec_distance
     FROM knowledge_vec
     JOIN knowledge k ON knowledge_vec.rowid = k.id
@@ -210,6 +220,11 @@ function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null 
   if (types && types.length > 0) {
     sql += ` AND k.type IN (${types.map(() => '?').join(',')})`
     params.push(...types)
+  }
+
+  if (project_slug) {
+    sql += ' AND k.project_slug = ?'
+    params.push(project_slug)
   }
 
   // Exclude expired entries
@@ -246,6 +261,7 @@ function vectorSearch(conn, embedding, { limit = 20, scope = null, types = null 
  * @param {string} options.scope - Filter by scope ('global' or 'project')
  * @param {string[]} options.types - Filter by types
  * @param {number} options.k - RRF constant (default: 60)
+ * @param {string} options.project_slug - Filter by project slug
  * @returns {object[]} Array of results with final_score, rrf_score, type_weight, access_boost
  */
 function hybridSearch(conn, {
@@ -254,13 +270,14 @@ function hybridSearch(conn, {
   limit = 10,
   scope = null,
   types = null,
-  k = 60
+  k = 60,
+  project_slug = null
 } = {}) {
   const candidateLimit = limit * 3 // Fetch more candidates for fusion
 
   // Phase 1: Gather candidates from both sources
-  const ftsResults = query ? ftsSearch(conn.db, query, { limit: candidateLimit, scope, types }) : []
-  const vecResults = embedding ? vectorSearch(conn, embedding, { limit: candidateLimit, scope, types }) : []
+  const ftsResults = query ? ftsSearch(conn.db, query, { limit: candidateLimit, scope, types, project_slug }) : []
+  const vecResults = embedding ? vectorSearch(conn, embedding, { limit: candidateLimit, scope, types, project_slug }) : []
 
   // Phase 2: Build RRF score map
   const scoreMap = new Map()
@@ -274,6 +291,7 @@ function hybridSearch(conn, {
       access_count: row.access_count,
       created_at: row.created_at,
       metadata: row.metadata,
+      project_slug: row.project_slug,
       rrf_score: 1 / (k + row.fts_rank),
       sources: ['fts']
     })
@@ -295,6 +313,7 @@ function hybridSearch(conn, {
         access_count: row.access_count,
         created_at: row.created_at,
         metadata: row.metadata,
+        project_slug: row.project_slug,
         rrf_score: rrfScore,
         sources: ['vec']
       })
@@ -328,6 +347,7 @@ function hybridSearch(conn, {
  * @param {number} options.limit - Maximum results (default: 10)
  * @param {string} options.scope - Filter by scope ('global' or 'project')
  * @param {string[]} options.types - Filter by types
+ * @param {string} options.project_slug - Filter by project slug
  * @returns {object[]} Array of results with scoring metadata
  */
 function searchKnowledge(conn, query, options = {}) {
@@ -339,7 +359,8 @@ function searchKnowledge(conn, query, options = {}) {
     embedding: options.embedding || null,
     limit: options.limit || 10,
     scope: options.scope || null,
-    types: options.types || null
+    types: options.types || null,
+    project_slug: options.project_slug || null
   })
 }
 

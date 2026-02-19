@@ -67,6 +67,7 @@ function normalizeEmbedding(embedding) {
  * @param {string} [params.ttlCategory] - TTL category (defaults to type-based value)
  * @param {Float32Array|Array} [params.embedding] - Optional embedding vector
  * @param {object} [params.metadata] - Optional metadata object
+ * @param {string} [params.project_slug] - Project slug for cross-project filtering
  * @returns {{ id: number, content_hash: string }}
  */
 function insertKnowledge(db, {
@@ -75,7 +76,8 @@ function insertKnowledge(db, {
   scope,
   ttlCategory = null,
   embedding = null,
-  metadata = {}
+  metadata = {},
+  project_slug = null
 }) {
   // 1. Compute content hash (SHA-256)
   const hash = crypto.createHash('sha256').update(content).digest('hex')
@@ -90,13 +92,13 @@ function insertKnowledge(db, {
 
   // 4. Prepare insert statement
   const stmt = db.prepare(`
-    INSERT INTO knowledge (content, type, scope, created_at, expires_at, access_count, last_accessed, content_hash, metadata)
-    VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+    INSERT INTO knowledge (content, type, scope, created_at, expires_at, access_count, last_accessed, content_hash, metadata, project_slug)
+    VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
   `)
 
   // 5. Execute transaction
   const result = db.transaction(() => {
-    const info = stmt.run(content, type, scope, now, expiresAt, now, hash, JSON.stringify(metadata))
+    const info = stmt.run(content, type, scope, now, expiresAt, now, hash, JSON.stringify(metadata), project_slug)
     const id = info.lastInsertRowid
 
     // 6. Insert embedding if provided (FTS5 handled by trigger)
