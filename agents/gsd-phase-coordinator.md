@@ -109,8 +109,6 @@ questions = [
 
 Store the full `questions` array in a variable for the meta-answerer invocation step.
 
-{META_ANSWERER_SPAWN: Plan 22-04 inserts meta-answerer invocation here}
-
 **Create checkpoint after question generation:**
 ```json
 {
@@ -123,7 +121,138 @@ Store the full `questions` array in a variable for the meta-answerer invocation 
 }
 ```
 
-Note: The "complete" checkpoint (with `context_file` populated) is created by Plan 22-04 after CONTEXT.md is written.
+**Spawn meta-answerer to answer questions:**
+
+```
+Task(
+  subagent_type="gsd-meta-answerer",
+  model="sonnet",
+  prompt="
+    <phase_context>
+    Phase: {phase_number}
+    Goal: {phase_goal}
+    Requirements: {requirements_list}
+    </phase_context>
+
+    <questions>
+    {questions_json_array}
+    </questions>
+  "
+)
+```
+
+Parse the returned JSON response from the Task() call — the `answers` array and `stats` object per the gsd-meta-answerer output format.
+
+**Answer evaluation logic:**
+
+Confidence threshold: `0.7` — answers at or above 0.7 are marked `sufficient`; below 0.7 are marked `needs-escalation`.
+
+For each answer in the answers array:
+- If `answer.confidence >= 0.7` AND NOT `answer.no_results`: mark as `sufficient`
+- If `answer.confidence < 0.7` OR `answer.no_results`: mark as `needs-escalation`
+- If `answer.error` is present: mark as `needs-escalation`
+
+Group results:
+```
+sufficient_answers = answers where evaluation == "sufficient"
+escalation_needed = answers where evaluation == "needs-escalation"
+```
+
+{ESCALATION: Phase 23 replaces this block — for now, log needs-escalation items but do not block}
+
+Log needs-escalation items to the checkpoint:
+```json
+{
+  "phase": {N},
+  "step": "discuss",
+  "status": "answers_evaluated",
+  "sufficient_count": N,
+  "escalation_count": N,
+  "avg_confidence": "X.XX",
+  "timestamp": "..."
+}
+```
+
+**Write CONTEXT.md from sufficient answers:**
+
+1. Create or find phase directory (already available from init):
+```bash
+mkdir -p ".planning/phases/{phase_dir}"
+```
+
+2. Write CONTEXT.md at `.planning/phases/{phase_dir}/{padded_phase}-CONTEXT.md` using this template structure:
+
+```markdown
+# Phase {N}: {phase_name} - Context
+
+**Gathered:** {current_date}
+**Source:** Autonomous (gsd-meta-answerer)
+**Status:** Ready for planning
+
+<domain>
+## Phase Boundary
+
+{phase_goal from ROADMAP.md — verbatim}
+
+</domain>
+
+<decisions>
+## Implementation Decisions
+
+{For each gray_area with sufficient_answers:}
+### {gray_area name}
+{For each sufficient answer in this gray area:}
+- {answer.question}: {answer.answer} (confidence: {answer.confidence})
+
+### Claude's Discretion
+{List questions from needs-escalation that Claude can decide autonomously — i.e., escalation_needed items with confidence >= 0.4 that are not sensitive decisions. Phase 23 handles the truly sensitive ones via Telegram.}
+
+</decisions>
+
+<specifics>
+## Specific Ideas
+
+{Extract any concrete examples, references, or specific patterns from sufficient answers. If none: "No specific requirements — open to standard approaches"}
+
+</specifics>
+
+<deferred>
+## Deferred Ideas
+
+{List questions from escalation_needed where confidence < 0.7 that require human input. Note: Phase 23 will escalate these via Telegram.}
+{If all answers sufficient: "None — all gray areas resolved autonomously"}
+
+</deferred>
+
+---
+
+*Phase: {padded_phase}-{phase_slug}*
+*Context gathered: {current_date}*
+*Autonomous answers: {sufficient_count} | Needs escalation: {escalation_count}*
+```
+
+3. Write the file.
+
+4. Commit the context file:
+```bash
+node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "docs({padded_phase}): autonomous discuss step — write phase context" --files ".planning/phases/{phase_dir}/{padded_phase}-CONTEXT.md"
+```
+
+5. Create the final discuss step checkpoint:
+```json
+{
+  "phase": {N},
+  "phase_name": "...",
+  "last_step": "discuss",
+  "step_status": "complete",
+  "timestamp": "...",
+  "files_touched": ["{phase_dir}/{padded_phase}-CONTEXT.md"],
+  "key_context": "Autonomous discuss: {sufficient_count} answered, {escalation_count} need escalation",
+  "resume_from": "research"
+}
+```
+
+6. Log the discuss completion, then the execution cycle proceeds to the `research` step.
 </step>
 
 <step name="research">

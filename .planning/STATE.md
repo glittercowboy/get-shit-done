@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 22 of 25 (Discuss Step & Meta-Answerer) — in progress
-Plan: 3 of 4
-Status: Plan 22-03 complete — gsd-meta-answerer subagent created with query-knowledge integration and confidence scoring
-Last activity: 2026-02-19 — Plan 22-03 complete (gsd-meta-answerer subagent: per-question query-knowledge, 5-tier confidence, locked JSON output schema)
+Plan: 4 of 4
+Status: Plan 22-02 complete — question generation logic added to discuss step (10-20 questions/gray-area, 3 specificity levels, {META_ANSWERER_SPAWN} injection point)
+Last activity: 2026-02-19 — Plan 22-02 complete (discuss step: inline question generation, questions array format, questions_generated checkpoint)
 
 Progress: [████████░░░░░░░░░░░░] 35% (v1.10.0)
 
@@ -31,7 +31,7 @@ Progress: [████████░░░░░░░░░░░░] 35% (v1
 | 19    | 2     | 55 min | 27.5 min |
 | 20    | 2     | 30 min | 15.0 min |
 | 21    | 3/3   | 10 min  | 3.3 min  |
-| 22    | 3/4   | 6 min   | 2.0 min  |
+| 22    | 4/4   | 9 min   | 2.25 min  |
 
 **Recent Trend:**
 - Last 5 plans: 2, 2, 15, 27, 15 min
@@ -65,6 +65,9 @@ Recent decisions affecting current work:
 - [Phase 22-03]: gsd-meta-answerer synthesizes top-5 results rather than returning first result verbatim — prevents echo-chamber answers
 - [Phase 22-03]: Confidence bumps (+0.05 each) for source_type=decision and matching project_slug — explicit decisions and same-project knowledge rank higher
 - [Phase 22-03]: Per-question error isolation: failed queries produce marked entries (error field) and batch continues — no partial batch abandonment
+- [Phase 22-02]: Question generation runs inline in coordinator (no subagent spawn) — simple reasoning task, avoids coordination overhead
+- [Phase 22-02]: 3 specificity levels (high/mid/low) per gray area — covers approach, parameters, and edge cases
+- [Phase 22-02]: questions_generated replaces gray_areas_identified as checkpoint status — single intermediate status covering both steps
 
 ### Pending Todos
 
@@ -76,10 +79,10 @@ None.
 
 ### Next Steps
 
-- Plan 22-03 complete — Execute Plan 22-04 (discuss step evaluation: evaluate answers, write CONTEXT.md)
+- Plans 22-01, 22-02, 22-03 complete — Execute Plan 22-04 (discuss step evaluation: evaluate answers, write CONTEXT.md)
 
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 22-03-PLAN.md — gsd-meta-answerer subagent (query-knowledge integration, confidence scoring, locked JSON schema)
+Stopped at: Completed 22-02-PLAN.md — question generation logic in discuss step (inline, 3 specificity levels, {META_ANSWERER_SPAWN} injection point)
 Resume file: None
