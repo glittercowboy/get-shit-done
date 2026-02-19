@@ -452,23 +452,65 @@ Display banner:
 Context captured. Spawning plan-phase...
 ```
 
-Spawn plan-phase as Task:
+Spawn plan-phase as Task with direct workflow file reference (do NOT use Skill tool — Skills don't resolve inside Task subagents):
 ```
 Task(
-  prompt="Run /gsd:plan-phase ${PHASE} --auto",
+  prompt="
+    <objective>
+    You are the plan-phase orchestrator. Create executable plans for Phase ${PHASE}: ${PHASE_NAME}, then auto-advance to execution.
+    </objective>
+
+    <execution_context>
+    @~/.claude/get-shit-done/workflows/plan-phase.md
+    @~/.claude/get-shit-done/references/ui-brand.md
+    @~/.claude/get-shit-done/references/model-profile-resolution.md
+    </execution_context>
+
+    <arguments>
+    PHASE=${PHASE}
+    ARGUMENTS='${PHASE} --auto'
+    </arguments>
+
+    <instructions>
+    1. Read plan-phase.md from execution_context for your complete workflow
+    2. Follow ALL steps: initialize, validate, load context, research, plan, verify, auto-advance
+    3. When spawning agents (gsd-phase-researcher, gsd-planner, gsd-plan-checker), use Task with specified subagent_type and model
+    4. For step 14 (auto-advance to execute): spawn execute-phase as a Task with DIRECT file reference — tell it to read execute-phase.md. Include @file refs to execute-phase.md, checkpoints.md, tdd.md, model-profile-resolution.md. Pass --no-transition flag so execute-phase returns results instead of chaining further.
+    5. Do NOT use the Skill tool or /gsd: commands. Read workflow .md files directly.
+    6. Return: PHASE COMPLETE (full pipeline success), PLANNING COMPLETE (planning done but execute failed/skipped), PLANNING INCONCLUSIVE, or GAPS FOUND
+    </instructions>
+  ",
   subagent_type="general-purpose",
   description="Plan Phase ${PHASE}"
 )
 ```
 
 **Handle plan-phase return:**
-- **PLANNING COMPLETE** → Plan-phase handles chaining to execute-phase (via its own auto_advance step)
-- **PLANNING INCONCLUSIVE / CHECKPOINT** → Display result, stop chain:
+- **PHASE COMPLETE** → Full chain succeeded. Display:
+  ```
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GSD ► PHASE ${PHASE} COMPLETE
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Auto-advance pipeline finished: discuss → plan → execute
+
+  Next: /gsd:discuss-phase ${NEXT_PHASE} --auto
+  <sub>/clear first → fresh context window</sub>
+  ```
+- **PLANNING COMPLETE** → Planning done, execution didn't complete:
+  ```
+  Auto-advance partial: Planning complete, execution did not finish.
+  Continue: /gsd:execute-phase ${PHASE}
+  ```
+- **PLANNING INCONCLUSIVE / CHECKPOINT** → Stop chain:
   ```
   Auto-advance stopped: Planning needs input.
-
-  Review the output above and continue manually:
-  /gsd:plan-phase ${PHASE}
+  Continue: /gsd:plan-phase ${PHASE}
+  ```
+- **GAPS FOUND** → Stop chain:
+  ```
+  Auto-advance stopped: Gaps found during execution.
+  Continue: /gsd:plan-phase ${PHASE} --gaps
   ```
 
 **If neither `--auto` nor config enabled:**

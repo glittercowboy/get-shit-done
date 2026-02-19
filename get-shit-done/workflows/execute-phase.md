@@ -381,6 +381,29 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(phase-{X}): complete
 
 **Exception:** If `gaps_found`, the `verify_phase_goal` step already presents the gap-closure path (`/gsd:plan-phase {X} --gaps`). No additional routing needed — skip auto-advance.
 
+**No-transition check (spawned by auto-advance chain):**
+
+Parse `--no-transition` flag from $ARGUMENTS.
+
+**If `--no-transition` flag present:**
+
+Execute-phase was spawned by plan-phase's auto-advance. Do NOT run transition.md.
+After verification passes and roadmap is updated, return completion status to parent:
+
+```
+## PHASE COMPLETE
+
+Phase: ${PHASE_NUMBER} - ${PHASE_NAME}
+Plans: ${completed_count}/${total_count}
+Verification: {Passed | Gaps Found}
+
+[Include aggregate_results output]
+```
+
+STOP. Do not proceed to auto-advance or transition.
+
+**If `--no-transition` flag is NOT present:**
+
 **Auto-advance detection:**
 
 1. Parse `--auto` flag from $ARGUMENTS
