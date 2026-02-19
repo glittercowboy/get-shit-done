@@ -54,6 +54,11 @@ function convertIncludes(text) {
     .replace(/@~\/\.claude\/get-shit-done\//g, ''); // strip runtime path hints
 }
 
+function normalizeClaudePathsForLocalInstall(text) {
+  // Convert global install paths to workspace-local install paths
+  return text.replace(/~\/\.claude\//g, './.claude/');
+}
+
 function buildPrompt({ cmdFile, fm, body }) {
   const upstreamName = fm.name || '';
   const cmdName = upstreamName ? normalizeName(upstreamName) : ('gsd.' + path.basename(cmdFile, '.md'));
@@ -61,7 +66,7 @@ function buildPrompt({ cmdFile, fm, body }) {
   const description = fm.description || `GSD command ${cmdName}`;
   const argumentHint = fm['argument-hint'] || '';
 
-  const converted = convertIncludes(body);
+  const converted = normalizeClaudePathsForLocalInstall(convertIncludes(body));
 
   return `---
 name: ${cmdName}
