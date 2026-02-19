@@ -180,25 +180,67 @@ sensitive_items = escalation_needed items where sensitive_escalation == true
 discretion_items = escalation_needed items where sensitive_escalation == false
 ```
 
-**Escalate sensitive items via Telegram:**
+**Escalate sensitive items via Telegram (multi-turn loop with JSONL logging):**
 
-For each item in `sensitive_items`, call `mcp__telegram__ask_blocking_question`:
+For each item in `sensitive_items`, run a multi-turn follow-up loop:
 
+Initialize loop state: `turn = 1`, `max_turns = 3`, `sufficient = false`, `question_text = item.question`.
+
+Update session status to 'waiting' once before the loop begins:
 ```
-Update session status to 'waiting' (call mcp__telegram__update_session_status with status: "waiting", question_title: first 50 chars of question):
 mcp__telegram__update_session_status({ status: "waiting", question_title: item.question.slice(0, 50) })
+```
 
+**Loop (repeat while sufficient == false AND turn <= max_turns):**
+
+**Step A — Send question and receive reply:**
 Call ask_blocking_question — this BLOCKS until the user replies:
+```
 reply = mcp__telegram__ask_blocking_question({
-  question: item.question,
+  question: question_text,
   context: "Phase {phase_number} — {phase_name}\nGray area: {item.gray_area}\nMeta-answerer confidence: {item.confidence}\nSensitivity reason: {which criterion triggered}",
   timeout_minutes: 30
 })
+```
+
+Immediately after sending (before reply arrives), append a JSON line to `.planning/telegram-sessions/{YYYY-MM-DD}.jsonl` (where the date is the current date in YYYY-MM-DD format, creating the file if it does not exist):
+```
+{"type":"escalation_question","timestamp":"{ISO}","phase":{phase_number},"gray_area":"{item.gray_area}","question":"{question_text}","turn":{turn},"sensitivity_reason":"{which criterion triggered}"}
+```
+
+**Step B — Evaluate reply confidence:**
+Read the reply text inline and assign confidence using these rules:
+- If the reply contains a clear, actionable decision ("use X", "yes", "no", a specific path name, or a code identifier) → `confidence = 0.85`, `sufficient = true`
+- If the reply is a general direction or preference but lacks specific actionable detail → `confidence = 0.65`, `sufficient = false`
+- If the reply asks Claude to decide, defers the question, or is otherwise non-committal → `confidence = 0.5`, `sufficient = false`
+
+Append a JSON line to `.planning/telegram-sessions/{YYYY-MM-DD}.jsonl`:
+```
+{"type":"escalation_reply","timestamp":"{ISO}","phase":{phase_number},"gray_area":"{item.gray_area}","reply":"{reply text}","turn":{turn},"confidence_eval":{confidence},"sufficient":{true|false}}
+```
+
+**Step C — Decide whether to loop:**
+- If `sufficient == true` OR `turn >= max_turns` → exit loop, use current reply as final answer
+- If `sufficient == false` AND `turn < max_turns` → increment turn, construct a follow-up question:
+  ```
+  question_text = "Thanks for your reply. To be more specific: {synthesize what is still unclear from the original question and the reply received so far}"
+  ```
+  Then loop back to Step A with the follow-up question text
+
+**After loop exits:**
 
 Update session status back to 'busy':
+```
 mcp__telegram__update_session_status({ status: "busy" })
+```
 
-Store reply:
+Append a JSON line to `.planning/telegram-sessions/{YYYY-MM-DD}.jsonl` recording the completed exchange:
+```
+{"type":"escalation_complete","timestamp":"{ISO}","phase":{phase_number},"gray_area":"{item.gray_area}","final_answer":"{last reply}","turns_used":{turn},"escalated_to_discretion":false}
+```
+
+Store the final reply (last reply received regardless of confidence):
+```
 escalated_answers.push({
   gray_area: item.gray_area,
   question: item.question,
