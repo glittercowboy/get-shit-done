@@ -181,17 +181,17 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env'), quiet: true
 // ─── Model Profile Table ─────────────────────────────────────────────────────
 
 const MODEL_PROFILES = {
-  'gsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet' },
-  'gsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-phase-researcher':     { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-project-researcher':   { quality: 'opus', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-research-synthesizer': { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet' },
-  'gsd-codebase-mapper':      { quality: 'sonnet', balanced: 'haiku', budget: 'haiku' },
-  'gsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
-  'gsd-integration-checker':  { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku' },
+  'gsd-planner':              { quality: 'opus', balanced: 'opus',   budget: 'sonnet', auto: 'sonnet' },
+  'gsd-roadmapper':           { quality: 'opus', balanced: 'sonnet', budget: 'sonnet', auto: 'sonnet' },
+  'gsd-executor':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet', auto: 'sonnet' },
+  'gsd-phase-researcher':     { quality: 'opus', balanced: 'sonnet', budget: 'haiku',  auto: 'sonnet' },
+  'gsd-project-researcher':   { quality: 'opus', balanced: 'sonnet', budget: 'haiku',  auto: 'sonnet' },
+  'gsd-research-synthesizer': { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku', auto: 'sonnet' },
+  'gsd-debugger':             { quality: 'opus', balanced: 'sonnet', budget: 'sonnet', auto: 'sonnet' },
+  'gsd-codebase-mapper':      { quality: 'sonnet', balanced: 'haiku', budget: 'haiku', auto: 'haiku'  },
+  'gsd-verifier':             { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku', auto: 'sonnet' },
+  'gsd-plan-checker':         { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku', auto: 'sonnet' },
+  'gsd-integration-checker':  { quality: 'sonnet', balanced: 'sonnet', budget: 'haiku', auto: 'sonnet' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
