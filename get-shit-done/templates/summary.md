@@ -30,6 +30,9 @@ key-files:
   created: [important files created]
   modified: [important files modified]
 
+requirements-completed: []  # REQUIRED — Copy ALL requirement IDs from this plan's requirements frontmatter field.
+                            # Do NOT leave empty if plan has requirements. Example: [REQ-01, AUTH-02]
+
 key-decisions:
   - "Decision 1"
   - "Decision 2"
