@@ -65,7 +65,7 @@ Gap: Flow "View dashboard" broken at data fetch
 Find highest existing phase:
 ```bash
 # Get sorted phase list, extract last one
-PHASES=$(node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js phases list)
+PHASES=$(node ~/.claude/get-shit-done/bin/gsd-tools.js phases list)
 HIGHEST=$(echo "$PHASES" | jq -r '.directories[-1]')
 ```
 
@@ -132,10 +132,32 @@ mkdir -p ".planning/phases/{NN}-{name}"
 ## 8. Commit Roadmap Update
 
 ```bash
-node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "docs(roadmap): add gap closure phases {N}-{M}" --files .planning/ROADMAP.md
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs(roadmap): add gap closure phases {N}-{M}" --files .planning/ROADMAP.md
 ```
 
-## 9. Offer Next Steps
+## 9. Update REQUIREMENTS.md Traceability Table
+
+Reset unsatisfied requirements in REQUIREMENTS.md so gap closure phases can reclaim them:
+
+```bash
+# Read current REQUIREMENTS.md
+cat .planning/REQUIREMENTS.md 2>/dev/null
+```
+
+For each requirement that was UNSATISFIED in the milestone audit:
+1. Find its traceability table row
+2. Reset status: `Complete` → `Pending` (it wasn't actually completed)
+3. Reset checkbox: `[x]` → `[ ]` (re-open for gap closure)
+
+```bash
+# After editing REQUIREMENTS.md, commit the reset
+node ~/.claude/get-shit-done/bin/gsd-tools.js commit "docs(requirements): reset unsatisfied requirements for gap closure" --files .planning/REQUIREMENTS.md
+```
+
+Update coverage count in REQUIREMENTS.md header if it exists:
+- `{M}/{N} requirements complete` → update M to reflect actual complete count after reset
+
+## 10. Offer Next Steps
 
 ```markdown
 ## ✓ Gap Closure Phases Created
