@@ -372,7 +372,7 @@ mkdir -p ".planning/phases/{phase_dir}"
 
 *Phase: {padded_phase}-{phase_slug}*
 *Context gathered: {current_date}*
-*Autonomous answers: {sufficient_count} | Needs escalation: {escalation_count} | Escalated: {escalated_count}*
+*KB answers: {sufficient_count} | Claude's Discretion: {discretion_count} | Escalated: {escalated_count}*
 ```
 
 3. Write the file.
@@ -391,7 +391,7 @@ node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "docs({padded_
   "step_status": "complete",
   "timestamp": "...",
   "files_touched": ["{phase_dir}/{padded_phase}-CONTEXT.md"],
-  "key_context": "Autonomous discuss: {sufficient_count} answered, {escalation_count} need escalation",
+  "key_context": "Autonomous discuss: {sufficient_count} KB answers, {discretion_count} Claude discretion, {escalated_count} Telegram-escalated",
   "resume_from": "research"
 }
 ```
@@ -403,10 +403,10 @@ node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js commit "docs({padded_
 ```
 if telegram_topic_id is not null:
   mcp__telegram__send_message({
-    text: "Phase {phase_number} context ready — {sufficient_count} autonomous answers, {escalated_count} Telegram-escalated answers",
+    text: "Phase {phase_number} context ready — {sufficient_count} KB answers, {discretion_count} Claude decisions, {escalated_count} Telegram-escalated",
     ...(telegram_topic_id ? { thread_id: telegram_topic_id } : {})
   })
-  // JSONL: {"type":"notification","event":"context_ready","timestamp":"{ISO}","phase":{N},"autonomous_count":{sufficient_count},"escalated_count":{escalated_count}}
+  // JSONL: {"type":"notification","event":"context_ready","timestamp":"{ISO}","phase":{N},"kb_count":{sufficient_count},"discretion_count":{discretion_count},"escalated_count":{escalated_count}}
   // Append above line to .planning/telegram-sessions/{YYYY-MM-DD}.jsonl
 ```
 
