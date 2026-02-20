@@ -118,6 +118,8 @@ None.
 ### Next Steps
 
 - Phase 25 complete — v1.10.0 Autonomous Phase Discussion milestone complete
+- v1.11.0 planned: Phases 26-30 (Milestone Summary & Archival + 10 hardening improvements)
+- Run `/gsd:complete-milestone` to archive v1.10.0, then proceed to Phase 26
 - Run `/gsd:complete-milestone v1.10.0` to ship milestone
 - Phase 26 (Milestone Summary & Archival) is the next planned phase for v1.11.0
 

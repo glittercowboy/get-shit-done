@@ -17,6 +17,7 @@
  *
  * Events emitted:
  *   `answer:${questionId}` (answer: string) — when a user answer arrives
+ *   `anyAnswer` () — broadcast when any answer arrives (for long-poll wakeup)
  */
 import { EventEmitter } from 'events';
 import type { Question } from '../shared/types.js';
@@ -35,6 +36,8 @@ export declare class QuestionService extends EventEmitter {
     private threadToQuestion;
     /** Maps sessionId to list of questionIds in creation order */
     private sessionQuestions;
+    /** Path to the JSONL file used for question state persistence */
+    private readonly stateFilePath;
     constructor(createForumTopic: CreateForumTopicFn, sendToThread: SendToThreadFn, sendToGroup: SendToGroupFn, sessionService: SessionService);
     /**
      * Ask a blocking question.
@@ -75,6 +78,13 @@ export declare class QuestionService extends EventEmitter {
      */
     getQuestionByThread(threadId: number): Question | undefined;
     /**
+     * Restore question state from a previously persisted JSONL file.
+     * Repopulates questions, threadToQuestion, and sessionQuestions maps.
+     *
+     * @param savedQuestions Array of Question objects loaded from the state file
+     */
+    restoreState(savedQuestions: Question[]): void;
+    /**
      * Check if the given session has a recently answered question whose thread
      * can be reused for a follow-up. Returns the threadId to reuse, or null.
      *
@@ -85,8 +95,15 @@ export declare class QuestionService extends EventEmitter {
     private findFollowUpThread;
     /**
      * Clean up tracking maps for a question that has timed out.
+     * Removes the question entirely so it does not resurface as pending after restore.
      */
     private cleanUpQuestion;
+    /**
+     * Persist current question state to the JSONL state file.
+     * Writes all questions (pending and recently answered) for daemon restart recovery.
+     * Errors are logged as warnings and do not propagate.
+     */
+    private saveState;
     /**
      * Format the question body for display in a Telegram thread.
      */

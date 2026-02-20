@@ -17,9 +17,13 @@
  *
  * Events emitted:
  *   `answer:${questionId}` (answer: string) — when a user answer arrives
+ *   `anyAnswer` () — broadcast when any answer arrives (for long-poll wakeup)
  */
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
+import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import { createLogger } from '../shared/logger.js';
 const log = createLogger('question-service');
 /** Maximum age (ms) of a recently answered question to allow thread reuse */
@@ -36,6 +40,8 @@ export class QuestionService extends EventEmitter {
     threadToQuestion = new Map();
     /** Maps sessionId to list of questionIds in creation order */
     sessionQuestions = new Map();
+    /** Path to the JSONL file used for question state persistence */
+    stateFilePath = path.join(os.homedir(), '.claude', 'knowledge', 'question-state.jsonl');
     constructor(createForumTopic, sendToThread, sendToGroup, sessionService) {
         super();
         this.createForumTopic = createForumTopic;
@@ -78,6 +84,8 @@ export class QuestionService extends EventEmitter {
         const sessionList = this.sessionQuestions.get(sessionId) ?? [];
         sessionList.push(questionId);
         this.sessionQuestions.set(sessionId, sessionList);
+        // Persist state immediately after question creation (before blocking await)
+        this.saveState();
         // ─── Follow-up: reuse existing thread if session recently answered ───────
         const reuseThreadId = this.findFollowUpThread(sessionId, questionId);
         if (reuseThreadId !== null) {
@@ -92,6 +100,8 @@ export class QuestionService extends EventEmitter {
                 questionRecord.threadId = threadId;
                 this.threadToQuestion.set(threadId, questionId);
                 log.info({ questionId, sessionId, threadId, title }, 'Forum topic created for question');
+                // Save again now that threadId is set
+                this.saveState();
             }
             catch (err) {
                 // Fallback: DM mode — no thread tracking possible
@@ -123,21 +133,31 @@ export class QuestionService extends EventEmitter {
         // ─── Block until answer arrives or timeout ────────────────────────────
         log.info({ questionId, sessionId, timeout }, 'Waiting for answer');
         const answer = await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => {
-                this.removeAllListeners(`answer:${questionId}`);
-                // Clean up question from tracking maps on timeout
-                this.cleanUpQuestion(questionId);
-                reject(new Error(`Question timed out after ${timeoutMinutes ?? 30} minutes: "${title}"`));
-            }, timeout);
-            const handler = (answerText) => {
+            const onAny = (answerText) => {
                 clearTimeout(timer);
                 resolve(answerText);
             };
-            this.once(`answer:${questionId}`, handler);
+            const timer = setTimeout(() => {
+                this.removeAllListeners(`answer:${questionId}`);
+                // ─── Notify user in the Telegram thread before cleanup ───────────
+                const timeoutMsg = `Question timed out after ${timeoutMinutes ?? 30} minutes: "${title}"`;
+                const sendNotification = questionRecord.threadId !== undefined
+                    ? this.sendToThread(questionRecord.threadId, timeoutMsg)
+                    : this.sendToGroup(timeoutMsg);
+                sendNotification.catch((err) => {
+                    log.warn({ questionId, err: err.message }, 'Failed to send timeout notification to Telegram');
+                });
+                // Clean up question from tracking maps on timeout
+                this.cleanUpQuestion(questionId);
+                reject(new Error(timeoutMsg));
+            }, timeout);
+            this.once(`answer:${questionId}`, onAny);
         });
         // ─── Post-answer bookkeeping ──────────────────────────────────────────
         questionRecord.answer = answer;
         questionRecord.answeredAt = new Date().toISOString();
+        // Persist state after answer recorded
+        this.saveState();
         // Confirm receipt in the thread
         try {
             if (questionRecord.threadId !== undefined) {
@@ -172,6 +192,8 @@ export class QuestionService extends EventEmitter {
         }
         log.info({ questionId, threadId }, 'Delivering answer to pending question');
         this.emit(`answer:${questionId}`, text);
+        // Broadcast for check_question_answers long-poll wakeup
+        this.emit('anyAnswer');
         return true;
     }
     /**
@@ -201,6 +223,27 @@ export class QuestionService extends EventEmitter {
         if (questionId === undefined)
             return undefined;
         return this.questions.get(questionId);
+    }
+    /**
+     * Restore question state from a previously persisted JSONL file.
+     * Repopulates questions, threadToQuestion, and sessionQuestions maps.
+     *
+     * @param savedQuestions Array of Question objects loaded from the state file
+     */
+    restoreState(savedQuestions) {
+        for (const q of savedQuestions) {
+            this.questions.set(q.id, q);
+            if (q.threadId !== undefined && q.answer === undefined) {
+                // Only restore active thread routing for unanswered questions
+                this.threadToQuestion.set(q.threadId, q.id);
+            }
+            const sessionList = this.sessionQuestions.get(q.sessionId) ?? [];
+            if (!sessionList.includes(q.id)) {
+                sessionList.push(q.id);
+            }
+            this.sessionQuestions.set(q.sessionId, sessionList);
+        }
+        log.info({ count: savedQuestions.length }, 'Question state restored from file');
     }
     // ─── Private helpers ─────────────────────────────────────────────────────────
     /**
@@ -233,6 +276,7 @@ export class QuestionService extends EventEmitter {
     }
     /**
      * Clean up tracking maps for a question that has timed out.
+     * Removes the question entirely so it does not resurface as pending after restore.
      */
     cleanUpQuestion(questionId) {
         const q = this.questions.get(questionId);
@@ -241,7 +285,35 @@ export class QuestionService extends EventEmitter {
         if (q.threadId !== undefined) {
             this.threadToQuestion.delete(q.threadId);
         }
+        // Remove from questions map so timed-out questions don't persist across restarts
+        this.questions.delete(questionId);
+        // Remove from session question list
+        const sessionList = this.sessionQuestions.get(q.sessionId);
+        if (sessionList) {
+            const idx = sessionList.indexOf(questionId);
+            if (idx !== -1)
+                sessionList.splice(idx, 1);
+        }
+        // Persist the removal
+        this.saveState();
         log.info({ questionId }, 'Cleaned up timed-out question from tracking maps');
+    }
+    /**
+     * Persist current question state to the JSONL state file.
+     * Writes all questions (pending and recently answered) for daemon restart recovery.
+     * Errors are logged as warnings and do not propagate.
+     */
+    saveState() {
+        try {
+            const allQuestions = Array.from(this.questions.values());
+            const lines = allQuestions.map((q) => JSON.stringify(q));
+            const content = lines.length > 0 ? lines.join('\n') + '\n' : '';
+            fs.writeFileSync(this.stateFilePath, content, 'utf8');
+            log.debug({ count: allQuestions.length, path: this.stateFilePath }, 'Question state saved');
+        }
+        catch (err) {
+            log.warn({ err: err.message }, 'Failed to save question state — state persistence skipped');
+        }
     }
     /**
      * Format the question body for display in a Telegram thread.

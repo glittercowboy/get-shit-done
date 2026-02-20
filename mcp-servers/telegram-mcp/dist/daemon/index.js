@@ -13,6 +13,9 @@
  *   - Can also be started directly: node dist/daemon/index.js
  *   - Handles SIGINT / SIGTERM for graceful shutdown
  */
+import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import { IPCServer } from './ipc-server.js';
 import { SessionService } from './session-service.js';
 import { QuestionService } from './question-service.js';
@@ -33,6 +36,22 @@ async function main() {
         initializeBot();
         // Create QuestionService with bot functions and session service
         questionService = new QuestionService(createForumTopic, sendToThread, sendToGroup, sessionService);
+        // ─── Restore question state from previous daemon run ─────────────────
+        const stateFilePath = path.join(os.homedir(), '.claude', 'knowledge', 'question-state.jsonl');
+        try {
+            if (fs.existsSync(stateFilePath)) {
+                const raw = fs.readFileSync(stateFilePath, 'utf8');
+                const savedQuestions = raw
+                    .split('\n')
+                    .filter((line) => line.trim() !== '')
+                    .map((line) => JSON.parse(line));
+                questionService.restoreState(savedQuestions);
+                log.info({ count: savedQuestions.length, path: stateFilePath }, 'Restored question state from previous run');
+            }
+        }
+        catch (err) {
+            log.warn({ err: err.message }, 'Failed to restore question state — starting fresh');
+        }
         // Start bot — pass real getQuestions callback from question service
         await startBot(sessionService, () => questionService.getPendingQuestions());
         // ─── Wire bot events to question service ─────────────────────────────
@@ -111,17 +130,16 @@ async function main() {
         // If wait_seconds is requested, wait up to that duration for any answer event
         if (waitSeconds > 0) {
             await new Promise((resolve) => {
-                const timer = setTimeout(resolve, waitSeconds * 1000);
-                // Listen for any answer event once, then resolve early
                 const onAny = () => {
                     clearTimeout(timer);
                     resolve();
                 };
-                questionService.once('answer:*', onAny);
-                // EventEmitter doesn't support glob listeners, so use a one-shot cleanup
-                setTimeout(() => {
-                    questionService.removeListener('answer:*', onAny);
-                }, waitSeconds * 1000 + 100);
+                const timer = setTimeout(() => {
+                    questionService.removeListener('anyAnswer', onAny);
+                    resolve();
+                }, waitSeconds * 1000);
+                // anyAnswer is emitted by deliverAnswer() whenever any question is answered
+                questionService.once('anyAnswer', onAny);
             });
         }
         let pending = questionService.getPendingQuestions();

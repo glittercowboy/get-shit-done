@@ -5,7 +5,7 @@
 - ✅ **v1.9.0 GSD Enhancements** — Phases 1-14 (shipped 2026-02-19)
 - ✅ **v1.9.1 Upstream Sync** — Phases 18-20 (completed 2026-02-19)
 - ✅ **v1.10.0 Autonomous Phase Discussion** — Phases 21-25 (completed 2026-02-19)
-- ⬜ **v1.11.0 Milestone Summary & Archival** — Phase 26 (planned)
+- 🚧 **v1.11.0 System Hardening** — Phases 26-30 (in progress)
 
 ## Phases
 
@@ -179,6 +179,63 @@ Plans:
 Plans:
 - [ ] 26-01: Design and execute milestone summary & archival validation scenario
 
+#### Phase 27: Telegram MCP Reliability
+**Goal**: Fix three silent failure modes in the Telegram MCP daemon that cause polling callers to always wait full timeouts, questions to be lost on daemon restart, and timed-out questions to disappear without user notification
+**Depends on**: Phase 26
+**Requirements**: TREL-01, TREL-02, TREL-03
+**Success Criteria** (what must be TRUE):
+  1. `check_question_answers` with `wait_seconds` wakes immediately when an answer arrives — confirmed by timing a reply that arrives before the timeout
+  2. Restarting the Telegram daemon while a question is pending restores the question state and the next `check_question_answers` poll returns it as still-pending
+  3. When a question times out, a message appears in the Telegram thread ("Question timed out after N minutes") before the question is removed from internal state
+**Plans**: 3 plans
+
+Plans:
+- [ ] 27-01: Fix EventEmitter glob listener — add `anyAnswer` event to `QuestionService.deliverAnswer()`, replace `once('answer:*')` with `once('anyAnswer')` in `daemon/index.ts`
+- [ ] 27-02: Daemon restart question persistence — serialize `questions` map to `~/.claude/knowledge/question-state.jsonl` on every `ask()`/`deliverAnswer()`, restore on startup in `daemon/index.ts`
+- [ ] 27-03: Timeout notification — send thread message before `cleanUpQuestion()` fires, with DM-mode fallback via `sendToGroup()`
+
+#### Phase 28: Knowledge System Quality
+**Goal**: Close three gaps in the knowledge pipeline: near-duplicate entries accumulating due to skipped embedding dedup, meta-answerer escalating to Telegram on questions it could answer with broader queries, and no mechanism to prune stale low-utility entries
+**Depends on**: Phase 26
+**Requirements**: KQUAL-01, KQUAL-02, KQUAL-03
+**Success Criteria** (what must be TRUE):
+  1. Writing two semantically identical but differently-worded entries to the knowledge DB results in only one entry being stored (embedding similarity dedup fires at write time)
+  2. The meta-answerer runs a `--type decision` query and a keyword-broadened query before assigning confidence 0.0 — reducing unnecessary Telegram escalations on sparse KB
+  3. Running `gsd-tools knowledge prune` reports entries deleted by the staleness rules, and the command runs automatically when the DB exceeds 10MB
+**Plans**: 3 plans
+
+Plans:
+- [ ] 28-01: Stage-3 embedding dedup — call `generateEmbeddingCached()` with `Promise.race` 2s timeout in `knowledge-writer.js` before `checkDuplicate()`, pass result as third argument
+- [ ] 28-02: Meta-answerer multi-pass fallback — add `--type decision` pass and keyword-broadened pass in `agents/gsd-meta-answerer.md` before conceding confidence 0.0
+- [ ] 28-03: Knowledge DB pruning — add `pruneStaleEntries()` to `knowledge-lifecycle.js`, `knowledge prune [--dry-run]` CLI command, auto-trigger at 10MB from `knowledge-checkpoint.js`
+
+#### Phase 29: Compression & Observability
+**Goal**: Make the doc compression pipeline actually observable — write the metrics it was designed to track, measure token reduction instead of char reduction, and add query-context-aware paragraph scoring to improve coverage on long prose files
+**Depends on**: Phase 26
+**Requirements**: COBS-01, COBS-02, COBS-03
+**Success Criteria** (what must be TRUE):
+  1. After doc compression runs, `gsd-tools compress metrics` returns real data (timestamps, files, reduction percentages) instead of "No compression metrics yet"
+  2. The metrics output includes `originalTokensEst` and `compressedTokensEst` alongside char counts, calculated via `Math.ceil(length / 4)`
+  3. When a query context string is available in the hook input, `HeaderExtractor` scores paragraphs by term overlap and selects the highest-scoring ones rather than always taking the first 300 chars per section
+**Plans**: 3 plans
+
+Plans:
+- [ ] 29-01: Write compression metrics JSONL — add `fs.appendFileSync` to `compression-metrics.jsonl` after `recordSuccess()` in `doc-compression-hook.js` with `{timestamp, file, originalChars, compressedChars, reductionPercent}`
+- [ ] 29-02: Token-based metrics — add `estimateTokens(text)` helper, log `originalTokensEst`/`compressedTokensEst` in metrics JSONL and `compress metrics` CLI output
+- [ ] 29-03: Semantic paragraph scoring — add `selectiveExtract(content, queryContext)` to `header-extractor.js` scoring paragraphs by term overlap; fall back to structural extraction when no query context
+
+#### Phase 30: Session Extraction Fix
+**Goal**: Fix the session-end knowledge extraction hook so it actually fires when Claude Code sessions end — currently wired to SIGTERM which Claude Code does not send, meaning the entire Phase 11/12 session extraction pipeline is silently inactive
+**Depends on**: Phase 26
+**Requirements**: SFIX-01
+**Success Criteria** (what must be TRUE):
+  1. After a Claude Code session ends, a new entry appears in the knowledge DB extracted from that session's responses — confirmed by checking DB before/after a session that contains a decision
+  2. The hook fires via the Claude Code `Stop` hook mechanism (registered in `~/.claude/settings.json`) not SIGTERM
+**Plans**: 1 plan
+
+Plans:
+- [ ] 30-01: Session-end Stop hook — create `bin/hooks/session-end-standalone.js` reading from Claude Code hook JSON on stdin, accumulate via temp file keyed on `CLAUDE_SESSION_ID`, register as `Stop` hook in `install.js`
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -207,7 +264,11 @@ Plans:
 | 23. Telegram Escalation | v1.10.0 | 2/2 | Complete | 2026-02-19 |
 | 24. Telegram Notifications | v1.10.0 | 4/4 | Complete | 2026-02-19 |
 | 25. End-to-End Validation | v1.10.0 | 4/4 | Complete | 2026-02-19 |
-| 26. Milestone Summary & Archival | v1.11.0 | 0/TBD | Not started | - |
+| 26. Milestone Summary & Archival | v1.11.0 | 0/1 | Not started | - |
+| 27. Telegram MCP Reliability | v1.11.0 | 0/3 | Not started | - |
+| 28. Knowledge System Quality | v1.11.0 | 0/3 | Not started | - |
+| 29. Compression & Observability | v1.11.0 | 0/3 | Not started | - |
+| 30. Session Extraction Fix | v1.11.0 | 0/1 | Not started | - |
 
 ---
-*Roadmap created: 2026-02-15 | Last updated: 2026-02-19 — Phase 25 complete: end-to-end validation passed, v1.10.0 Autonomous Phase Discussion milestone complete*
+*Roadmap created: 2026-02-15 | Last updated: 2026-02-20 — Phases 27-30 added to v1.11.0: Telegram reliability, knowledge quality, compression observability, session extraction fix (10 improvements from post-v1.10.0 audit)*
