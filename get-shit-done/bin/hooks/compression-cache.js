@@ -8,7 +8,10 @@ const CACHE_DIR = path.join(process.env.HOME, '.claude', 'get-shit-done', 'compr
  * CompressionCache - File-based caching for compressed documentation
  *
  * Purpose: Prevent redundant compression of unchanged files
- * Cache key: MD5 hash of (filePath + content + mtime)
+ * Cache key: MD5 hash of (filePath + content + mtime) — automatically invalidates
+ *   when file content or mtime changes. Changing EITHER the file content OR its
+ *   mtime produces a different key, ensuring stale cache entries are never served
+ *   after a file modification.
  * TTL: Configurable expiration time (default 300s)
  */
 class CompressionCache {
@@ -27,9 +30,11 @@ class CompressionCache {
   }
 
   /**
-   * Generate cache key from file path, content hash, and mtime
+   * Generate cache key from file path, content hash, and mtime.
+   * Changing EITHER the file content OR the mtime produces a different key,
+   * ensuring stale cache entries are never served after a file modification.
    * @param {string} filePath - Absolute file path
-   * @param {string} content - File content
+   * @param {string} content - File content (full text, not a hash)
    * @param {number} mtime - File modification time (milliseconds)
    * @returns {string} MD5 hash key
    */
@@ -55,6 +60,12 @@ class CompressionCache {
       if (!fs.existsSync(cachePath)) return null;
 
       const cached = JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
+
+      // Sanity: confirm the cached entry is for the same file (guards against MD5 collisions)
+      if (cached.filePath && cached.filePath !== filePath) {
+        return null;
+      }
+
       const age = Date.now() - cached.timestamp;
 
       if (age > this.ttl) {
