@@ -38,6 +38,8 @@ export class IPCServer extends EventEmitter {
   /** Map of clientId → net.Socket for all connected clients */
   private clients: Map<string, net.Socket> = new Map();
 
+  private static readonly MAX_BUFFER_SIZE = 1024 * 1024; // 1 MB
+
   constructor(socketPath: string, handlers: Map<IPCMethod, MethodHandler>) {
     super();
     this.socketPath = socketPath;
@@ -60,6 +62,12 @@ export class IPCServer extends EventEmitter {
 
     socket.on('data', (chunk: Buffer) => {
       buffer += chunk.toString('utf8');
+
+      if (buffer.length > IPCServer.MAX_BUFFER_SIZE) {
+        log.warn({ clientId, bufferLength: buffer.length }, 'Buffer exceeded MAX_BUFFER_SIZE — destroying socket to prevent memory growth');
+        socket.destroy(new Error('buffer overflow'));
+        return;
+      }
 
       // Process all complete lines (NDJSON: one JSON object per line)
       const lines = buffer.split('\n');
