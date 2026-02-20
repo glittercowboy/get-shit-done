@@ -55,9 +55,33 @@ Each result object has this shape:
 { "question": "...", "answer": "...", "confidence": 0.8, "project_slug": "get-shit-done", "source_type": "decision|learning|pattern", "created_at": "2026-01-15T..." }
 ```
 
-**Step 2: Handle empty results**
+**Step 2: Multi-pass fallback on empty results**
 
-If `no_results: true` or `results` is an empty array:
+If `no_results: true` or `results` is an empty array from the first query:
+
+**Pass 2 — Type-filtered decision query:**
+
+Run:
+```bash
+node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js query-knowledge "{question text}" --type decision
+```
+
+If this returns results, proceed to Step 3 (synthesize) using these results. Apply a base confidence cap of 0.5 (weaker evidence — type-match only, not full semantic match). Adjust down from the scoring table accordingly.
+
+**Pass 3 — Keyword-broadened query:**
+
+If Pass 2 also returns no results:
+1. Extract 2-3 key nouns or verbs from the question. Skip stop words: "is", "the", "should", "will", "how", "does", "what", "a", "an", "in", "on", "for", "of", "to", "and", "or", "with", "are", "it", "this", "that", "be", "by", "at", "if", "when"
+2. For each keyword, run:
+   ```bash
+   node /Users/ollorin/.claude/get-shit-done/bin/gsd-tools.js query-knowledge "{keyword}"
+   ```
+3. Merge all result arrays, deduplicating by answer text (use first 80 chars as the dedup key)
+4. If merged results are non-empty, proceed to Step 3 using the merged results. Apply a base confidence cap of 0.4 (weaker evidence — keyword scatter-search).
+
+**No results across all passes:**
+
+Only if all three passes return empty:
 - Answer: `"No relevant knowledge found"`
 - Confidence: `0.0`
 - Sources: `[]`
@@ -65,7 +89,7 @@ If `no_results: true` or `results` is an empty array:
 
 **Step 3: Synthesize from results**
 
-If results exist, synthesize a coherent answer from the top 5 results. Do NOT return the first result verbatim. Instead:
+If results exist (from any pass), synthesize a coherent answer from the top 5 results. Do NOT return the first result verbatim. Instead:
 
 1. Read all results (up to 5)
 2. Identify common themes, agreements, and contradictions
@@ -84,7 +108,10 @@ Start with a base score, then apply bumps:
 | Results loosely related, answer is an inference | 0.3–0.5 |
 | No relevant results or results contradict each other | 0.0–0.3 |
 
-**Bump rules (apply after base score, cap at 1.0):**
+**If results came from Pass 2 (decision type-filter):** cap confidence at 0.5 before applying bumps.
+**If results came from Pass 3 (keyword broadening):** cap confidence at 0.4 before applying bumps.
+
+**Bump rules (apply after base score and cap, cap total at 1.0):**
 - `+0.05` if any result has `source_type === "decision"` (explicit recorded decision)
 - `+0.05` if any result has `project_slug` matching the current project (from phase_context)
 
@@ -135,9 +162,9 @@ Field rules:
 - `answer`: your synthesized text (not a copy of any single result)
 - `confidence`: float 0.0–1.0, two decimal places
 - `sources`: array of 0–3 source reference objects
-- `no_results`: `true` when no DB results were found, `false` otherwise
+- `no_results`: `true` when no DB results were found across all passes, `false` otherwise
 - `stats.answered`: count of questions where `no_results === false`
-- `stats.no_results`: count of questions where `no_results === true`
+- `stats.no_results`: count of questions where `no_results === true` (all passes exhausted)
 - `stats.avg_confidence`: average of all confidence values (including 0.0 entries)
 </output_format>
 
