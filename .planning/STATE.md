@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Claude learns to make autonomous decisions based on user's reasoning patterns, only stopping for irreversible/external/costly actions
-**Current focus:** v1.10.0 — End-to-End Validation (Phase 25 complete)
+**Current focus:** v1.11.0 — System Hardening (Phase 30 complete — milestone done)
 
 ## Current Position
 
-Phase: 25 of 25 (End-to-End Validation) — complete
-Plan: 4 of 4 (complete)
-Status: Plan 25-04 complete — Phase 25 verified passed, v1.10.0 milestone ready for completion
-Last activity: 2026-02-19 — Plan 25-04 complete (25-VERIFICATION.md written: all 4 SCs pass, DISC-01–06 pass, ESCL-01–05 pass, VALID-01 and VALID-02 pass)
+Phase: 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a (in progress)
+Plan: 3 of ? (31-03 complete)
+Status: Plan 31-03 complete — executor routing-aware behavior added
+Last activity: 2026-02-20 — Plan 31-03 complete (routing tier read, haiku failure signaling, ROUTING_TIERS_USED tracking, ## Routing section in SUMMARY)
 
-Progress: [████████████████████] 100% (v1.10.0)
+Progress: [████████████████████] 100% (v1.11.0 — 5/5 phases, Phase 31 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 100 (v1.9.0: 85, v1.9.1: 5, v1.10.0: 10)
+- Total plans completed: 108 (v1.9.0: 85, v1.9.1: 5, v1.10.0: 10, v1.11.0: 8)
 - Average duration: 3.0 min
-- Total execution time: ~4.8 hours
+- Total execution time: ~4.9 hours
 
 **By Phase (recent):**
 
@@ -35,12 +35,18 @@ Progress: [████████████████████] 100% (v
 | 23    | 2/2   | 6 min   | 3.0 min   |
 | 24    | 4/4   | 15 min  | 3.75 min  |
 | 25    | 4/4   | ~56 min | 14.0 min  |
+| 27    | 3/3   | ~20 min | 6.7 min  |
+| 28    | 3/3   | ~15 min | 5.0 min  |
+| 29    | 1/1   | ~5 min  | 5.0 min  |
+| 30    | 1/1   | ~15 min | 15.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 4, 4, 2, 2, 4 min
+- Last 5 plans: 5, 5, 10, 5, 15 min
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a P03 | 4 | 1 tasks | 1 files |
+| Phase 31 P01 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -106,10 +112,34 @@ Recent decisions affecting current work:
 - [Phase 25]: Test phase (26) used gray areas around milestone summary storage and distribution — calibrated for mixed autonomous/escalated discuss step output
 - [Phase 25]: Phase 26 stub added to ROADMAP.md as "Milestone Summary & Archival" for future milestone (v1.11.0)
 - [Phase 25]: End-to-end validation passed — full discuss loop verified working (27 questions, 26 autonomous, 1 Telegram escalated and replied)
+- [Phase 27-01]: Stage-3 embedding dedup lazy-required inside loop (not at module import) — avoids ML model init at session start
+- [Phase 27-01]: 2s Promise.race timeout — balances dedup quality vs write latency; subsequent calls hit in-memory cache
+- [Phase 27-02]: Meta-answerer multi-pass: 0.5 cap (Pass 2 decision type), 0.4 cap (Pass 3 keyword broadening) — reflects diminished evidence quality
+- [Phase 27-03]: knowledge prune CLI scope default is 'global' — DB is global, pruning 'project' scope would be a wrong default
+- [Phase 27-03]: Auto-prune trigger in createCheckpoint (not knowledge.add) — lower frequency write point with available connection object
+- [Phase 28-01]: appendMetrics() uses fs.appendFileSync wrapped in try/catch — metrics write failure must not affect hook output
+- [Phase 28-02]: estimateTokens = Math.ceil(length / 4) — standard GPT token approximation; fields named originalTokensEst/compressedTokensEst (not originalTokens/compressedTokens) to match what CLI already expected
+- [Phase 28-03]: selectiveExtract falls back to first-N-chars when queryContext empty — zero behavioral change for existing callers; queryContext sourced from hookData.context || hookData.query_context
+- [Phase 29-01]: Stop hook (not SIGTERM) is the correct Claude Code lifecycle hook for session-end extraction — fires after each assistant turn, not just at session end
+- [Phase 29-01]: Temp file /tmp/gsd-session-{session_id}.txt accumulates responses across turns; extraction runs on full accumulated text each call; dedup prevents duplicate DB entries
+- [Phase 29-01]: stop_hook_active guard required on all Stop hooks to prevent infinite loop (Claude Code sets this when already continuing from a stop hook)
+- [Phase 29-01]: better-sqlite3 and sqlite-vec added to installHookDependencies() — required for knowledge DB access from deployed ~/.claude/get-shit-done/ location
+- [Phase 30-01]: milestone summarize reads title/duration from SUMMARY.md frontmatter, falls back to first H2 heading for phases without title field
+- [Phase 30-01]: milestone archive-phases uses fs.renameSync (move, not copy) per ARCH-02 spec; idempotency via fs.existsSync check before move
+- [Phase 30-01]: Phase completeness check for archival = presence of VERIFICATION.md (not all plans have SUMMARY.md)
+- [Phase 30-01]: milestone summarize overwrites existing summary (idempotent); milestone archive-phases skips already-archived phases
+- [Phase 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a]: Executor does NOT switch tiers mid-execution — model tier is fixed at spawn time; coordinator owns escalation decision to re-spawn at sonnet
+- [Phase 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a]: Haiku failure signal format: 'TASK FAILED: {name} [tier: haiku] — {error}'; sonnet/opus failures use existing behavior (no tier tag)
+- [Phase 31-01]: routing_pass step fires after write_phase_prompt and before validate_plan in gsd-planner — tier tags committed with plan
+- [Phase 31-01]: MODEL_PROFILE check fail = silent skip (routing is best-effort); per-task router failure defaults to sonnet
+
+### Roadmap Evolution
+
+- Phase 31 added: Per-task model routing — executor becomes mini-orchestrator (Option A)
 
 ### Pending Todos
 
-None (autonomous discuss-phase todo addressed by this roadmap).
+None.
 
 ### Blockers/Concerns
 
@@ -117,14 +147,12 @@ None.
 
 ### Next Steps
 
-- Phase 25 complete — v1.10.0 Autonomous Phase Discussion milestone complete
-- v1.11.0 planned: Phases 26-30 (Milestone Summary & Archival + 10 hardening improvements)
-- Run `/gsd:complete-milestone` to archive v1.10.0, then proceed to Phase 26
-- Run `/gsd:complete-milestone v1.10.0` to ship milestone
-- Phase 26 (Milestone Summary & Archival) is the next planned phase for v1.11.0
+- Phase 30 complete — v1.11.0 System Hardening milestone complete (5/5 phases)
+- v1.11.0 milestone is done — run `/gsd:complete-milestone v1.11.0` to archive
+- Start v1.12.0 planning with `/gsd:new-milestone`
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Completed 25-04-PLAN.md — Phase 25 formally verified passed, v1.10.0 milestone ready for completion
+Last session: 2026-02-20
+Stopped at: Completed 31-01-PLAN.md — routing_pass step added to gsd-planner (tier tags via parallel gsd-task-router spawns when model_profile="auto")
 Resume file: None

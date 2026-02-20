@@ -509,64 +509,146 @@ For each incomplete plan (no SUMMARY.md):
 
 1. **Describe what this plan builds** (read objective from PLAN.md)
 
-2. **Determine executor model:**
+2. **Determine execution mode:**
 
-   **If auto profile active:** Get model recommendation from task router.
+   **If MODEL_PROFILE is "auto":** Parse task-level tier tags from PLAN.md.
 
-   Read the plan objective (first line of `<objective>` tag in PLAN.md) as the task description for routing:
+   ```
+   TASK_TIERS = {}
+   ROUTING_STATS = { haiku: 0, sonnet: 0, opus: 0 }
+   For each <task> element in the plan (by task_index, 1-based):
+     task_name = extract <name> element text
+     If task_name matches /^\[(haiku|sonnet|opus)\]/i:
+       TASK_TIERS[task_index] = matched tier (lowercase)
+     Else:
+       TASK_TIERS[task_index] = "sonnet"  // default — no tag present
 
-   ```bash
-   PLAN_OBJECTIVE=$(grep -A1 '<objective>' {plan_file} | tail -1 | tr -d '\n')
+   If at least one task has an explicit tier tag:
+     PER_TASK_MODE = true
+   Else:
+     // Fall back to plan-level routing (plan has no tier tags — older plan format)
+     PER_TASK_MODE = false
+     Read the plan objective (first line of <objective> tag in PLAN.md) as task description:
+       PLAN_OBJECTIVE=$(grep -A1 '<objective>' {plan_file} | tail -1 | tr -d '\n')
+     Spawn routing agent to get model recommendation:
+       Task(
+         subagent_type="gsd-task-router",
+         prompt="Route this task: {PLAN_OBJECTIVE}"
+       )
+     Parse the ROUTING DECISION response to extract the Model: line.
+     Set EXECUTOR_MODEL to the returned model tier (haiku/sonnet/opus).
+     Also capture ROUTING_SCORE and ROUTING_CONTEXT from the response.
    ```
 
-   Spawn routing agent to get model recommendation:
+   **If MODEL_PROFILE is NOT "auto":** PER_TASK_MODE = false, EXECUTOR_MODEL = "sonnet" (unchanged default behavior).
+
+3. **Spawn executor agent:**
+
+   **When PER_TASK_MODE is false** (non-auto profile or no tier tags — existing behavior):
    ```
    Task(
-     subagent_type="gsd-task-router",
-     prompt="Route this task: {PLAN_OBJECTIVE}"
+     subagent_type="gsd-executor",
+     model="{EXECUTOR_MODEL}",
+     prompt="
+       <objective>
+       Execute plan {plan_number} of phase {phase_number}-{phase_name}.
+       Commit each task atomically. Create SUMMARY.md. Update STATE.md.
+       </objective>
+
+       <execution_context>
+       @/Users/ollorin/.claude/get-shit-done/workflows/execute-plan.md
+       @/Users/ollorin/.claude/get-shit-done/templates/summary.md
+       @/Users/ollorin/.claude/get-shit-done/references/checkpoints.md
+       @/Users/ollorin/.claude/get-shit-done/references/tdd.md
+       </execution_context>
+
+       <files_to_read>
+       - Plan: {phase_dir}/{plan_file}
+       - State: .planning/STATE.md
+       - Config: .planning/config.json (if exists)
+       </files_to_read>
+
+       {IF_AUTO_PROFILE_AND_PLAN_LEVEL_ROUTING:
+       <routing_context>
+       Auto mode active. Routed to {EXECUTOR_MODEL} (score: {ROUTING_SCORE}).
+       Relevant context injected by router:
+       {ROUTING_CONTEXT}
+       </routing_context>
+       }
+     "
    )
    ```
 
-   Parse the ROUTING DECISION response to extract the `Model:` line.
-   Set EXECUTOR_MODEL to the returned model tier (haiku/sonnet/opus).
-   Also capture ROUTING_SCORE and ROUTING_CONTEXT from the response.
+   **When PER_TASK_MODE is true** (auto profile with tier tags — per-task routing):
 
-   **If auto profile NOT active:** Set EXECUTOR_MODEL="sonnet" (unchanged default behavior).
+   Spawn executors sequentially, one per task:
 
-3. **Spawn executor agent:**
-```
-Task(
-  subagent_type="gsd-executor",
-  model="{EXECUTOR_MODEL}",
-  prompt="
-    <objective>
-    Execute plan {plan_number} of phase {phase_number}-{phase_name}.
-    Commit each task atomically. Create SUMMARY.md. Update STATE.md.
-    </objective>
+   ```
+   For each task_index in TASK_TIERS (in dependency/wave order from PLAN.md):
+     1. Read TASK_TIER = TASK_TIERS[task_index]
 
-    <execution_context>
-    @/Users/ollorin/.claude/get-shit-done/workflows/execute-plan.md
-    @/Users/ollorin/.claude/get-shit-done/templates/summary.md
-    @/Users/ollorin/.claude/get-shit-done/references/checkpoints.md
-    @/Users/ollorin/.claude/get-shit-done/references/tdd.md
-    </execution_context>
+     2. Apply lightweight quota downgrade:
+        QUOTA_JSON = run: node ~/.claude/get-shit-done/bin/gsd-tools.js quota status --json
+        If quota command succeeds:
+          session_percent = QUOTA_JSON.session.percent (numeric, e.g. 87.3)
+          If session_percent > 95:
+            TASK_TIER = "haiku"  // critical conservation
+          Elif session_percent > 80 AND TASK_TIER == "opus":
+            TASK_TIER = "sonnet"  // downgrade opus only
+          // else: keep TASK_TIER as-is
+        If quota command fails: keep TASK_TIER as-is (fail open)
 
-    <files_to_read>
-    - Plan: {phase_dir}/{plan_file}
-    - State: .planning/STATE.md
-    - Config: .planning/config.json (if exists)
-    </files_to_read>
+     3. Track tier assignment: ROUTING_STATS[TASK_TIER] += 1
 
-    {IF_AUTO_PROFILE_ACTIVE:
-    <routing_context>
-    Auto mode active. Routed to {EXECUTOR_MODEL} (score: {ROUTING_SCORE}).
-    Relevant context injected by router:
-    {ROUTING_CONTEXT}
-    </routing_context>
-    }
-  "
-)
-```
+     4. Spawn per-task executor:
+        Task(
+          subagent_type="gsd-executor",
+          model="{TASK_TIER}",
+          prompt="
+            <objective>
+            Execute task {task_index} of plan {plan_number} in phase {phase_number}-{phase_name}.
+            Commit the task atomically. If this is the last task, create SUMMARY.md and update STATE.md.
+            </objective>
+            <execution_context>
+            @/Users/ollorin/.claude/get-shit-done/workflows/execute-plan.md
+            @/Users/ollorin/.claude/get-shit-done/templates/summary.md
+            @/Users/ollorin/.claude/get-shit-done/references/checkpoints.md
+            @/Users/ollorin/.claude/get-shit-done/references/tdd.md
+            </execution_context>
+            <files_to_read>
+            - Plan: {phase_dir}/{plan_file}
+            - State: .planning/STATE.md
+            - Config: .planning/config.json (if exists)
+            </files_to_read>
+            <routing_context>
+            Per-task routing active. This task routed to {TASK_TIER}.
+            Task index: {task_index}
+            Quota at spawn: {session_percent}%
+            </routing_context>
+            <resume_from_task>{task_index}</resume_from_task>
+          "
+        )
+
+     5. Wait for task executor to complete before spawning next task
+        (sequential within a plan — tasks may have intra-plan dependencies)
+
+     6. On executor return, check for haiku-tier failure and escalate if needed:
+        If the executor's return output contains "TASK FAILED:" AND "[tier: haiku]":
+          If quota allows (session_percent < 95, i.e., not in critical conservation):
+            Log: "Task {task_index} failed at haiku — re-spawning at sonnet (coordinator escalation)"
+            TASK_TIER = "sonnet"
+            ROUTING_STATS["haiku"] -= 1  // remove the failed haiku attempt from stats
+            ROUTING_STATS["sonnet"] += 1
+            Re-spawn the same task using the same executor prompt with TASK_TIER = "sonnet"
+            Wait for sonnet executor to complete
+          Else (quota critical):
+            Log: "Task {task_index} failed at haiku — quota critical, skipping escalation"
+            Record task as failed, continue to next task
+        If the executor's return output contains "TASK FAILED:" AND tier is NOT haiku (sonnet/opus/unrouted):
+          Record task as failed, continue to next task (no escalation for sonnet/opus)
+        Escalation only for error/exception failures signaled by the executor.
+        Output quality issues do not trigger re-spawn.
+   ```
 
 4. **Spot-check result:**
    - SUMMARY.md exists for this plan
@@ -624,8 +706,18 @@ grep "^status:" .planning/phases/{phase_dir}/*-VERIFICATION.md
 ```
 if telegram_topic_id is not null:
   duration_minutes = calculate from phase start timestamp to now (round to nearest minute)
+
+  // Build routing stats string if per-task routing was used
+  routing_stats_str = ""
+  if PER_TASK_MODE and ROUTING_STATS is non-empty:
+    parts = []
+    if ROUTING_STATS.haiku > 0: parts.push("{ROUTING_STATS.haiku} haiku")
+    if ROUTING_STATS.sonnet > 0: parts.push("{ROUTING_STATS.sonnet} sonnet")
+    if ROUTING_STATS.opus > 0: parts.push("{ROUTING_STATS.opus} opus")
+    routing_stats_str = " | " + parts.join(" / ")
+
   mcp__telegram__send_message({
-    text: "Phase {phase_number} complete ({duration_minutes}m) — {phase_name}",
+    text: "Phase {phase_number} complete ({duration_minutes}m) — {phase_name}{routing_stats_str}",
     ...(telegram_topic_id ? { thread_id: telegram_topic_id } : {})
   })
   // JSONL: {"type":"notification","event":"phase_complete","timestamp":"{ISO}","phase":{N},"duration_minutes":{N}}
