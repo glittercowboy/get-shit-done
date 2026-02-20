@@ -28,8 +28,10 @@ Parse current values (default to `true` if not present):
 - `workflow.research` — spawn researcher during plan-phase
 - `workflow.plan_check` — spawn plan checker during plan-phase
 - `workflow.verifier` — spawn verifier during execute-phase
+- `workflow.consolidated` — use consolidated 3-phase workflow (default: `false`)
 - `model_profile` — which model each agent uses (default: `balanced`)
 - `git.branching_strategy` — branching approach (default: `"none"`)
+- `sprint.skip_on_failure` — skip failed phases during sprint (default: `false`)
 </step>
 
 <step name="present_settings">
@@ -84,6 +86,15 @@ AskUserQuestion([
     ]
   },
   {
+    question: "Use consolidated 3-phase workflow? (consensus+plan → execute+gate → ship)",
+    header: "Workflow",
+    multiSelect: false,
+    options: [
+      { label: "Standard (Recommended)", description: "Discuss → Plan → Execute → Verify (4 steps, more control)" },
+      { label: "Consolidated", description: "Consensus+Plan → Execute+Gate → Ship (3 steps, fewer agents, lower cost)" }
+    ]
+  },
+  {
     question: "Git branching strategy?",
     header: "Branching",
     multiSelect: false,
@@ -91,6 +102,22 @@ AskUserQuestion([
       { label: "None (Recommended)", description: "Commit directly to current branch" },
       { label: "Per Phase", description: "Create branch for each phase (gsd/phase-{N}-{name})" },
       { label: "Per Milestone", description: "Create branch for entire milestone (gsd/{version}-{name})" }
+    ]
+  }
+])
+```
+
+**Sprint failure behavior:**
+
+```
+AskUserQuestion([
+  {
+    question: "During /gsd:sprint, what should happen when a phase fails?",
+    header: "Sprint",
+    multiSelect: false,
+    options: [
+      { label: "Stop (Recommended)", description: "Stop the sprint so you can fix the issue" },
+      { label: "Skip & Continue", description: "Log the failure and continue to the next phase" }
     ]
   }
 ])
@@ -108,10 +135,14 @@ Merge new settings into existing config.json:
     "research": true/false,
     "plan_check": true/false,
     "verifier": true/false,
-    "auto_advance": true/false
+    "auto_advance": true/false,
+    "consolidated": true/false
   },
   "git": {
     "branching_strategy": "none" | "phase" | "milestone"
+  },
+  "sprint": {
+    "skip_on_failure": true/false
   }
 }
 ```
@@ -155,7 +186,8 @@ Write `~/.gsd/defaults.json` with:
     "research": <current>,
     "plan_check": <current>,
     "verifier": <current>,
-    "auto_advance": <current>
+    "auto_advance": <current>,
+    "consolidated": <current>
   }
 }
 ```
@@ -176,7 +208,9 @@ Display:
 | Plan Checker         | {On/Off} |
 | Execution Verifier   | {On/Off} |
 | Auto-Advance         | {On/Off} |
+| Workflow Mode        | {Standard/Consolidated} |
 | Git Branching        | {None/Per Phase/Per Milestone} |
+| Sprint on Failure    | {Stop/Skip & Continue} |
 | Saved as Defaults    | {Yes/No} |
 
 These settings apply to future /gsd:plan-phase and /gsd:execute-phase runs.
@@ -193,8 +227,8 @@ Quick commands:
 
 <success_criteria>
 - [ ] Current config read
-- [ ] User presented with 6 settings (profile + 4 workflow toggles + git branching)
-- [ ] Config updated with model_profile, workflow, and git sections
+- [ ] User presented with 8 settings (profile + 4 workflow toggles + consolidated mode + git branching + sprint behavior)
+- [ ] Config updated with model_profile, workflow, git, and sprint sections
 - [ ] User offered to save as global defaults (~/.gsd/defaults.json)
 - [ ] Changes confirmed to user
 </success_criteria>
