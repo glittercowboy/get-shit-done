@@ -47,7 +47,14 @@
  * Milestone Operations:
  *   milestone complete <version>       Archive milestone, create MILESTONES.md
  *     [--name <name>]
- *
+ *   milestone summarize <version>      Generate {version}-SUMMARY.md (one-liner per phase,
+ *     [--phases N-M]                   plan count, duration, key decisions)
+ *   milestone archive-phases <version> Move completed phase dirs to milestones/{version}/phases/
+ *     [--phases N-M] [--dry-run]
+ *   milestone summarize <version>      Generate {version}-SUMMARY.md (one-liner per phase,
+ *     [--phases N-M]                   plan count, duration, key decisions)
+ *   milestone archive-phases <version> Move completed phase dirs to milestones/{version}/phases/
+ *     [--phases N-M] [--dry-run]
  * Validation:
  *   validate consistency               Check phase numbering, disk/roadmap sync
  *
@@ -5969,6 +5976,240 @@ function cmdMilestoneComplete(cwd, version, options, raw) {
   output(result, raw);
 }
 
+
+// ─── Milestone Summarize ──────────────────────────────────────────────
+
+/**
+ * Generate a structured milestone summary document.
+ *
+ * Reads all phase directories (optionally filtered by phase range) and produces
+ * {version}-SUMMARY.md in .planning/milestones/ containing:
+ *   - one-liner per phase (from SUMMARY.md title/frontmatter)
+ *   - total plan count and total duration
+ *   - key decisions from STATE.md
+ *
+ * Idempotent: always overwrites the summary file if it already exists.
+ *
+ * CLI: gsd-tools milestone summarize <version> [--phases N-M]
+ */
+function cmdMilestoneSummarize(cwd, version, options, raw) {
+  if (!version) {
+    error('version required for milestone summarize (e.g., v1.11.0)');
+  }
+
+  var phasesDir = path.join(cwd, '.planning', 'phases');
+  var archiveDir = path.join(cwd, '.planning', 'milestones');
+  var statePath = path.join(cwd, '.planning', 'STATE.md');
+  var today = new Date().toISOString().split('T')[0];
+
+  fs.mkdirSync(archiveDir, { recursive: true });
+
+  var phaseMin = null;
+  var phaseMax = null;
+  if (options.phases) {
+    var pm = String(options.phases).match(/^(\d+)(?:-(\d+))?$/);
+    if (pm) {
+      phaseMin = parseInt(pm[1], 10);
+      phaseMax = pm[2] ? parseInt(pm[2], 10) : phaseMin;
+    }
+  }
+
+  var phaseRows = [];
+  var totalPlans = 0;
+  var totalDurationMin = 0;
+
+  var phaseDirList = [];
+  try {
+    var phaseEntries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    phaseDirList = phaseEntries
+      .filter(function(e) { return e.isDirectory(); })
+      .map(function(e) { return e.name; })
+      .filter(function(name) { return /^\d/.test(name); })
+      .sort(function(a, b) {
+        var na = parseInt(a.match(/^(\d+)/)[1], 10);
+        var nb = parseInt(b.match(/^(\d+)/)[1], 10);
+        return na - nb;
+      });
+  } catch (err) { /* no phases dir */ }
+
+  for (var i = 0; i < phaseDirList.length; i++) {
+    var dirName = phaseDirList[i];
+    var phaseMatch = dirName.match(/^(\d+)/);
+    if (!phaseMatch) continue;
+    var phaseNum = parseInt(phaseMatch[1], 10);
+    if (phaseMin !== null && phaseNum < phaseMin) continue;
+    if (phaseMax !== null && phaseNum > phaseMax) continue;
+
+    var phaseDir = path.join(phasesDir, dirName);
+    var phaseFiles;
+    try { phaseFiles = fs.readdirSync(phaseDir); } catch (e) { continue; }
+
+    var summaryFiles = phaseFiles
+      .filter(function(f) { return f.endsWith('-SUMMARY.md') || f === 'SUMMARY.md'; })
+      .sort();
+
+    var phaseName = dirName.replace(/^\d+[-_.\s]*/, '').replace(/-/g, ' ') || dirName;
+    var planCount = phaseFiles.filter(function(f) { return f.endsWith('-PLAN.md') || f === 'PLAN.md'; }).length;
+    var phaseDurationMin = 0;
+    var planOneLinerParts = [];
+
+    for (var j = 0; j < summaryFiles.length; j++) {
+      try {
+        var sc = fs.readFileSync(path.join(phaseDir, summaryFiles[j]), 'utf-8');
+        var sfm = extractFrontmatter(sc);
+        var stitle = sfm['title'] || sfm['one-liner'] || sfm['name'] || '';
+        if (stitle) planOneLinerParts.push(stitle);
+        var durRaw = String(sfm['duration'] || '0');
+        var durMatch = durRaw.match(/(\d+)/);
+        if (durMatch) phaseDurationMin += parseInt(durMatch[1], 10);
+      } catch (e) {}
+    }
+
+    if (planOneLinerParts.length === 0 && summaryFiles.length > 0) {
+      try {
+        var fc = fs.readFileSync(path.join(phaseDir, summaryFiles[0]), 'utf-8');
+        var body = fc.replace(/^---[\s\S]+?---\n/, '');
+        var h2m = body.match(/^##\s+(.+)$/m);
+        if (h2m) planOneLinerParts.push(h2m[1].trim());
+      } catch (e) {}
+    }
+
+    var oneLiner = planOneLinerParts.join('; ') || '(no summary)';
+    totalPlans += planCount;
+    totalDurationMin += phaseDurationMin;
+    phaseRows.push({ phase: phaseNum, name: phaseName, plans: planCount, duration: phaseDurationMin, oneLiner: oneLiner });
+  }
+
+  var keyDecisions = '';
+  if (fs.existsSync(statePath)) {
+    try {
+      var stateContent = fs.readFileSync(statePath, 'utf-8');
+      var dm = stateContent.match(/###\s*Decisions\n([\s\S]*?)(?=\n###|\n##|$)/);
+      if (dm) {
+        var dBullets = dm[1].split('\n').filter(function(l) { return l.trim().startsWith('- ['); }).map(function(l) { return l.trim(); });
+        if (dBullets.length > 0) keyDecisions = dBullets.join('\n');
+      }
+    } catch (e) {}
+  }
+
+  var tableRows = ['| Phase | Name | Plans | Duration | What was built |', '|-------|------|-------|----------|----------------|']
+  for (var k = 0; k < phaseRows.length; k++) {
+    var r = phaseRows[k];
+    tableRows.push('| ' + r.phase + ' | ' + r.name + ' | ' + r.plans + ' | ' + r.duration + ' min | ' + r.oneLiner + ' |');
+  }
+
+  var docLines = [
+    '# Milestone Summary: ' + version, '',
+    '**Generated:** ' + today,
+    '**Phases:** ' + phaseRows.length,
+    '**Total plans:** ' + totalPlans,
+    '**Total duration:** ' + totalDurationMin + ' min',
+    '', '## Phases', '', tableRows.join('\n'),
+    '', '## Stats', '',
+    '- **Phases completed:** ' + phaseRows.length,
+    '- **Total plans:** ' + totalPlans,
+    '- **Total execution time:** ~' + totalDurationMin + ' min',
+    '', '## Key Decisions', '',
+    keyDecisions || '*(See STATE.md Decisions section for full list)*',
+    '', '---',
+    '*Generated by gsd-tools milestone summarize ' + version + ' on ' + today + '*',
+    '',
+  ];
+  var summaryContent = docLines.join('\n');
+
+  var summaryPath = path.join(archiveDir, version + '-SUMMARY.md');
+  fs.writeFileSync(summaryPath, summaryContent, 'utf-8');
+
+  output({ version: version, summary_path: summaryPath, phases: phaseRows.length, total_plans: totalPlans, total_duration_min: totalDurationMin, phase_range: phaseMin !== null ? (phaseMin + '-' + phaseMax) : 'all', written: true }, raw);
+}
+
+// ─── Milestone Archive Phases ────────────────────────────────────────
+
+/**
+ * Move completed phase directories to a milestone archive subfolder.
+ *
+ * A phase is considered complete when its directory contains a VERIFICATION.md.
+ * Idempotent: phases already at the archive path are skipped.
+ *
+ * CLI: gsd-tools milestone archive-phases <version> [--phases N-M] [--dry-run]
+ */
+function cmdMilestoneArchivePhases(cwd, version, options, raw) {
+  if (!version) {
+    error('version required for milestone archive-phases (e.g., v1.11.0)');
+  }
+
+  var phasesDir = path.join(cwd, '.planning', 'phases');
+  var archiveDir = path.join(cwd, '.planning', 'milestones', version, 'phases');
+  var dryRun = options.dryRun || options['dry-run'] || false;
+
+  var phaseMin = null;
+  var phaseMax = null;
+  if (options.phases) {
+    var pm = String(options.phases).match(/^(\d+)(?:-(\d+))?$/);
+    if (pm) {
+      phaseMin = parseInt(pm[1], 10);
+      phaseMax = pm[2] ? parseInt(pm[2], 10) : phaseMin;
+    }
+  }
+
+  if (!dryRun) fs.mkdirSync(archiveDir, { recursive: true });
+
+  var archived = [], skipped = [], errors = [];
+  var phaseDirList = [];
+  try {
+    var phaseEntries = fs.readdirSync(phasesDir, { withFileTypes: true });
+    phaseDirList = phaseEntries
+      .filter(function(e) { return e.isDirectory(); })
+      .map(function(e) { return e.name; })
+      .filter(function(name) { return /^\d/.test(name); })
+      .sort(function(a, b) {
+        var na = parseInt(a.match(/^(\d+)/)[1], 10);
+        var nb = parseInt(b.match(/^(\d+)/)[1], 10);
+        return na - nb;
+      });
+  } catch (err) {
+    error('Cannot read phases directory: ' + err.message);
+  }
+
+  for (var i = 0; i < phaseDirList.length; i++) {
+    var dirName = phaseDirList[i];
+    var phaseMatch = dirName.match(/^(\d+)/);
+    if (!phaseMatch) continue;
+    var phaseNum = parseInt(phaseMatch[1], 10);
+    if (phaseMin !== null && phaseNum < phaseMin) continue;
+    if (phaseMax !== null && phaseNum > phaseMax) continue;
+
+    var sourcePath = path.join(phasesDir, dirName);
+    var targetPath = path.join(archiveDir, dirName);
+
+    var hasVerification =
+      fs.existsSync(path.join(sourcePath, phaseNum + '-VERIFICATION.md')) ||
+      fs.existsSync(path.join(sourcePath, 'VERIFICATION.md'));
+
+    if (!hasVerification) {
+      skipped.push({ dir: dirName, reason: 'no VERIFICATION.md (incomplete phase)' });
+      continue;
+    }
+    if (fs.existsSync(targetPath)) {
+      skipped.push({ dir: dirName, reason: 'already archived' });
+      continue;
+    }
+
+    if (dryRun) {
+      archived.push({ dir: dirName, from: sourcePath, to: targetPath, dry_run: true });
+    } else {
+      try {
+        fs.renameSync(sourcePath, targetPath);
+        archived.push({ dir: dirName, from: sourcePath, to: targetPath });
+      } catch (err) {
+        errors.push({ dir: dirName, error: err.message });
+      }
+    }
+  }
+
+  output({ version: version, archive_path: archiveDir, dry_run: dryRun, archived: archived, skipped: skipped, errors: errors, counts: { archived: archived.length, skipped: skipped.length, errors: errors.length } }, raw);
+}
+
 // ─── Validate Consistency ─────────────────────────────────────────────────────
 
 function cmdValidateConsistency(cwd, raw) {
@@ -8916,8 +9157,24 @@ async function main() {
         const nameIndex = args.indexOf('--name');
         const milestoneName = nameIndex !== -1 ? args.slice(nameIndex + 1).join(' ') : null;
         cmdMilestoneComplete(cwd, args[2], { name: milestoneName }, raw);
+        const msVersion = args[2];
+        const msPhasesIndex = args.indexOf('--phases');
+        const msPhasesRange = msPhasesIndex !== -1 ? args[msPhasesIndex + 1] : null;
+        if (msVersion) {
+          cmdMilestoneSummarize(cwd, msVersion, { name: milestoneName, phases: msPhasesRange }, raw);
+          cmdMilestoneArchivePhases(cwd, msVersion, { phases: msPhasesRange }, raw);
+        }
+      } else if (subcommand === 'summarize') {
+        const msPhasesIndex = args.indexOf('--phases');
+        const msPhasesRange = msPhasesIndex !== -1 ? args[msPhasesIndex + 1] : null;
+        cmdMilestoneSummarize(cwd, args[2], { phases: msPhasesRange }, raw);
+      } else if (subcommand === 'archive-phases') {
+        const msPhasesIndex = args.indexOf('--phases');
+        const msPhasesRange = msPhasesIndex !== -1 ? args[msPhasesIndex + 1] : null;
+        const msDryRun = args.includes('--dry-run');
+        cmdMilestoneArchivePhases(cwd, args[2], { phases: msPhasesRange, 'dry-run': msDryRun }, raw);
       } else {
-        error('Unknown milestone subcommand. Available: complete');
+        error('Unknown milestone subcommand. Available: complete, summarize, archive-phases');
       }
       break;
     }
