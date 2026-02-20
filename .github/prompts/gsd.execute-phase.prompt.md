@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/execute-phase.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","edit","glob","grep","bash","task","todowrite","askuserquestion"] -->
 
 ## Preflight (required)
 

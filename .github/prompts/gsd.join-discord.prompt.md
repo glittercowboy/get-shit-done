@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/join-discord.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: null (field absent in upstream command) -->
 
 ## Preflight (required)
 

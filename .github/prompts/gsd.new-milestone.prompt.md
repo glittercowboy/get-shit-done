@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/new-milestone.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","bash","task","askuserquestion"] -->
 
 ## Preflight (required)
 

@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/map-codebase.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","bash","glob","grep","write","task"] -->
 
 ## Preflight (required)
 

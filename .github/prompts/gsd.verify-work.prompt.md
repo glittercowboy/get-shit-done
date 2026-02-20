@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/verify-work.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","bash","glob","grep","edit","write","task"] -->
 
 ## Preflight (required)
 

@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/debug.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","bash","task","askuserquestion"] -->
 
 ## Preflight (required)
 

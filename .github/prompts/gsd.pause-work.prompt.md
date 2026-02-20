@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/pause-work.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","bash"] -->
 
 ## Preflight (required)
 

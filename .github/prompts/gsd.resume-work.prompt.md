@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/resume-work.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","bash","write","askuserquestion","slashcommand"] -->
 
 ## Preflight (required)
 

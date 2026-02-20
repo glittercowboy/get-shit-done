@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/remove-phase.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","bash","glob"] -->
 
 ## Preflight (required)
 

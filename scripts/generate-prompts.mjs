@@ -66,6 +66,90 @@ function parseFrontmatter(md) {
   return { data, body };
 }
 
+/**
+ * Extract the `allowed-tools` array from a markdown file's YAML frontmatter.
+ *
+ * @param {string} content  Raw file content
+ * @param {string} [filePath]  For warning messages only
+ * @returns {string[] | null}
+ *   - string[]  when field is present and non-empty (lowercased tool names)
+ *   - []        when field is present but explicitly empty
+ *   - null      when field is absent
+ *
+ * Zero external dependencies. Hand-rolled state machine.
+ * Handles:
+ *   - Multi-line block sequence:  allowed-tools:\n  - Read\n  - Write
+ *   - Inline comma-separated scalar:  allowed-tools: Read, Write, Edit
+ *   - Field absent → null
+ *   - Wildcard entries (mcp__context7__*) preserved as-is (lowercased)
+ */
+export function parseFrontmatterTools(content, filePath = "<unknown>") {
+  // Normalize line endings once
+  const normalized = content.replace(/\r\n/g, "\n");
+
+  // Extract frontmatter block.
+  // Handles trailing spaces on delimiters and closing --- at EOF (no trailing newline).
+  const fmMatch = normalized.match(/^---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/);
+  if (!fmMatch) return null;
+
+  const fmText = fmMatch[1];
+  const lines = fmText.split("\n");
+
+  const KEY_LINE = /^allowed-tools\s*:\s*(.*)$/;
+  const LIST_ITEM = /^\s+-\s+(.+)\s*$/;
+  const NEW_KEY = /^[A-Za-z0-9_-]+\s*:/;
+
+  let state = "SCANNING"; // SCANNING | COLLECTING
+  const tools = [];
+  let fieldFound = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (state === "SCANNING") {
+      const m = line.match(KEY_LINE);
+      if (!m) continue;
+
+      fieldFound = true;
+      const inline = m[1].trim();
+
+      if (inline) {
+        // Inline value: "Read, Write, Edit" or "[Read, Write, Edit]"
+        const stripped = inline.replace(/^\[/, "").replace(/\]$/, "");
+        const items = stripped
+          .split(/\s*,\s*/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        return items.length ? items : [];
+      }
+
+      // Empty inline value — switch to block-collection mode
+      state = "COLLECTING";
+      continue;
+    }
+
+    if (state === "COLLECTING") {
+      // Terminator: blank line or new top-level key
+      if (line.trim() === "" || NEW_KEY.test(line)) break;
+
+      const itemMatch = line.match(LIST_ITEM);
+      if (itemMatch) {
+        const val = itemMatch[1].trim().toLowerCase();
+        if (val) tools.push(val);
+      } else {
+        // Unexpected line inside list block — warn and skip (do not crash)
+        // Include line number (i+1) per error-message format decision
+        console.warn(
+          `[parseFrontmatterTools] ${filePath}: line ${i + 1}: unexpected line in allowed-tools block: ${JSON.stringify(line)}`
+        );
+      }
+    }
+  }
+
+  if (!fieldFound) return null;
+  return tools; // [] if block was present but had no valid list items
+}
+
 function normalizeName(name) {
   // upstream uses gsd:new-project; VS Code prompt uses gsd.new-project
   return String(name).replace(/^gsd:/, "gsd.").replace(/:/g, ".");
@@ -143,7 +227,7 @@ function escapeYamlString(s) {
   return String(s ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-function buildPrompt({ cmdFile, fm, body }) {
+function buildPrompt({ cmdFile, fm, body, upstreamTools }) {
   const upstreamName = fm.name || "";
   const cmdName = upstreamName
     ? normalizeName(upstreamName)
@@ -169,6 +253,10 @@ function buildPrompt({ cmdFile, fm, body }) {
     path.basename(cmdFile)
   );
 
+  const toolsAnnotation = upstreamTools === null
+    ? "<!-- upstream-tools: null (field absent in upstream command) -->"
+    : `<!-- upstream-tools: ${JSON.stringify(upstreamTools)} -->`;
+
   // Build tools array: always include base tools, conditionally add askQuestions
   const tools = ["agent", "search", "read", "vscode/askQuestions", "execute", "edit"];
   /*if (needsAskTool) {
@@ -185,6 +273,7 @@ agent: agent
 ---
 
 ${generatedBanner(sourceRel)}
+${toolsAnnotation}
 
 ${preflightBlock(cmdName)}
 ${adapterBlock()}
@@ -204,7 +293,8 @@ function main() {
   for (const f of files) {
     const md = readFile(f);
     const { data, body } = parseFrontmatter(md);
-    const prompt = buildPrompt({ cmdFile: f, fm: data, body });
+    const upstreamTools = parseFrontmatterTools(md, f);
+    const prompt = buildPrompt({ cmdFile: f, fm: data, body, upstreamTools });
 
     const base = path.basename(f, ".md"); // e.g., new-project
     const outName = `gsd.${base}.prompt.md`;

@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/progress.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","bash","grep","glob","slashcommand"] -->
 
 ## Preflight (required)
 

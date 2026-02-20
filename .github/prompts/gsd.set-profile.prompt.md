@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/set-profile.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","bash"] -->
 
 ## Preflight (required)
 

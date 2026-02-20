@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/plan-milestone-gaps.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","bash","glob","grep","askuserquestion"] -->
 
 ## Preflight (required)
 

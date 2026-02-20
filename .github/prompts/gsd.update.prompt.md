@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/update.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["bash","askuserquestion"] -->
 
 ## Preflight (required)
 

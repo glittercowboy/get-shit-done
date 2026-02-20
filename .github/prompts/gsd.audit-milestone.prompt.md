@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/audit-milestone.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","glob","grep","bash","task","write"] -->
 
 ## Preflight (required)
 

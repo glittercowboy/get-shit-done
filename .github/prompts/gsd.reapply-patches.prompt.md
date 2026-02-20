@@ -10,6 +10,7 @@ agent: agent
 Source: commands/gsd/reapply-patches.md
 Regenerate: node scripts/generate-prompts.mjs
 -->
+<!-- upstream-tools: ["read","write","edit","bash","glob","grep","askuserquestion"] -->
 
 ## Preflight (required)
 
