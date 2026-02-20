@@ -2490,12 +2490,43 @@ function cmdKnowledgePrune(cwd, args, raw) {
 }
 
 function cmdKnowledgeStats(cwd, args, raw) {
-  const scope = args.includes('--scope') ? args[args.indexOf('--scope') + 1] : 'project';
+  const scope = args.includes('--scope') ? args[args.indexOf('--scope') + 1] : 'global';
 
   const { knowledge } = require('./knowledge.js');
-  const result = knowledge.getStats({ scope });
+  const dbStats = knowledge.getStats({ scope });
 
-  output(result, raw);
+  // Load configured thresholds so users can see what's active
+  let thresholds;
+  try {
+    const { readKnowledgeConfig, KNOWLEDGE_DEFAULTS } = require('./knowledge-writer.js');
+    thresholds = readKnowledgeConfig(cwd);
+    thresholds._defaults = KNOWLEDGE_DEFAULTS;
+    thresholds._from_config = (
+      thresholds.dedupThreshold !== KNOWLEDGE_DEFAULTS.dedupThreshold ||
+      thresholds.evolutionThreshold !== KNOWLEDGE_DEFAULTS.evolutionThreshold
+    );
+  } catch (_) {
+    thresholds = { dedupThreshold: 0.88, evolutionThreshold: 0.65, _from_config: false };
+  }
+
+  // Aggregate totals across types
+  const totals = (dbStats || []).reduce((acc, row) => {
+    acc.total_count += row.total_count || 0;
+    acc.total_accesses += row.total_accesses || 0;
+    return acc;
+  }, { total_count: 0, total_accesses: 0 });
+
+  output({
+    scope,
+    thresholds: {
+      dedup_threshold: thresholds.dedupThreshold,
+      evolution_threshold: thresholds.evolutionThreshold,
+      source: thresholds._from_config ? 'config.json' : 'defaults'
+    },
+    totals,
+    by_type: dbStats || [],
+    hint: 'Set knowledge.dedup_threshold / knowledge.evolution_threshold in .planning/config.json to tune. Enable GSD_DEBUG=1 to log per-entry dedup decisions.'
+  }, raw);
 }
 
 // ─── Permission Management ───────────────────────────────────────────────────

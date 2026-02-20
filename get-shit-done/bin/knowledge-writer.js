@@ -20,6 +20,33 @@
 const path = require('path');
 const fs = require('fs');
 
+// ─── Knowledge Config ────────────────────────────────────────────────────────
+
+const KNOWLEDGE_DEFAULTS = {
+  dedupThreshold: 0.88,    // Stage 3: similarity above this → skip (exact/near-exact duplicate)
+  evolutionThreshold: 0.65 // Stage 3: similarity above this but below dedupThreshold → evolve
+};
+
+/**
+ * Read knowledge thresholds from .planning/config.json.
+ * Falls back to hardcoded defaults if config absent or field missing.
+ * @param {string} [cwd] - Working directory (defaults to process.cwd())
+ * @returns {{ dedupThreshold: number, evolutionThreshold: number }}
+ */
+function readKnowledgeConfig(cwd) {
+  try {
+    const configPath = path.join(cwd || process.cwd(), '.planning', 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const k = config.knowledge || {};
+    return {
+      dedupThreshold: typeof k.dedup_threshold === 'number' ? k.dedup_threshold : KNOWLEDGE_DEFAULTS.dedupThreshold,
+      evolutionThreshold: typeof k.evolution_threshold === 'number' ? k.evolution_threshold : KNOWLEDGE_DEFAULTS.evolutionThreshold
+    };
+  } catch {
+    return { ...KNOWLEDGE_DEFAULTS };
+  }
+}
+
 // ─── Project Slug Resolution ──────────────────────────────────────────────
 
 /**
@@ -170,6 +197,8 @@ async function storeInsights(insights, options = {}) {
   const result = { stored: 0, skipped: 0, evolved: 0, errors: [] };
   const scope = options.scope || 'global';
   const projectSlug = options.projectSlug || resolveProjectSlug(options.cwd);
+  const { dedupThreshold, evolutionThreshold } = readKnowledgeConfig(options.cwd);
+  const debug = process.env.GSD_DEBUG;
 
   // Validate input
   if (!Array.isArray(insights) || insights.length === 0) {
@@ -259,13 +288,20 @@ async function storeInsights(insights, options = {}) {
       if (dupCheck.isDuplicate) {
         const similarity = dupCheck.similarity || 0;
 
-        if (similarity > 0.88) {
+        if (debug) {
+          const action = similarity > dedupThreshold ? 'skipped' : similarity >= evolutionThreshold ? 'evolve' : 'insert';
+          process.stderr.write(
+            `[dedup] similarity=${similarity.toFixed(3)} dedupThreshold=${dedupThreshold} evolutionThreshold=${evolutionThreshold} stage=${dupCheck.stage} → ${action}\n`
+          );
+        }
+
+        if (similarity > dedupThreshold) {
           // Exact or near-exact duplicate - skip
           result.skipped++;
           continue;
         }
 
-        if (similarity >= 0.65 && similarity <= 0.88) {
+        if (similarity >= evolutionThreshold && similarity <= dedupThreshold) {
           // Near-duplicate - evolve existing entry via insertOrEvolve
           const evolveResult = await insertOrEvolve(conn, {
             content,
@@ -330,5 +366,7 @@ module.exports = {
   ensureKnowledgeDB,
   mapInsightToKnowledgeType,
   extractInsightContent,
-  resolveProjectSlug
+  resolveProjectSlug,
+  readKnowledgeConfig,
+  KNOWLEDGE_DEFAULTS
 };
