@@ -23,8 +23,9 @@ const fs = require('fs');
 // ─── Knowledge Config ────────────────────────────────────────────────────────
 
 const KNOWLEDGE_DEFAULTS = {
-  dedupThreshold: 0.88,    // Stage 3: similarity above this → skip (exact/near-exact duplicate)
-  evolutionThreshold: 0.65 // Stage 3: similarity above this but below dedupThreshold → evolve
+  dedupThreshold: 0.88,      // Stage 3: similarity above this → skip (exact/near-exact duplicate)
+  evolutionThreshold: 0.65,  // Stage 3: similarity above this but below dedupThreshold → evolve
+  embeddingTimeoutMs: 2000   // Stage 3: max ms to wait for embedding generation before falling back
 };
 
 /**
@@ -40,7 +41,8 @@ function readKnowledgeConfig(cwd) {
     const k = config.knowledge || {};
     return {
       dedupThreshold: typeof k.dedup_threshold === 'number' ? k.dedup_threshold : KNOWLEDGE_DEFAULTS.dedupThreshold,
-      evolutionThreshold: typeof k.evolution_threshold === 'number' ? k.evolution_threshold : KNOWLEDGE_DEFAULTS.evolutionThreshold
+      evolutionThreshold: typeof k.evolution_threshold === 'number' ? k.evolution_threshold : KNOWLEDGE_DEFAULTS.evolutionThreshold,
+      embeddingTimeoutMs: typeof k.embedding_timeout_ms === 'number' ? k.embedding_timeout_ms : KNOWLEDGE_DEFAULTS.embeddingTimeoutMs
     };
   } catch {
     return { ...KNOWLEDGE_DEFAULTS };
@@ -197,8 +199,11 @@ async function storeInsights(insights, options = {}) {
   const result = { stored: 0, skipped: 0, evolved: 0, errors: [] };
   const scope = options.scope || 'global';
   const projectSlug = options.projectSlug || resolveProjectSlug(options.cwd);
-  const { dedupThreshold, evolutionThreshold } = readKnowledgeConfig(options.cwd);
+  const { dedupThreshold, evolutionThreshold, embeddingTimeoutMs } = readKnowledgeConfig(options.cwd);
   const debug = process.env.GSD_DEBUG;
+  if (debug) {
+    process.stderr.write(`[knowledge-writer] embedding_timeout_ms=${embeddingTimeoutMs} (from config or default)\n`);
+  }
 
   // Validate input
   if (!Array.isArray(insights) || insights.length === 0) {
@@ -276,7 +281,7 @@ async function storeInsights(insights, options = {}) {
         const { generateEmbeddingCached } = require('./embeddings.js');
         embedding = await Promise.race([
           generateEmbeddingCached(content),
-          new Promise(resolve => setTimeout(() => resolve(null), 2000))
+          new Promise(resolve => setTimeout(() => resolve(null), embeddingTimeoutMs))
         ]);
       } catch (_embErr) {
         // Embedding unavailable — fall back to hash-only dedup (stages 1 and 2)
