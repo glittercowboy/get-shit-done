@@ -206,9 +206,10 @@ We'll clarify HOW to implement this.
 **Then use AskUserQuestion (multiSelect: true):**
 - header: "Discuss"
 - question: "Which areas do you want to discuss for [phase name]?"
-- options: Generate 3-4 phase-specific gray areas, each formatted as:
+- options: Generate 3-4 phase-specific gray areas, each with:
   - "[Specific area]" (label) — concrete, not generic
   - [1-2 questions this covers] (description)
+  - **Highlight the recommended choice with brief explanation why**
 
 **Do NOT include a "skip" or "you decide" option.** User ran this command to discuss — give them real choices.
 
@@ -258,7 +259,7 @@ Ask 4 questions per area before offering to continue or move on. Each answer oft
 2. **Ask 4 questions using AskUserQuestion:**
    - header: "[Area]" (max 12 chars — abbreviate if needed)
    - question: Specific decision for this area
-   - options: 2-3 concrete choices (AskUserQuestion adds "Other" automatically)
+   - options: 2-3 concrete choices (AskUserQuestion adds "Other" automatically), with the recommended choice highlighted and brief explanation why
    - Include "You decide" as an option when reasonable — captures Claude discretion
 
 3. **After 4 questions, check:**
@@ -270,10 +271,17 @@ Ask 4 questions per area before offering to continue or move on. Each answer oft
    If "Next area" → proceed to next selected area
    If "Other" (free text) → interpret intent: continuation phrases ("chat more", "keep going", "yes", "more") map to "More questions"; advancement phrases ("done", "move on", "next", "skip") map to "Next area". If ambiguous, ask: "Continue with more questions about [area], or move to the next area?"
 
-4. **After all areas complete:**
-   - header: "Done"
-   - question: "That covers [list areas]. Ready to create context?"
-   - options: "Create context" / "Revisit an area"
+4. **After all initially-selected areas complete:**
+   - Summarize what was captured from the discussion so far
+   - AskUserQuestion:
+     - header: "Done"
+     - question: "We've discussed [list areas]. Which gray areas remain unclear?"
+     - options: "Explore more gray areas" / "I'm ready for context"
+   - If "Explore more gray areas":
+     - Identify 2-4 additional gray areas based on what was learned
+     - Return to present_gray_areas logic with these new areas
+     - Loop: discuss new areas, then prompt again
+   - If "I'm ready for context": Proceed to write_context
 
 **Question design:**
 - Options should be concrete, not abstract ("Cards" not "Option A")
