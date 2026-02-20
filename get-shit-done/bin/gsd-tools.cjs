@@ -248,6 +248,12 @@ function normalizePhaseName(phase) {
   return parts.length > 1 ? `${padded}.${parts[1]}` : padded;
 }
 
+function isValidPhaseArg(phase) {
+  if (phase === undefined || phase === null) return false;
+  const v = String(phase).trim();
+  return /^\d+(?:\.\d+)?$/.test(v);
+}
+
 function extractFrontmatter(content) {
   const frontmatter = {};
   const match = content.match(/^---\n([\s\S]+?)\n---/);
@@ -4241,9 +4247,21 @@ function cmdInitExecutePhase(cwd, phase, raw) {
     error('phase required for init execute-phase');
   }
 
+  if (!isValidPhaseArg(phase)) {
+    error(`invalid phase for init execute-phase: "${phase}" (expected numeric like 1 or 1.1)`);
+  }
+
   const config = loadConfig(cwd);
   const phaseInfo = findPhaseInternal(cwd, phase);
   const milestone = getMilestoneInfo(cwd);
+
+  if (!phaseInfo) {
+    error(`phase not found for init execute-phase: ${phase} (run plan-phase first or verify .planning/phases)`);
+  }
+
+  if (!phaseInfo.plans || phaseInfo.plans.length === 0) {
+    error(`no plans found for phase ${phaseInfo.phase_number || phase} (run plan-phase before execute-phase)`);
+  }
 
   const result = {
     // Models

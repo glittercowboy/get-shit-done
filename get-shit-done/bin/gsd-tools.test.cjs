@@ -289,6 +289,53 @@ patterns-established: ["Pattern X", "Pattern Y"]
   });
 });
 
+describe('init execute-phase guardrails', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = createTempProject();
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'config.json'), JSON.stringify({ version: '1.0' }));
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'ROADMAP.md'), '# Roadmap');
+    fs.writeFileSync(path.join(tmpDir, '.planning', 'STATE.md'), '# State');
+  });
+
+  afterEach(() => {
+    cleanup(tmpDir);
+  });
+
+  test('rejects non-numeric phase argument', () => {
+    const result = runGsdTools('init execute-phase null --raw', tmpDir);
+    assert.strictEqual(result.success, false, 'command should fail');
+    assert.match(result.error, /invalid phase for init execute-phase/i);
+  });
+
+  test('rejects when phase directory does not exist', () => {
+    const result = runGsdTools('init execute-phase 1 --raw', tmpDir);
+    assert.strictEqual(result.success, false, 'command should fail');
+    assert.match(result.error, /phase not found for init execute-phase/i);
+  });
+
+  test('rejects when phase exists but has no plans', () => {
+    fs.mkdirSync(path.join(tmpDir, '.planning', 'phases', '01-empty'), { recursive: true });
+    const result = runGsdTools('init execute-phase 1 --raw', tmpDir);
+    assert.strictEqual(result.success, false, 'command should fail');
+    assert.match(result.error, /no plans found for phase/i);
+  });
+
+  test('succeeds when phase exists with at least one plan', () => {
+    const phaseDir = path.join(tmpDir, '.planning', 'phases', '01-foundation');
+    fs.mkdirSync(phaseDir, { recursive: true });
+    fs.writeFileSync(path.join(phaseDir, '01-01-PLAN.md'), '# Plan');
+
+    const result = runGsdTools('init execute-phase 1 --raw', tmpDir);
+    assert.strictEqual(result.success, true, `command failed: ${result.error || result.output}`);
+
+    const output = JSON.parse(result.output);
+    assert.strictEqual(output.phase_found, true);
+    assert.strictEqual(output.plan_count, 1);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // phases list command
 // ─────────────────────────────────────────────────────────────────────────────
