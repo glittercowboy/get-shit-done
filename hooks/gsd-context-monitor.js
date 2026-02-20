@@ -39,7 +39,9 @@ process.stdin.on('end', () => {
     }
 
     const tmpDir = os.tmpdir();
-    const metricsPath = path.join(tmpDir, `claude-ctx-${sessionId}.json`);
+    // Sanitize session_id to prevent path traversal
+    const safeId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '');
+    const metricsPath = path.join(tmpDir, `claude-ctx-${safeId}.json`);
 
     // If no metrics file, this is a subagent or fresh session -- exit silently
     if (!fs.existsSync(metricsPath)) {
@@ -63,7 +65,7 @@ process.stdin.on('end', () => {
     }
 
     // Debounce: check if we warned recently
-    const warnPath = path.join(tmpDir, `claude-ctx-${sessionId}-warned.json`);
+    const warnPath = path.join(tmpDir, `claude-ctx-${safeId}-warned.json`);
     let warnData = { callsSinceWarn: 0, lastLevel: null };
     let firstWarn = true;
 
