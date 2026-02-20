@@ -1,15 +1,30 @@
-name: Upstream Sync
+# Upstream Sync Workflow
+# Detects changes in upstream gsd-build/get-shit-done, merges them,
+# regenerates the Copilot wrapper layer, verifies it, and creates/updates a PR.
+#
+# One-time prerequisite: create GitHub labels before first run:
+#   gh label create upstream-sync --color 0075ca --description "Upstream sync PR"
+#   gh label create automated --color e4e669 --description "Automated workflow"
+#
+# To enable daily schedule, uncomment the schedule block below.
+
+# on:
+#   schedule:
+#     - cron: '0 6 * * *'  # Daily at 06:00 UTC
 
 on:
-  schedule:
-    # Run daily at 6 AM UTC (adjustable)
-    - cron: '0 6 * * *'
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Upstream branch to sync from'
-        required: false
-        default: 'main'
+
+name: Upstream Sync
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: gsd-build/get-shit-done
+  UPSTREAM_BRANCH: main
+  DEFAULT_BRANCH: main
 
 jobs:
   sync:
@@ -18,155 +33,210 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - name: Checkout fork
+      - name: Checkout fork (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream "https://github.com/${{ env.UPSTREAM_REPO }}.git" || true
+          git fetch upstream "${{ env.UPSTREAM_BRANCH }}"
 
       - name: Detect upstream changes
         id: detect
         run: |
-          # Add upstream remote
-          git remote add upstream https://github.com/gsd-build/get-shit-done.git || true
-          git fetch upstream main --quiet
-          
-          # Compare with current branch
-          UPSTREAM_HASH=$(git rev-parse upstream/main)
-          CURRENT_HASH=$(git rev-parse HEAD)
-          
-          if [ "$UPSTREAM_HASH" == "$CURRENT_HASH" ]; then
-            echo "no_changes=true" >> $GITHUB_OUTPUT
-            echo "No upstream changes detected"
+          FORK_HEAD=$(git rev-parse HEAD)
+          UPSTREAM_HEAD=$(git rev-parse "upstream/${{ env.UPSTREAM_BRANCH }}")
+          SHORT_SHA=$(git rev-parse --short "upstream/${{ env.UPSTREAM_BRANCH }}")
+
+          echo "fork_head=$FORK_HEAD" >> "$GITHUB_OUTPUT"
+          echo "upstream_head=$UPSTREAM_HEAD" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+          # Check if upstream has commits not in fork HEAD
+          DIFF_COUNT=$(git rev-list HEAD..upstream/${{ env.UPSTREAM_BRANCH }} --count)
+          if [ "$DIFF_COUNT" -eq 0 ]; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+            echo "No upstream changes detected. Exiting."
           else
-            echo "no_changes=false" >> $GITHUB_OUTPUT
-            echo "Upstream changes detected: $CURRENT_HASH → $UPSTREAM_HASH"
-            git log --oneline HEAD..upstream/main > /tmp/upstream_commits.txt
-            cat /tmp/upstream_commits.txt
+            echo "no_changes=false" >> "$GITHUB_OUTPUT"
+            echo "Detected $DIFF_COUNT new upstream commit(s)."
           fi
 
-      - name: Abort if no changes
+      - name: Exit silently if no changes
         if: steps.detect.outputs.no_changes == 'true'
-        run: echo "No upstream changes, skipping sync"
+        run: exit 0
 
-      - name: Merge upstream
-        if: steps.detect.outputs.no_changes == 'false'
+      - name: Create/reset working branch
+        if: steps.detect.outputs.no_changes != 'true'
         run: |
-          git config user.name "gsd-sync-bot"
-          git config user.email "sync@gsd.local"
-          git merge upstream/main -m "merge(upstream): sync from gsd-build/get-shit-done" --no-edit || MERGE_FAILED=1
-          
-          if [ "$MERGE_FAILED" ]; then
-            echo "Merge had conflicts - will attempt resolution"
-            git merge --abort
+          git checkout -B automated/upstream-sync origin/${{ env.DEFAULT_BRANCH }}
+
+      - name: Merge upstream changes
+        if: steps.detect.outputs.no_changes != 'true'
+        id: merge
+        run: |
+          if ! git merge "upstream/${{ env.UPSTREAM_BRANCH }}" --no-edit; then
+            CONFLICT_FILES=$(git diff --name-only --diff-filter=U | tr '\n' '\n- ' | sed 's/^/- /')
+            cat > /tmp/issue-body.md << 'ISSUE_EOF'
+          ## Upstream Sync Merge Conflict
+
+          The automated upstream sync encountered a merge conflict and could not complete.
+
+          **Upstream commit:** ${{ steps.detect.outputs.short_sha }}
+          **Upstream HEAD:** ${{ steps.detect.outputs.upstream_head }}
+          **Fork HEAD (before merge):** ${{ steps.detect.outputs.fork_head }}
+
+          ### Conflicting files
+          ISSUE_EOF
+            git diff --name-only --diff-filter=U | sed 's/^/- /' >> /tmp/issue-body.md
+            cat >> /tmp/issue-body.md << 'ISSUE_EOF'
+
+          ### Resolution steps
+          1. Check out the `automated/upstream-sync` branch locally
+          2. Resolve conflicts manually
+          3. Run `node scripts/generate-prompts.mjs && node scripts/verify-prompts.mjs`
+          4. Push and open PR manually
+
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_EOF
+            gh issue create \
+              --title "Upstream sync merge conflict (upstream@${{ steps.detect.outputs.short_sha }})" \
+              --body-file /tmp/issue-body.md \
+              --label "upstream-sync"
             exit 1
           fi
 
-      - name: Run generator and verifier
-        id: validate
-        continue-on-error: true
+      - name: Run prompt generator
+        if: steps.detect.outputs.no_changes != 'true'
         run: |
-          echo "Running generator..."
           node scripts/generate-prompts.mjs > /tmp/gen_output.txt 2>&1
-          GEN_STATUS=$?
+          echo "Generator output:"
           cat /tmp/gen_output.txt
-          
-          echo ""
-          echo "Running verifier..."
-          node scripts/verify-prompts.mjs > /tmp/ver_output.txt 2>&1
-          VER_STATUS=$?
-          cat /tmp/ver_output.txt
-          
-          if [ $GEN_STATUS -ne 0 ] || [ $VER_STATUS -ne 0 ]; then
-            echo "validation_failed=true" >> $GITHUB_OUTPUT
-            echo "gen_status=$GEN_STATUS" >> $GITHUB_OUTPUT
-            echo "ver_status=$VER_STATUS" >> $GITHUB_OUTPUT
+
+      - name: Run prompt verifier
+        if: steps.detect.outputs.no_changes != 'true'
+        id: verify
+        run: |
+          if ! node scripts/verify-prompts.mjs > /tmp/ver_output.txt 2>&1; then
+            cat > /tmp/issue-body.md << 'ISSUE_EOF'
+          ## Upstream Sync Verifier Failure
+
+          The upstream sync completed merge and regeneration, but the verifier failed. No PR was created.
+
+          **Upstream commit:** ${{ steps.detect.outputs.short_sha }}
+          **Upstream HEAD:** ${{ steps.detect.outputs.upstream_head }}
+
+          ### Generator output
+          ```
+          ISSUE_EOF
+            cat /tmp/gen_output.txt >> /tmp/issue-body.md
+            cat >> /tmp/issue-body.md << 'ISSUE_EOF'
+          ```
+
+          ### Verifier output
+          ```
+          ISSUE_EOF
+            cat /tmp/ver_output.txt >> /tmp/issue-body.md
+            cat >> /tmp/issue-body.md << 'ISSUE_EOF'
+          ```
+
+          ### Resolution steps
+          1. Review the verifier errors above
+          2. Fix `scripts/generate-prompts.mjs` or `scripts/verify-prompts.mjs` as needed (do NOT edit upstream content)
+          3. Re-run workflow or fix and push manually
+
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_EOF
+            gh issue create \
+              --title "Upstream sync verifier failed (upstream@${{ steps.detect.outputs.short_sha }})" \
+              --body-file /tmp/issue-body.md \
+              --label "upstream-sync"
             exit 1
+          fi
+          echo "Verifier passed."
+          cat /tmp/ver_output.txt
+
+      - name: Commit regenerated wrapper files
+        if: steps.detect.outputs.no_changes != 'true'
+        run: |
+          git add .github/prompts/ .github/agents/ .github/instructions/ || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: regenerate Copilot wrapper layer for upstream@${{ steps.detect.outputs.short_sha }}"
           else
-            echo "validation_failed=false" >> $GITHUB_OUTPUT
+            echo "No wrapper file changes to commit."
           fi
 
-      - name: Store upstream context for agent
-        if: steps.detect.outputs.no_changes == 'false' && steps.validate.outputs.validation_failed == 'true'
+      - name: Force-push working branch
+        if: steps.detect.outputs.no_changes != 'true'
         run: |
-          echo "Upstream merge succeeded but validation failed. Invoking sync agent for diagnosis..."
-          # Store context for the agent to analyze
-          git diff HEAD~1 HEAD -- commands/ get-shit-done/ agents/ > /tmp/upstream_changes.diff
-          
-          # Also capture any error output
-          echo "=== Generator Output ===" > /tmp/sync_context.txt
-          cat /tmp/gen_output.txt >> /tmp/sync_context.txt
-          echo "" >> /tmp/sync_context.txt
-          echo "=== Verifier Output ===" >> /tmp/sync_context.txt
-          cat /tmp/ver_output.txt >> /tmp/sync_context.txt
+          git push --force-with-lease origin automated/upstream-sync
 
-      - name: Invoke sync agent
-        if: steps.detect.outputs.no_changes == 'false' && steps.validate.outputs.validation_failed == 'true'
-        # In a real flow, this would call Claude with the agent prompt
-        # For now, output debug info
+      - name: Build PR body
+        if: steps.detect.outputs.no_changes != 'true'
         run: |
-          echo "❌ Validation failed. Would invoke sync agent to:"
-          echo "1. Analyze upstream changes"
-          echo "2. Understand generator/verifier failures"
-          echo "3. Fix generator/verifier scripts"
-          echo "4. Re-run and verify"
-          echo ""
-          echo "Upstream changes:"
-          head -50 /tmp/upstream_changes.diff
-          echo ""
-          echo "Error context:"
-          cat /tmp/sync_context.txt
+          RANGE="${{ steps.detect.outputs.fork_head }}...${{ steps.detect.outputs.upstream_head }}"
+          CHANGED_FILES=$(git diff --name-only "${{ steps.detect.outputs.fork_head }}" "${{ steps.detect.outputs.upstream_head }}" -- commands/gsd/ get-shit-done/ agents/ 2>/dev/null | sed 's/^/- /' || echo "- (none detected)")
 
-      - name: Commit wrapper changes
-        if: steps.detect.outputs.no_changes == 'false' && steps.validate.outputs.validation_failed == 'false'
+          cat > /tmp/pr-body.md << PR_EOF
+          ## Upstream sync from \`gsd-build/get-shit-done\`
+
+          **Upstream commit:** \`${{ steps.detect.outputs.short_sha }}\`
+          **Commit range:** \`${RANGE}\`
+
+          ### Changed upstream files
+          ${CHANGED_FILES}
+
+          ### Copilot wrapper layer
+          ✅ Generator and verifier passed. Wrapper files regenerated automatically.
+
+          ---
+          *This PR was created automatically by the upstream-sync workflow.*
+          *See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.*
+          PR_EOF
+
+      - name: Create or update PR
+        if: steps.detect.outputs.no_changes != 'true'
         run: |
-          git add .github/prompts/ .github/agents/ .github/instructions/
-          if git diff --cached --quiet; then
-            echo "No wrapper changes to commit"
+          SHORT_SHA="${{ steps.detect.outputs.short_sha }}"
+          PR_TITLE="sync: upstream changes from ${SHORT_SHA}"
+
+          EXISTING_PR=$(gh pr list \
+            --head "automated/upstream-sync" \
+            --state open \
+            --json number \
+            --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --base "${{ env.DEFAULT_BRANCH }}" \
+              --head "automated/upstream-sync" \
+              --title "${PR_TITLE}" \
+              --body-file /tmp/pr-body.md \
+              --label "upstream-sync" \
+              --label "automated"
+            echo "Created new PR."
           else
-            git commit -m "chore(sync): regenerate Copilot wrapper files from upstream"
-            echo "wrapper_changed=true" >> $GITHUB_ENV
+            gh pr edit "$EXISTING_PR" \
+              --title "${PR_TITLE}" \
+              --body-file /tmp/pr-body.md
+            echo "Updated existing PR #${EXISTING_PR}."
           fi
-
-      - name: Create pull request
-        if: steps.detect.outputs.no_changes == 'false' && steps.validate.outputs.validation_failed == 'false' && env.wrapper_changed == 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: 'chore(sync): sync from upstream + regenerate wrappers'
-          title: 'chore(sync): upstream sync (${{ github.run_id }})'
-          body: |
-            ## Upstream Sync Report
-
-            Merged changes from: `gsd-build/get-shit-done` 
-
-            ### Changes
-            - ✅ Merged upstream commits
-            - ✅ Regenerated Copilot wrapper layer (`.github/prompts/`, `.github/agents/`)
-            - ✅ Verified all commands have prompts
-            - ✅ No upstream files manually edited
-
-            ### Files Changed
-            - `.github/prompts/` — regenerated from upstream commands
-            - `.github/agents/` — updated as needed
-            - (upstream content unchanged)
-
-            Ready for review and merge.
-          branch: 'chore/upstream-sync-${{ github.run_id }}'
-          delete-branch: true
-
-      - name: Report failure
-        if: failure() && steps.detect.outputs.no_changes == 'false'
-        run: |
-          echo "❌ Sync workflow failed"
-          echo "Manual action required: Review error context above"
-          echo "Next steps:"
-          echo "1. Analyze what broke in generator/verifier"
-          echo "2. Fix scripts manually"
-          echo "3. Re-run workflow"
 
