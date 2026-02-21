@@ -1,0 +1,47 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build zip artifact
+        run: |
+          mkdir -p staging/.github
+
+          # Copy all prompts
+          cp -r .github/prompts staging/.github/prompts
+
+          # Copy GSD agent files (|| true so missing dir is non-fatal)
+          mkdir -p staging/.github/agents
+          find .github/agents -maxdepth 1 -name "gsd-*.agent.md" -exec cp {} staging/.github/agents/ \; 2>/dev/null || true
+
+          # Copy GSD-prefixed instruction files only
+          mkdir -p staging/.github/instructions
+          find .github/instructions -maxdepth 1 \( -name "gsd-*.instructions.md" -o -name "gsd.*.md" \) -exec cp {} staging/.github/instructions/ \; 2>/dev/null || true
+
+          # Build zip from inside staging so extracted paths start with .github/
+          cd staging && zip -r ../gsd-copilot-${{ github.ref_name }}.zip .
+
+      - name: Create GitHub Release and upload asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            ./gsd-copilot-${{ github.ref_name }}.zip \
+            --title "GSD Copilot ${{ github.ref_name }}" \
+            --generate-notes
