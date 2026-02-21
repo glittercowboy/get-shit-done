@@ -741,39 +741,80 @@ function checkQuotaAndWait(cwd) {
 }
 
 function formatStatusBar(quotaState) {
-  // Calculate tokens delegated to smaller models
-  const tasks = quotaState.tasks || [];
-  const totalTokens = tasks.reduce((sum, t) => sum + t.tokens_in + t.tokens_out, 0);
+  // Calculate tokens delegated to smaller models — last 24h sliding window
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const tasks = (quotaState.tasks || []).filter(t => {
+    const ts = t.timestamp ? new Date(t.timestamp).getTime() : 0;
+    return ts >= cutoff;
+  });
+  const totalTokens = tasks.reduce((sum, t) =>
+    sum + (t.tokens_in || 0) + (t.tokens_cache_create_1h || 0)
+        + (t.tokens_cache_create_5m || 0) + (t.tokens_cache_read || 0)
+        + (t.tokens_out || 0), 0);
 
-  // Calculate model distribution
-  const modelCounts = { haiku: 0, sonnet: 0, opus: 0 };
+  // Pricing per million tokens (anthropic.com/pricing, Feb 2026)
+  // cache_create_1h = 2x input  |  cache_create_5m = 1.25x input  |  cache_read = 0.1x input
+  const RATES = {
+    haiku:  { in: 1,  out: 5,  cc1h: 2,   cc5m: 1.25, cr: 0.10 },
+    sonnet: { in: 3,  out: 15, cc1h: 6,   cc5m: 3.75, cr: 0.30 },
+    opus:   { in: 5,  out: 25, cc1h: 10,  cc5m: 6.25, cr: 0.50 }
+  };
+  const modelTokens = { haiku: 0, sonnet: 0, opus: 0 };
+  let actualCost = 0;
+  let opusCost = 0;
+
   for (const task of tasks) {
     const model = task.model.toLowerCase();
-    if (modelCounts[model] !== undefined) {
-      modelCounts[model] += task.tokens_in + task.tokens_out;
+    const R = RATES[model] || RATES.sonnet;
+    const hasBreakdown = task.tokens_cache_read !== undefined;
+    let tIn, tCc1h, tCc5m, tCr, tOut;
+    if (hasBreakdown) {
+      tIn   = task.tokens_in              || 0;
+      tCc1h = task.tokens_cache_create_1h || 0;
+      tCc5m = task.tokens_cache_create_5m || 0;
+      tCr   = task.tokens_cache_read      || 0;
+      tOut  = task.tokens_out             || 0;
+    } else {
+      // Old format: tokens_in is the raw total — treat as regular input (slight overestimate)
+      tIn = task.tokens_in || 0; tCc1h = 0; tCc5m = 0; tCr = 0;
+      tOut = task.tokens_out || 0;
     }
+
+    if (modelTokens[model] !== undefined)
+      modelTokens[model] += tIn + tCc1h + tCc5m + tCr + tOut;
+
+    // Savings: haiku vs sonnet baseline, sonnet vs opus baseline, opus vs itself = 0
+    const SR = model === 'haiku' ? RATES.sonnet : model === 'sonnet' ? RATES.opus : R;
+    actualCost += (tIn * R.in  + tCc1h * R.cc1h  + tCc5m * R.cc5m  + tCr * R.cr  + tOut * R.out)  / 1e6;
+    opusCost   += (tIn * SR.in + tCc1h * SR.cc1h + tCc5m * SR.cc5m + tCr * SR.cr + tOut * SR.out) / 1e6;
   }
 
-  const total = modelCounts.haiku + modelCounts.sonnet + modelCounts.opus || 1;
-  const hPercent = Math.round((modelCounts.haiku / total) * 100);
-  const sPercent = Math.round((modelCounts.sonnet / total) * 100);
-  const oPercent = Math.round((modelCounts.opus / total) * 100);
+  const totalByModel = modelTokens.haiku + modelTokens.sonnet + modelTokens.opus || 1;
+  const hPercent = Math.round((modelTokens.haiku  / totalByModel) * 100);
+  const sPercent = Math.round((modelTokens.sonnet / totalByModel) * 100);
+  const oPercent = Math.round((modelTokens.opus   / totalByModel) * 100);
 
-  // Format token count (K for thousands)
-  const tokensK = totalTokens >= 1000 ? `${Math.round(totalTokens / 1000)}K` : totalTokens;
+  // Format token count: B / M / K
+  const tokFmt = totalTokens >= 1e9 ? `${(totalTokens / 1e9).toFixed(1)}B`
+    : totalTokens >= 1e6            ? `${(totalTokens / 1e6).toFixed(1)}M`
+    : totalTokens >= 1000           ? `${Math.round(totalTokens / 1000)}K`
+    :                                  String(totalTokens);
+  const tokensStr = tokFmt + '/24h';
 
-  // Determine most recent model (for "→ Haiku" part)
-  const lastTask = tasks[tasks.length - 1];
-  const lastModel = lastTask ? lastTask.model : 'none';
+  // Last model by timestamp — includes subagent turns recorded in quota state
+  const lastTask = tasks.length ? tasks.reduce((a, b) =>
+    new Date(a.timestamp) > new Date(b.timestamp) ? a : b
+  ) : null;
+  const lastModelStr = lastTask ? ` last:${lastTask.model}` : '';
 
-  // Estimate time extension (rough: 1K tokens = ~30 seconds saved vs Opus)
-  // Using haiku is ~10x cheaper than Opus, sonnet ~5x cheaper
-  const haikuSavings = modelCounts.haiku * 0.9; // 90% savings vs opus
-  const sonnetSavings = modelCounts.sonnet * 0.5; // 50% savings vs opus
-  const savedTokenValue = haikuSavings + sonnetSavings;
-  const savedMinutes = Math.round(savedTokenValue / 2000); // Rough estimate
+  // Savings: haiku vs sonnet + sonnet vs opus (tier-by-tier, not all-vs-opus)
+  const saved = opusCost - actualCost;
+  const savedStr = saved < 0.01  ? '<$0.01 saved'
+    : saved < 1                  ? `$${saved.toFixed(2)} saved`
+    : saved < 1000               ? `$${Math.round(saved)} saved`
+    :                              `$${(saved / 1000).toFixed(1)}K saved`;
 
-  return `Tokens: ${tokensK} → ${lastModel} | +${savedMinutes} min | H:${hPercent}% S:${sPercent}% O:${oPercent}%`;
+  return `Tokens: ${tokensStr}${lastModelStr} | ${savedStr} | H:${hPercent}% S:${sPercent}% O:${oPercent}%`;
 }
 
 function getUsageStats(quotaState) {
