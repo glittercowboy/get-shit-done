@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 ## Current Position
 
-Phase: 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a (in progress)
-Plan: 3 of ? (31-02 and 31-03 complete)
-Status: Plan 31-02 complete — per-task tier routing and quota downgrade added to coordinator execute step
-Last activity: 2026-02-20 — Plan 31-02 complete (PER_TASK_MODE, TASK_TIERS, quota downgrade, haiku escalation, routing stats in Telegram notification)
+Phase: 33-v1.10.0-tech-debt-closure (in progress)
+Plan: 2 of ? (33-01, 33-02 complete)
+Status: Plan 33-02 complete — requirements-completed backfilled in 7 SUMMARY.md files across phases 22-24 (DISC-03 through NOTIF-06)
+Last activity: 2026-02-21 — Plan 33-02 complete (requirements traceability restored for phases 22, 23, 24)
 
 Progress: [████████████████████] 100% (v1.11.0 — 5/5 phases, Phase 31 in progress)
 
@@ -48,6 +48,12 @@ Progress: [████████████████████] 100% (v
 | Phase 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a P03 | 4 | 1 tasks | 1 files |
 | Phase 31 P01 | 2 | 1 tasks | 1 files |
 | Phase 31-per-task-model-routing-executor-becomes-mini-orchestrator-option-a P02 | 2 | 1 tasks | 1 files |
+| Phase 32-reliability-quality-gap-fixes P02 | 2 | 2 tasks | 2 files |
+| Phase 32-reliability-quality-gap-fixes P03 | 2 | 2 tasks | 2 files |
+| Phase 32-reliability-quality-gap-fixes P01 | 1 | 3 tasks | 3 files |
+| Phase 32-reliability-quality-gap-fixes P04 | 2 | 2 tasks | 3 files |
+| Phase 33-v1.10.0-tech-debt-closure P02 | 1 | 2 tasks | 7 files |
+| Phase 33 P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -134,10 +140,22 @@ Recent decisions affecting current work:
 - [Phase 31-01]: routing_pass step fires after write_phase_prompt and before validate_plan in gsd-planner — tier tags committed with plan
 - [Phase 31-01]: MODEL_PROFILE check fail = silent skip (routing is best-effort); per-task router failure defaults to sonnet
 - [Phase 31]: PER_TASK_MODE activates only when at least one task has an explicit tier tag — backward-compatible fallback to plan-level routing for plans with no tier tags
+- [Phase 32-02]: GAP-04: restoreState() skips answered questions before stale-check; saveState() compaction reuses existing write path for zero duplication
+- [Phase 32-02]: GAP-02: execute-roadmap create_topic catch split into two branches — MCP-unavailable silent, configured-but-failed emits telegram_topic_failed event + console.warn + best-effort plain group message
+- [Phase Phase 32-03]: embeddingTimeoutMs added to KNOWLEDGE_DEFAULTS (2000ms fallback); readKnowledgeConfig() reads config.knowledge.embedding_timeout_ms
+- [Phase Phase 32-03]: Telegram escalation KB write goes inside sensitive_items loop (per item, not batch) so DB is updated even if later escalations fail
+- [Phase Phase 32-03]: GSD_KB_CONTENT/GSD_KB_CONTEXT env vars + || true used for non-fatal storeInsights() call in coordinator bash one-liner
+- [Phase 32-01]: openSync wx flag used for atomic exclusive create — EEXIST is race-win signal, not a fatal error; other errors fall through to allow extraction
+- [Phase 32-01]: MAX_BUFFER_SIZE set to 1 MB — disconnects before full 2 MB test payload arrives, strictly safer while satisfying SC-05 acceptance criterion
+- [Phase 32-01]: Fallback in _insertOrEvolveImpl calls public insertOrEvolve (re-enters serializer queue) to preserve serialization guarantee on DB miss path
+- [Phase 32-04]: searchKnowledgeAsync added as sibling to searchKnowledge — knowledge.js sync caller unchanged; gsd-tools.js cmdQueryKnowledge upgraded to async variant
+- [Phase 32-04]: compression-cache.js mtime invalidation confirmed correct — filePath sanity check added in get() as defensive measure against MD5 collisions
+- [Phase 33]: REQUIREMENTS.md not git-tracked — changes applied on disk only; consistent with project pattern
 
 ### Roadmap Evolution
 
 - Phase 31 added: Per-task model routing — executor becomes mini-orchestrator (Option A)
+- Phase 32 added: Reliability & Quality Gap Fixes — 9 specific gaps: Telegram replies → KB, silent topic failure, session-end race condition, question-state.jsonl pruning, IPC buffer cap, embedding timeout configurable, knowledge evolution transaction, compression cache mtime, RRF implementation
 
 ### Pending Todos
 
@@ -155,6 +173,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Completed 31-02-PLAN.md — per-task tier routing and quota downgrade added to gsd-phase-coordinator execute step
+Last session: 2026-02-21
+Stopped at: Completed 33-02-PLAN.md — requirements-completed backfilled in 7 SUMMARY.md files across phases 22-24
 Resume file: None

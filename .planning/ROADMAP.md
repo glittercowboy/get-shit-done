@@ -270,6 +270,8 @@ Plans:
 | 28. Compression & Observability | v1.11.0 | 3/3 | Complete | 2026-02-20 |
 | 29. Session Extraction Fix | v1.11.0 | 1/1 | Complete | 2026-02-20 |
 | 30. Milestone Summary & Archival | v1.11.0 | 1/1 | Complete | 2026-02-20 |
+| 32. Reliability & Quality Gap Fixes | TBD | 4/4 | Complete | 2026-02-21 |
+| 33. v1.10.0 Tech Debt Closure | TBD | 1/2 | In Progress | - |
 
 ### Phase 31: Per-task model routing — executor becomes mini-orchestrator (Option A)
 
@@ -282,5 +284,42 @@ Plans:
 - [ ] 31-02-PLAN.md — Update gsd-phase-coordinator: parse per-task tier tags, apply quota downgrade, spawn per-task executors, add routing stats to Telegram notification
 - [ ] 31-03-PLAN.md — Update gsd-executor: haiku→sonnet escalation on retry, routing tier tracking in SUMMARY.md
 
+### Phase 32: Reliability & Quality Gap Fixes
+
+**Goal:** Close nine specific gaps identified by post-v1.11.0 audit: Telegram replies written to CONTEXT.md but never injected into the knowledge DB; silent Telegram topic creation failure swallowing all notifications for an entire roadmap run; session-end hook .done race condition allowing duplicate extraction; answered questions accumulating in question-state.jsonl forever; IPC server buffering unbounded partial JSON; embedding dedup timeout hardcoded at 2s; knowledge evolution running without a transaction; compression cache never invalidating on file modification; and knowledge search claiming RRF but performing sequential FTS-then-vector
+**Depends on:** Phase 31
+**Requirements**: GAP-01 through GAP-09
+**Success Criteria** (what must be TRUE):
+  1. After a Telegram escalation, a new knowledge DB entry appears with confidence 1.0 for the question+answer pair — confirmed by querying the DB immediately after escalation completes
+  2. When `create_topic` fails at roadmap start, a visible warning is emitted to the execution log and Telegram notifications are explicitly disabled (not silently no-op) for that run
+  3. Two concurrent Stop hook invocations for the same session produce exactly one knowledge extraction — confirmed by running two simultaneous invocations and checking DB entry count
+  4. Restarting the Telegram daemon after answering two questions leaves question-state.jsonl with zero answered entries (pruned on startup)
+  5. Sending 2MB of partial JSON to the IPC server closes the socket before the process exceeds 50MB RSS increase
+  6. Setting `knowledge.embedding_timeout_ms: 500` in config.json causes `GSD_DEBUG=1` logs to show the configured timeout being used
+  7. Writing two entries where the second write fails mid-operation (vector table update) leaves the DB with either both tables updated or neither — no orphaned main-table entries
+  8. After modifying a compressed doc, the next hook invocation produces a fresh compression result (cache miss) rather than serving the stale cached version
+  9. A search query that matches 3 documents in FTS at ranks [1,2,5] and the same documents in vector at ranks [3,1,2] produces a merged result ranked by RRF score rather than FTS rank alone
+**Plans:** 4/4 complete
+
+Plans:
+- [x] 32-01-PLAN.md — GAP-03 atomic .done guard + GAP-05 IPC buffer cap + GAP-07 evolution mutex — completed 2026-02-21
+- [x] 32-02-PLAN.md — GAP-04 question-state prune on startup + GAP-02 create_topic failure warning — completed 2026-02-21
+- [x] 32-03-PLAN.md — GAP-06 embedding timeout configurable + GAP-01 Telegram escalation answers to KB — completed 2026-02-21
+- [x] 32-04-PLAN.md — GAP-08 compression cache mtime verification + GAP-09 searchKnowledgeAsync + RRF — completed 2026-02-21
+
+### Phase 33: v1.10.0 Tech Debt Closure
+
+**Goal:** Fix the confidence type contract bug in query-knowledge output (string "medium" returned instead of numeric float, breaking meta-answerer scoring when KB has entries) and update REQUIREMENTS.md traceability + SUMMARY.md frontmatter to accurately reflect v1.10.0 completion
+**Depends on:** Phase 32
+**Success Criteria** (what must be TRUE):
+  1. `query-knowledge` returns `confidence: 0.7` (float) as the fallback when a KB entry lacks `metadata.confidence` — confirmed by inserting a test entry without confidence metadata and querying it
+  2. REQUIREMENTS.md traceability table shows all 25 v1.10.0 requirements as "Complete" and all 25 checkboxes checked `[x]`
+  3. Plans 22-02, 22-03, 22-04, 23-01, 24-02, 24-03, 24-04 each have correct `requirements-completed` arrays in their SUMMARY.md frontmatter matching the requirements they implemented
+**Plans:** 1/2
+
+Plans:
+- [x] 33-01-PLAN.md — Fix `confidence` string/float bug in `gsd-tools.js` line 8947 + update REQUIREMENTS.md traceability (20 Pending → Complete, 20 checkboxes) — completed 2026-02-21
+- [ ] 33-02-PLAN.md — Backfill `requirements-completed` in 7 SUMMARY.md files (22-02, 22-03, 22-04, 23-01, 24-02, 24-03, 24-04)
+
 ---
-*Roadmap created: 2026-02-15 | Last updated: 2026-02-20 — v1.11.0 complete (5/5 phases: Telegram MCP reliability, knowledge quality, compression observability, session extraction fix, milestone archival)*
+*Roadmap created: 2026-02-15 | Last updated: 2026-02-21 — Phase 33 Plan 01 complete: confidence bug fixed + REQUIREMENTS.md traceability closed*
