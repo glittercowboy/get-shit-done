@@ -295,7 +295,7 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(phase-${PARENT_PHASE
 Verify phase achieved its GOAL, not just completed tasks.
 
 ```bash
-PHASE_REQ_IDS=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE_NUMBER}" | jq -r '.section' | grep -i "Requirements:" | sed 's/.*Requirements:\*\*\s*//' | sed 's/[\[\]]//g')
+PHASE_REQ_IDS=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE_NUMBER}" | jq -r '.section' | grep -i "\*\*Requirements\*\*:" | head -1 | sed 's/.*\*\*Requirements\*\*:\s*//' | sed 's/[\[\]]//g' | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
 ```
 
 ```
